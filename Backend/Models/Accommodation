@@ -1,0 +1,86 @@
+const mongoose = require("mongoose");
+
+const accommodationSchema = new mongoose.Schema({
+  owner: { 
+    type: String,
+    required: true 
+  },
+
+  title: { 
+    type: String, 
+    required: true, 
+    trim: true 
+  },
+
+  description: { 
+    type: String, 
+    trim: true 
+  },
+
+  address: { 
+    type: String, 
+    required: true 
+  },
+
+  location: {
+    type: {
+      type: String,
+      enum: ["Point"],
+      default: "Point"
+    },
+    coordinates: {
+      type: [Number], // [lng, lat]
+      required: true
+    }
+  },
+
+  pricePerMonth: { 
+    type: Number, 
+    required: true 
+  },
+
+  images: [String], 
+
+  bedrooms: { 
+    type: Number, 
+    default: 1 
+  },
+  beds: { 
+    type: Number, 
+    default: 1 
+  },
+  bathrooms: { 
+    type: Number, 
+    default: 1 
+  },
+
+  amenities: [String], 
+  rules: [String],    
+
+  genderPreference: { 
+    type: String, 
+    enum: ["boys", "girls", "mixed"], 
+    required: true 
+  },
+
+  ratingAverage: { 
+    type: Number, 
+    default: 0 
+  },
+  ratingCount: { 
+    type: Number, 
+    default: 0 
+  },
+
+  isAvailable: { 
+    type: Boolean, 
+    default: true 
+  }
+
+}, { timestamps: true });
+
+// Geospatial index for distance queries
+accommodationSchema.index({ location: "2dsphere" });
+
+
+module.exports = mongoose.models.Accommodation || mongoose.model("Accommodation", accommodationSchema);

@@ -1,0 +1,13 @@
+const express = require("express");
+const router = express.Router();
+
+const Accommodation = require("../Models/Accommodation");
+
+
+const AccommodationController = require("../Controllers/Accommodation_Controller");
+
+
+router.post("/",AccommodationController.addAccommodation);
+
+
+module.exports = router;
