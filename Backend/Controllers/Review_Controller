@@ -1,0 +1,141 @@
+const Review = require("../models/Review");
+const User = require("../models/User");
+const Accommodation = require("../models/Accommodation");
+
+// Helper: Recalculate rating for accommodation
+const updateAccommodationRating = async (accommodationId) => {
+  if (!accommodationId) return;
+
+  const acc = await Accommodation.findById(accommodationId).populate("reviews");
+  if (!acc) return;
+
+  const allRatings = acc.reviews.map(r => r.rating);
+  acc.ratingCount = allRatings.length;
+  acc.ratingAverage = allRatings.length > 0 ? allRatings.reduce((sum, r) => sum + r, 0) / allRatings.length : 0;
+  await acc.save();
+};
+
+// Helper: Recalculate rating for host
+const updateHostRating = async (hostId) => {
+  if (!hostId) return;
+
+  const host = await User.findById(hostId).populate("reviews");
+  if (!host) return;
+
+  const allRatings = host.reviews.map(r => r.rating);
+  host.stats.totalReviews = allRatings.length;
+  host.stats.hostRating = allRatings.length > 0 ? allRatings.reduce((sum, r) => sum + r, 0) / allRatings.length : 0;
+  await host.save();
+};
+
+// ==============================
+// Add review
+// ==============================
+const addReview = async (req, res) => {
+  try {
+    const { reviewer, accommodation, host, comment, rating, images } = req.body;
+
+    if (!reviewer || !comment || !rating) {
+      return res.status(400).json({ success: false, message: "Missing required fields" });
+    }
+
+    const review = new Review({ reviewer, accommodation, host, comment, rating, images });
+    await review.save();
+
+    // Update accommodation
+    if (accommodation) {
+      await Accommodation.findByIdAndUpdate(accommodation, { $push: { reviews: review._id } });
+      await updateAccommodationRating(accommodation);
+    }
+
+    // Update host
+    if (host) {
+      await User.findByIdAndUpdate(host, { $push: { reviews: review._id } });
+      await updateHostRating(host);
+    }
+
+    res.status(201).json({ success: true, message: "Review added", data: review });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ==============================
+// Update review
+// ==============================
+const updateReview = async (req, res) => {
+  try {
+    const { comment, rating, images } = req.body;
+    const review = await Review.findById(req.params.id);
+
+    if (!review) return res.status(404).json({ success: false, message: "Review not found" });
+
+    // Update fields
+    if (comment) review.comment = comment;
+    if (rating) review.rating = rating;
+    if (images) review.images = images;
+
+    await review.save();
+
+    // Recalculate ratings
+    await updateAccommodationRating(review.accommodation);
+    await updateHostRating(review.host);
+
+    res.json({ success: true, message: "Review updated", data: review });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ==============================
+// Delete review
+// ==============================
+const deleteReview = async (req, res) => {
+  try {
+    const review = await Review.findByIdAndDelete(req.params.id);
+    if (!review) return res.status(404).json({ success: false, message: "Review not found" });
+
+    // Remove from accommodation
+    if (review.accommodation) {
+      await Accommodation.findByIdAndUpdate(review.accommodation, { $pull: { reviews: review._id } });
+      await updateAccommodationRating(review.accommodation);
+    }
+
+    // Remove from host
+    if (review.host) {
+      await User.findByIdAndUpdate(review.host, { $pull: { reviews: review._id } });
+      await updateHostRating(review.host);
+    }
+
+    res.json({ success: true, message: "Review deleted" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ==============================
+// Get reviews
+// ==============================
+const getReviews = async (req, res) => {
+  try {
+    const reviews = await Review.find()
+      .populate("reviewer", "name profileImage")
+      .populate("accommodation", "title address")
+      .populate("host", "name profileImage");
+
+    res.json({ success: true, data: reviews });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+module.exports = {
+  addReview,
+  updateReview,
+  deleteReview,
+  getReviews,
+};

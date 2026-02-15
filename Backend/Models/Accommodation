@@ -62,6 +62,13 @@ const accommodationSchema = new mongoose.Schema({
     enum: ["boys", "girls", "mixed"], 
     required: true 
   },
+  
+  reviews: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Review",
+    }
+  ],
 
   ratingAverage: { 
     type: Number, 
@@ -75,12 +82,16 @@ const accommodationSchema = new mongoose.Schema({
   isAvailable: { 
     type: Boolean, 
     default: true 
-  }
+  },
+
+  expireDate: {
+    type: Date,
+    required: false, // optional field
+  },
 
 }, { timestamps: true });
 
 // Geospatial index for distance queries
 accommodationSchema.index({ location: "2dsphere" });
-
 
 module.exports = mongoose.models.Accommodation || mongoose.model("Accommodation", accommodationSchema);
