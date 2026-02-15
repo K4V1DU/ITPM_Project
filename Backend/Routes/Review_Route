@@ -1,0 +1,26 @@
+const express = require("express");
+const router = express.Router();
+const {
+  addReview,
+  updateReview,
+  deleteReview,
+  getReviews,
+} = require("../controllers/Review_Controller");
+
+// ==============================
+// Routes
+// ==============================
+
+// Get all reviews
+router.get("/", getReviews);
+
+// Add a new review
+router.post("/", addReview);
+
+// Update an existing review by ID
+router.put("/:id", updateReview);
+
+// Delete a review by ID
+router.delete("/:id", deleteReview);
+
+module.exports = router;

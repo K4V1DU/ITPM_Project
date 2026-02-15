@@ -4,11 +4,14 @@ const photoSchema = new mongoose.Schema({
   data: { 
     type: Buffer, 
     required: true 
-  },      // raw image data
+  },  // raw image data
+
+
   contentType: { 
     type: String, 
     required: true 
   },      // e.g., "image/jpeg"
+  
   
   order: { 
     type: Number, 

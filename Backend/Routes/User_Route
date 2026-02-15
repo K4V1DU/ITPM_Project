@@ -1,0 +1,34 @@
+const express = require("express");
+const router = express.Router();
+const {
+  registerUser,
+  loginUser,
+  getUsers,
+  getUserById,
+  updateUser,
+  deleteUser,
+  addFavorite,
+  removeFavorite,
+} = require("../Controllers/User_Controller");
+
+// ===============================
+// Auth Routes
+// ===============================
+router.post("/register", registerUser);
+router.post("/login", loginUser);
+
+// ===============================
+// User CRUD Routes
+// ===============================
+router.get("/", getUsers);              // Get all users
+router.get("/:id", getUserById);        // Get single user by ID
+router.put("/:id", updateUser);         // Update user
+router.delete("/:id", deleteUser);      // Delete user
+
+// ===============================
+// Favorites
+// ===============================
+router.post("/favorites/add", addFavorite);       // Add favorite accommodation
+router.post("/favorites/remove", removeFavorite); // Remove favorite accommodation
+
+module.exports = router;
