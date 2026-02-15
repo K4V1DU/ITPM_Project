@@ -1,0 +1,75 @@
+.host-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: #f7f7f7;
+}
+
+.host-title {
+  font-size: 28px;
+  margin-bottom: 40px;
+}
+
+.card-container {
+  display: flex;
+  gap: 30px;
+  margin-bottom: 40px;
+}
+
+.host-card {
+  width: 220px;
+  height: 220px;
+  background: white;
+  border-radius: 20px;
+  border: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.host-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.host-card.active {
+  border: 2px solid black;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.emoji {
+  font-size: 50px;
+  margin-bottom: 15px;
+}
+
+.next-btn {
+  width: 150px;
+  height: 45px;
+  border-radius: 10px;
+  border: none;
+  background: black;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.next-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.card-icon {
+  font-size: 50px;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.host-card.active .card-icon {
+  color: black;
+}
