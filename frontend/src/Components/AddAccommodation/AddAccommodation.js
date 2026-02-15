@@ -356,7 +356,6 @@ const AddAccommodation = () => {
               <option value="">Select option</option>
               <option value="boys">Boys Only</option>
               <option value="girls">Girls Only</option>
-              <option value="lecturers">Lecturers Only</option>
               <option value="mixed">Mixed (Boys & Girls)</option>
             </select>
           </div>
@@ -367,8 +366,6 @@ const AddAccommodation = () => {
               <option>Select type</option>
               <option>Apartment</option>
               <option>House</option>
-              <option>Studio</option>
-              <option>Dormitory</option>
               <option>Shared Room</option>
               <option>Private Room</option>
             </select>
@@ -406,37 +403,27 @@ const AddAccommodation = () => {
                 step="0.5"
               />
             </div>
-            <div className="form-group">
-              <label>Floor Area (sq.ft) *</label>
-              <input
-                type="number"
-                className="form-input"
-                placeholder="e.g., 800"
-                min="1"
-              />
-            </div>
+
           </div>
 
-          <div className="form-group">
-            <label>Bathroom Type *</label>
-            <select className="form-input" name="bathroomType" required>
-              <option value="">Select type</option>
-              <option value="private">Private Bathroom</option>
-              <option value="shared">Shared Bathroom</option>
-            </select>
-          </div>
 
-          <div className="form-group">
-            <label>Utility Bills *</label>
-            <select className="form-input" name="utilityBills" required>
-              <option value="">Select option</option>
-              <option value="included">Electricity & Water Included</option>
-              <option value="excluded">Electricity & Water Not Included</option>
-              <option value="separate">
-                Electricity & Water Charged Separately
-              </option>
-            </select>
-          </div>
+<div className="form-group">
+  <label>Utility Bills *</label>
+  <div className="form-input">
+    <label>
+      <input type="checkbox" name="electricity" value="included" />
+      Electricity Included
+    </label>
+
+    <label>
+      <input type="checkbox" name="water" value="included" />
+      Water Included
+    </label>
+
+  </div>
+</div>
+
+
 
           <div className="form-group">
             <label>Amenities</label>
