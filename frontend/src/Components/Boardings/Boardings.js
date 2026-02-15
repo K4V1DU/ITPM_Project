@@ -8,6 +8,9 @@ import {
   FaFacebookF,
   FaTwitter,
   FaInstagram,
+  FaCog,
+  FaSignOutAlt,
+  FaEnvelope,
 } from "react-icons/fa";
 import axios from "axios";
 
@@ -15,7 +18,10 @@ const Boarding = () => {
   const [accommodations, setAccommodations] = useState([]);
   const [imageUrls, setImageUrls] = useState({});
   const [loading, setLoading] = useState(true);
+  const [showDropdown, setShowDropdown] = useState(false);
 
+
+  // Fetch Accommodations
   useEffect(() => {
     const fetchAccommodations = async () => {
       try {
@@ -23,7 +29,6 @@ const Boarding = () => {
         const res = await axios.get("http://localhost:5000/accommodation");
 
         if (res.data.success) {
-          // Only include available accommodations
           const accData = res.data.data.filter((acc) => acc.isAvailable);
           setAccommodations(accData);
 
@@ -36,18 +41,17 @@ const Boarding = () => {
                 try {
                   const imageRes = await axios.get(
                     `http://localhost:5000/Photo/${imageId}`,
-                    { responseType: "blob" }
+                    { responseType: "blob" },
                   );
                   const imageUrl = URL.createObjectURL(imageRes.data);
                   urls[acc._id] = imageUrl;
                 } catch (err) {
-                  console.error("Failed to fetch image:", err);
                   urls[acc._id] = "https://via.placeholder.com/400x300";
                 }
               } else {
                 urls[acc._id] = "https://via.placeholder.com/400x300";
               }
-            })
+            }),
           );
 
           setImageUrls(urls);
@@ -62,6 +66,22 @@ const Boarding = () => {
     fetchAccommodations();
   }, []);
 
+
+  // Close Dropdown When Clicking Outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest(".dropdown-wrapper")) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener("click", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, []);
+
   return (
     <div>
       {/* Navbar */}
@@ -70,6 +90,7 @@ const Boarding = () => {
           <a href="#" className="logo">
             <FaAirbnb /> Bodima
           </a>
+
           <div className="nav-menu">
             <a href="#" className="nav-item active">
               Boardings
@@ -82,14 +103,52 @@ const Boarding = () => {
             </a>
           </div>
         </div>
+
         <div className="navbar-right">
           <button className="host-btn">Become a Host</button>
-          <div className="profile-icon">
-            <FaBars />
-          </div>
+
+          
           <div className="profile-icon">
             <FaUser />
           </div>
+
+          {/* Dropdown Section */}
+          <div className="dropdown-wrapper">
+            <div
+              className="dropdown-icon"
+              onClick={() => setShowDropdown(!showDropdown)}
+            >
+              <FaBars />
+            </div>
+
+            {showDropdown && (
+              <div className="dropdown-menu">
+                <div className="dropdown-item">
+                  <FaUser className="dropdown-item-icon" />
+                  <span>Profile</span>
+                </div>
+
+                <div className="dropdown-item">
+                  <FaEnvelope className="dropdown-item-icon" />
+                  <span>Messages</span>
+                </div>
+
+                <div className="dropdown-divider"></div>
+
+                <div className="dropdown-item">
+                  <FaCog className="dropdown-item-icon" />
+                  <span>Settings</span>
+                </div>
+
+                <div className="dropdown-item logout">
+                  <FaSignOutAlt className="dropdown-item-icon" />
+                  <span>Logout</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          
         </div>
       </nav>
 
@@ -131,7 +190,8 @@ const Boarding = () => {
                 <div className="card-image-wrapper">
                   <img
                     src={
-                      imageUrls[acc._id] || "https://via.placeholder.com/400x300"
+                      imageUrls[acc._id] ||
+                      "https://via.placeholder.com/400x300"
                     }
                     alt={acc.title}
                     className="card-image"
@@ -142,12 +202,13 @@ const Boarding = () => {
                 <div className="card-content">
                   <h3 className="card-title">{acc.title}</h3>
                   <p className="card-subtitle">
-                    {acc.address} • {acc.bedrooms} bed(s)
+                     {acc.address}
                   </p>
 
                   <div className="card-footer">
                     <span className="card-rating">
-                      ★ {acc.ratingAverage ? acc.ratingAverage.toFixed(1) : "0.0"}
+                      {acc.bedrooms} bed(s) •  ★{" "}
+                      {acc.ratingAverage ? acc.ratingAverage.toFixed(1) : "0.0"}
                     </span>
 
                     <span className="card-price">
@@ -172,6 +233,7 @@ const Boarding = () => {
             <a href="#">Cancellation Options</a>
             <a href="#">Community Guideline</a>
           </div>
+
           <div className="footer-column">
             <h4>Community</h4>
             <a href="#">Airbnb Adventure</a>
@@ -179,6 +241,7 @@ const Boarding = () => {
             <a href="#">Tips for Hosts</a>
             <a href="#">Careers</a>
           </div>
+
           <div className="footer-column">
             <h4>Host</h4>
             <a href="#">Host a home</a>
@@ -186,6 +249,7 @@ const Boarding = () => {
             <a href="#">Responsible hosting</a>
             <a href="#">Community forum</a>
           </div>
+
           <div className="footer-column">
             <h4>About</h4>
             <a href="#">About Airbnb</a>
@@ -203,7 +267,6 @@ const Boarding = () => {
               style={{
                 color: "var(--text-secondary)",
                 textDecoration: "none",
-                cursor: "pointer",
               }}
             >
               Privacy · Terms · Sitemap
@@ -211,13 +274,13 @@ const Boarding = () => {
           </div>
 
           <div className="footer-social">
-            <a href="#" title="Facebook">
+            <a href="#">
               <FaFacebookF />
             </a>
-            <a href="#" title="Twitter">
+            <a href="#">
               <FaTwitter />
             </a>
-            <a href="#" title="Instagram">
+            <a href="#">
               <FaInstagram />
             </a>
           </div>
