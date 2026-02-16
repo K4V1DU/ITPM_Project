@@ -12,6 +12,7 @@ import { FaReact } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 
 
+
 // Google Maps API configuration - Using your provided API key
 const GOOGLE_MAPS_API_KEY = "AIzaSyDKKnxSMEUkZyZiLT83DXCJhR4eplblzKA";
 
@@ -52,6 +53,15 @@ const AddAccommodation = () => {
   const [mapError, setMapError] = useState(false);
   const [nearbyPlaces, setNearbyPlaces] = useState([]);
   const navigate = useNavigate();
+  const [photos, setPhotos] = useState([]);
+  const [price, setPrice] = useState("");
+  const [keyDuration, setKeyDuration] = useState("");
+  const calculatedKeyMoney =
+  price && keyDuration
+    ? Number(price) * Number(keyDuration)
+    : 0;
+
+
 
     const handleExit = () => {
     navigate("/");   // home page
@@ -74,6 +84,23 @@ const AddAccommodation = () => {
     setCurrentStep(1);
     navigate("/cust");
   };
+
+const handlePhotoUpload = (e) => {
+  const files = Array.from(e.target.files);
+
+  if (files.length + photos.length > 5) {
+    alert("Maximum 5 photos allowed");
+    return;
+  }
+
+  const imagePreviews = files.map((file) =>
+    URL.createObjectURL(file)
+  );
+
+  setPhotos((prev) => [...prev, ...imagePreviews]);
+
+  e.target.value = null; // reset input
+};
 
   // Google Maps handlers
   const onMapLoad = useCallback((map) => {
@@ -702,88 +729,103 @@ const AddAccommodation = () => {
       )}
 
       {/* Step 3 Form - Photos */}
-      {currentStep === 3 && (
-        <div className="form-container">
-          <h2 className="form-title">Make it stand out</h2>
-          <p className="form-subtitle">
-            Add photos and describe your accommodation
-          </p>
+{/* Step 3 Form - Photos */}
+{currentStep === 3 && (
+  <div className="form-container">
+    <h2 className="form-title">Make it stand out</h2>
+    <p className="form-subtitle">
+      Add photos and describe your accommodation
+    </p>
 
-          <div className="form-group">
-            <label>Upload Photos (minimum 5) *</label>
-            <div className="photo-upload-area">
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                id="photo-upload"
-                style={{ display: "none" }}
-              />
-              <button
-                className="photo-upload-btn"
-                onClick={() => document.getElementById("photo-upload").click()}
-              >
-                + Click to upload photos
-              </button>
-              <p className="photo-upload-hint">
-                Drag and drop or click to select files
-              </p>
-            </div>
-          </div>
+    {/* Photo Upload */}
+    <div className="form-group">
+      <label>Upload Photos (minimum 5) *</label>
 
-          <div className="photo-preview-grid">
-            <div className="photo-preview-item">
-              <img
-                src="https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=200&h=150&fit=crop"
-                alt="Preview"
-              />
-            </div>
-            <div className="photo-preview-item">
-              <img
-                src="https://images.unsplash.com/photo-1556911220-bff31c812dba?w=200&h=150&fit=crop"
-                alt="Preview"
-              />
-            </div>
-            <div className="photo-preview-item">
-              <img
-                src="https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=200&h=150&fit=crop"
-                alt="Preview"
-              />
-            </div>
-            <div className="photo-preview-item add-more">
-              <span>+</span>
+      <div
+        className="photo-upload-area"
+        onClick={() => document.getElementById("photo-upload").click()}
+      >
+        <input
+          type="file"
+          multiple
+          accept="image/*"
+          id="photo-upload"
+          style={{ display: "none" }}
+          onChange={handlePhotoUpload}
+        />
+
+        <button type="button" className="photo-upload-btn">
+          + Click to upload photos
+        </button>
+
+        <p className="photo-upload-hint">
+          Drag and drop or click to select files
+        </p>
+      </div>
+    </div>
+
+    {/* Preview Boxes (Max 5) */}
+    <div className="photo-box-row">
+      {[0, 1, 2, 3, 4].map((index) => (
+        <div
+          key={index}
+          className="photo-box"
+          onClick={() =>
+            document.getElementById("photo-upload").click()
+          }
+        >
+          {photos[index] ? (
+            <img src={photos[index]} alt={`preview-${index}`} />
+          ) : (
+            <>
+              <span className="plus-icon">+</span>
               <p>Add More</p>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>Title *</label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="e.g., Cozy room near SLIIT University"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Description *</label>
-            <textarea
-              className="form-textarea"
-              rows="5"
-              placeholder="Describe what makes your accommodation special... (e.g., 5 minutes walk to SLIIT, quiet neighborhood, etc.)"
-            ></textarea>
-          </div>
-
-          <div className="form-navigation">
-            <button className="btn-prev" onClick={handlePreviousStep}>
-              Previous
-            </button>
-            <button className="btn-next" onClick={handleNextStep}>
-              Next
-            </button>
-          </div>
+            </>
+          )}
         </div>
-      )}
+      ))}
+    </div>
+
+    {/* Title */}
+    <div className="form-group">
+      <label>Title *</label>
+      <input
+        type="text"
+        className="form-input"
+        placeholder="e.g., Cozy room near SLIIT University"
+      />
+    </div>
+
+    {/* Description */}
+    <div className="form-group">
+      <label>Description *</label>
+      <textarea
+        className="form-textarea"
+        rows="5"
+        placeholder="Describe what makes your accommodation special..."
+      ></textarea>
+    </div>
+
+    <div className="form-navigation">
+      <button className="btn-prev" onClick={handlePreviousStep}>
+        Previous
+      </button>
+
+      <button
+        className="btn-next"
+        onClick={() => {
+          if (photos.length < 5) {
+            alert("Please upload at least 5 photos");
+            return;
+          }
+          handleNextStep();
+        }}
+      >
+        Next
+      </button>
+    </div>
+  </div>
+)}
 
       {/* Step 4 Form - Publish */}
       {currentStep === 4 && (
@@ -791,38 +833,41 @@ const AddAccommodation = () => {
           <h2 className="form-title">Finish up and publish</h2>
           <p className="form-subtitle">Set your price and verify details</p>
 
-          <div className="form-group">
-            <label>Price per Month (LKR) *</label>
-            <input
-              type="number"
-              className="form-input"
-              placeholder="e.g., 15000"
-              min="0"
-            />
-          </div>
+<div className="form-group">
+  <label>Price per Month (LKR) *</label>
+  <input
+    type="number"
+    className="form-input"
+    placeholder="e.g., 15000"
+    min="0"
+    value={price}
+    onChange={(e) => setPrice(e.target.value)}
+  />
+</div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>Key Money Price </label>
-              <input
-                type="number"
-                className="form-input"
-                placeholder="e.g., 30000"
-                min="0"
-                max="100"
-              />
-            </div>
-            <div className="form-group">
-              <label>Key Money for Month (Duration)</label>
-              <input
-                type="number"
-                className="form-input"
-                placeholder="e.g., 2"
-                min="0"
-                max="100"
-              />
-            </div>
-          </div>
+<div className="form-group">
+  <label>Key Money Duration (Months)</label>
+  <input
+    type="number"
+    className="form-input"
+    placeholder="e.g., 2"
+    min="0"
+    value={keyDuration}
+    onChange={(e) => setKeyDuration(e.target.value)}
+  />
+</div>
+
+{/* Auto Calculated Result */}
+<div className="form-group">
+  <label>Calculated Key Money (LKR)</label>
+  <input
+    type="text"
+    className="form-input"
+    value={calculatedKeyMoney.toLocaleString()}
+    readOnly
+  />
+</div>
+
 
           <div className="form-group">
             <div className="verification-section">

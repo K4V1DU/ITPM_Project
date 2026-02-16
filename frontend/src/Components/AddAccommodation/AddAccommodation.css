@@ -1933,3 +1933,63 @@ body {
   font-size: 20px;
 }
 
+.photo-upload-area {
+  border: 2px dashed #e5e5e5;
+  padding: 60px 20px;
+  text-align: center;
+  border-radius: 20px;
+  background-color: #fafafa;
+  cursor: pointer;
+}
+
+.photo-upload-btn {
+  background-color: #ff385c;
+  color: white;
+  padding: 14px 35px;
+  border-radius: 30px;
+  border: none;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.photo-upload-hint {
+  margin-top: 15px;
+  color: #777;
+}
+
+.photo-box-row {
+  margin-top: 25px;
+  display: flex;
+  gap: 20px;
+}
+
+.photo-box {
+  width: 180px;
+  height: 150px;
+  border-radius: 15px;
+  background-color: #f2f2f2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.photo-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.plus-icon {
+  font-size: 28px;
+  color: #ff385c;
+}
+
+.photo-box p {
+  margin-top: 5px;
+  font-size: 14px;
+  color: #666;
+}
+
