@@ -1899,12 +1899,12 @@ body {
 }
 
 .map-search-input {
-    flex: 1;
-    padding: 14px 16px;
-    border: 1px solid #efefef;
-    border-radius: 30px;
-    font-size: 14px;
-    transition: all 0.3s ease;
+  flex: 1;
+  padding: 14px 16px;
+  border: 1px solid #efefef;
+  border-radius: 30px;
+  font-size: 14px;
+  transition: all 0.3s ease;
 }
 
 .exit-btn {
@@ -1958,38 +1958,79 @@ body {
 }
 
 .photo-box-row {
-  margin-top: 25px;
   display: flex;
-  gap: 20px;
+  gap: 15px;
+  margin-top: 20px;
+  flex-wrap: wrap;
 }
 
 .photo-box {
-  width: 180px;
-  height: 150px;
-  border-radius: 15px;
-  background-color: #f2f2f2;
+  width: 110px;
+  height: 120px;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #f9f9f9;
+  position: relative; /* Essential for absolute children */
+}
+
+/* Ensure the wrapper takes up the full box */
+.image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: block; /* Remove any flex-centering gaps */
+}
+
+/* This fixes the zoom and the white space */
+.image-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Fills box, crops edges to avoid distortion */
+  display: block;
+}
+
+/* Actions appear on hover - perfectly centered */
+.photo-actions {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 5;
+}
+
+.image-wrapper:hover .photo-actions {
+  opacity: 1;
+}
+
+.action-btn {
+  background: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  overflow: hidden;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  padding: 0; /* Ensures icon is centered */
 }
 
-.photo-box img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+.action-btn.delete { color: #ff4d4d; }
+.action-btn.update { color: #007bff; }
 
-.plus-icon {
-  font-size: 28px;
-  color: #ff385c;
+.action-btn:hover {
+  transform: scale(1.15);
 }
-
-.photo-box p {
-  margin-top: 5px;
-  font-size: 14px;
-  color: #666;
-}
-

@@ -1,28 +1,71 @@
 const Accommodation = require("../models/Accommodation");
 
-
 // ==============================
 // Add New Accommodation
 // ==============================
 const addAccommodation = async (req, res) => {
   try {
-    const accommodation = new Accommodation(req.body);
-    await accommodation.save();
+    const {
+      owner,
+      title,
+      description,
+      address,
+      location,
+      distance, // 🔹 Frontend sends "800 meters" or "1.2 km"
+      pricePerMonth,
+      images,
+      bedrooms,
+      beds,
+      bathrooms,
+      amenities,
+      rules,
+      genderPreference,
+      accommodationType,
+      keyMoneyDuration,
+      utilityBills
+    } = req.body;
+
+    // ✅ Validation: Ensure distance is included
+    if (!owner || !title || !address || !pricePerMonth || !accommodationType || !distance) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields: owner, title, address, price, type, or distance.",
+      });
+    }
+
+    const newAccommodation = new Accommodation({
+      owner,
+      title,
+      description,
+      address,
+      location,
+      distance, 
+      pricePerMonth: Number(pricePerMonth),
+      images: images || ["69903a4ff3758a2025e91e68"],
+      bedrooms: Number(bedrooms) || 1,
+      beds: Number(beds) || 1,
+      bathrooms: Number(bathrooms) || 1,
+      amenities: amenities || [],
+      rules: rules || [],
+      genderPreference,
+      accommodationType,
+      keyMoneyDuration: Number(keyMoneyDuration) || 0,
+      utilityBills: utilityBills || { electricityIncluded: false, waterIncluded: false }
+    });
+
+    await newAccommodation.save();
 
     res.status(201).json({
       success: true,
       message: "Accommodation created successfully",
-      data: accommodation,
+      data: newAccommodation,
     });
+
   } catch (err) {
-    console.error("Add Error:", err);
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+    console.error("Database Insert Error:", err);
+    res.status(500).json({ success: false, message: err.message });
   }
 };
-
 
 // ==============================
 // Get All Accommodations
@@ -44,7 +87,6 @@ const getAllAccommodations = async (req, res) => {
     });
   }
 };
-
 
 // ==============================
 // Get Accommodation By ID
@@ -73,12 +115,12 @@ const getAccommodationById = async (req, res) => {
   }
 };
 
-
 // ==============================
 // Update Accommodation
 // ==============================
 const updateAccommodation = async (req, res) => {
   try {
+    // 🔹 Using req.body directly allows updating 'distance' or any other field
     const updated = await Accommodation.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -106,7 +148,6 @@ const updateAccommodation = async (req, res) => {
   }
 };
 
-
 // ==============================
 // Delete Accommodation
 // ==============================
@@ -133,7 +174,6 @@ const deleteAccommodation = async (req, res) => {
     });
   }
 };
-
 
 module.exports = {
   addAccommodation,

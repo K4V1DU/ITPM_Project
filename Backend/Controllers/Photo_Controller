@@ -3,6 +3,7 @@ const Photo = require("../models/Photo");
 // ==============================
 // Add New Photo
 // ==============================
+// Used by handlePhotoUpload in React
 const addPhoto = async (req, res) => {
   try {
     if (!req.file) {
@@ -13,7 +14,7 @@ const addPhoto = async (req, res) => {
     }
 
     const photo = new Photo({
-      data: req.file.buffer,
+      data: req.file.buffer, // Storing binary data in DB
       contentType: req.file.mimetype,
       order: req.body.order || 0,
     });
@@ -23,7 +24,10 @@ const addPhoto = async (req, res) => {
     res.status(201).json({
       success: true,
       message: "Photo uploaded successfully",
-      data: photo,
+      data: {
+        _id: photo._id,
+        order: photo.order
+      },
     });
   } catch (err) {
     console.error("Add Photo Error:", err);
@@ -34,10 +38,10 @@ const addPhoto = async (req, res) => {
   }
 };
 
-
 // ==============================
-// Get Photo By ID
+// Get Photo Binary (For Preview)
 // ==============================
+// Used to display the image: <img src="http://localhost:5000/Photo/ID" />
 const getPhotoById = async (req, res) => {
   try {
     const photo = await Photo.findById(req.params.id);
@@ -63,6 +67,7 @@ const getPhotoById = async (req, res) => {
 // ==============================
 // Update Photo
 // ==============================
+// Used by handlePhotoUpdate in React
 const updatePhoto = async (req, res) => {
   try {
     const updateData = {};
@@ -89,7 +94,10 @@ const updatePhoto = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Photo updated successfully",
-      data: updated,
+      data: {
+        _id: updated._id,
+        order: updated.order
+      },
     });
   } catch (err) {
     console.error("Update Photo Error:", err);
@@ -103,6 +111,7 @@ const updatePhoto = async (req, res) => {
 // ==============================
 // Delete Photo
 // ==============================
+// Used by handleDeletePhoto in React
 const deletePhoto = async (req, res) => {
   try {
     const deleted = await Photo.findByIdAndDelete(req.params.id);
@@ -116,7 +125,7 @@ const deletePhoto = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Photo deleted successfully",
+      message: "Photo deleted successfully from database",
     });
   } catch (err) {
     console.error("Delete Photo Error:", err);
@@ -132,7 +141,7 @@ const deletePhoto = async (req, res) => {
 // ==============================
 const getAllPhotosID = async (req, res) => {
   try {
-    const photos = await Photo.find().select("_id"); // only fetch _id
+    const photos = await Photo.find().select("_id"); 
     const photoIds = photos.map(photo => photo._id);
 
     res.status(200).json({
@@ -149,10 +158,9 @@ const getAllPhotosID = async (req, res) => {
   }
 };
 
-// Export everything, including the new function
 module.exports = {
   addPhoto,
-  getAllPhotosID, // <-- make sure this is here
+  getAllPhotosID,
   getPhotoById,
   updatePhoto,
   deletePhoto,
