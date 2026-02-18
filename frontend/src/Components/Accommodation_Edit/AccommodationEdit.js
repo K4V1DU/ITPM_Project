@@ -1,12 +1,12 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapContainer, TileLayer, Marker, useMap, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { 
   IoArrowBack, IoPencil, IoBed, IoHome, IoFlash, IoWater, 
   IoLocation, IoLocate, IoWifi, IoSnow, IoTv, IoFitness, IoTrash, IoAdd, 
-  IoShieldCheckmark, IoMan, IoWoman, IoPeople, IoWalk
+  IoShieldCheckmark, IoMan, IoWoman, IoPeople, IoWalk, IoImages, IoCloudUpload
 } from "react-icons/io5";
 import { FaKitchenSet, FaBath } from "react-icons/fa6";
 import { GiPoolTableCorner, GiWashingMachine } from "react-icons/gi";
@@ -26,13 +26,10 @@ const SLIIT_LOCATION = {
   lng: 79.9727,
 };
 
-// Component to handle map center updates and interaction toggling
 function MapController({ center, interactive }) {
   const map = useMap();
-  
   useEffect(() => {
     map.setView(center, map.getZoom());
-    
     if (interactive) {
       map.dragging.enable();
       map.touchZoom.enable();
@@ -47,7 +44,6 @@ function MapController({ center, interactive }) {
       if (map.tap) map.tap.disable();
     }
   }, [center, interactive, map]);
-
   return null;
 }
 
@@ -56,6 +52,7 @@ const AccommodationEdit = () => {
   const [editMode, setEditMode] = useState({});
   const [newRule, setNewRule] = useState("");
   const markerRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     title: "Luxury Student Stay",
@@ -73,7 +70,7 @@ const AccommodationEdit = () => {
     amenities: ["Kitchen", "WiFi", "CCTV"],
     rules: ["Quiet hours after 10 PM", "No smoking inside"],
     distance: "0 meters",
-    images: ["6995c5ad1631a7e28f933922"],
+    images: [], 
     isAvailable: true
   });
 
@@ -116,6 +113,36 @@ const AccommodationEdit = () => {
   const toggleAmenity = (amenity) => {
     const updated = formData.amenities.includes(amenity) ? formData.amenities.filter(a => a !== amenity) : [...formData.amenities, amenity];
     setFormData(prev => ({ ...prev, amenities: updated }));
+  };
+
+  // --- Updated Image Handling with 5 Image Limit ---
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    const currentCount = formData.images.length;
+    
+    if (currentCount >= 5) {
+      alert("You can only upload a maximum of 5 images.");
+      return;
+    }
+
+    // Only take enough files to reach the limit of 5
+    const remainingSlots = 5 - currentCount;
+    const filesToAdd = files.slice(0, remainingSlots);
+    
+    if (files.length > remainingSlots) {
+      alert(`Only the first ${remainingSlots} images were added. Maximum limit is 5.`);
+    }
+
+    const newImages = filesToAdd.map(file => URL.createObjectURL(file));
+    setFormData(prev => ({ ...prev, images: [...prev.images, ...newImages] }));
+    
+    // Reset input value so same file can be selected again if removed
+    e.target.value = null;
+  };
+
+  const removeImage = (index) => {
+    const updatedImages = formData.images.filter((_, i) => i !== index);
+    setFormData(prev => ({ ...prev, images: updatedImages }));
   };
 
   const addRule = () => {
@@ -172,25 +199,14 @@ const AccommodationEdit = () => {
                 <div className="form-group"><label>Type</label><select name="accommodationType" value={formData.accommodationType} onChange={handleInputChange}><option>Shared Room</option><option>Private Room</option><option>Apartment</option></select></div>
                 <div className="form-group"><label>Gender</label><select name="genderPreference" value={formData.genderPreference} onChange={handleInputChange}><option value="boys">Boys</option><option value="girls">Girls</option><option value="any">Any</option></select></div>
               </div>
-              {/* Added Utility Toggles in Edit Mode */}
               <div className="form-group">
                 <label>Utilities Included in Rent</label>
                 <div style={{ display: 'flex', gap: '20px', marginTop: '5px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: '500' }}>
-                    <input 
-                      type="checkbox" 
-                      style={{ width: 'auto' }}
-                      checked={formData.utilityBills.electricityIncluded} 
-                      onChange={(e) => handleNestedInputChange('utilityBills', 'electricityIncluded', e.target.checked)} 
-                    /> Electricity
+                    <input type="checkbox" style={{ width: 'auto' }} checked={formData.utilityBills.electricityIncluded} onChange={(e) => handleNestedInputChange('utilityBills', 'electricityIncluded', e.target.checked)} /> Electricity
                   </label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: '500' }}>
-                    <input 
-                      type="checkbox" 
-                      style={{ width: 'auto' }}
-                      checked={formData.utilityBills.waterIncluded} 
-                      onChange={(e) => handleNestedInputChange('utilityBills', 'waterIncluded', e.target.checked)} 
-                    /> Water
+                    <input type="checkbox" style={{ width: 'auto' }} checked={formData.utilityBills.waterIncluded} onChange={(e) => handleNestedInputChange('utilityBills', 'waterIncluded', e.target.checked)} /> Water
                   </label>
                 </div>
               </div>
@@ -216,6 +232,41 @@ const AccommodationEdit = () => {
           )}
         </div>
 
+        {/* IMAGE SECTION */}
+        <div className="custom-section">
+          <div className="section-header">
+            <h2><IoImages /> Photos ({formData.images.length}/5)</h2>
+            <button className="edit-btn" onClick={() => toggleEdit('images')}>{editMode.images ? "Save" : <><IoPencil /> Edit</>}</button>
+          </div>
+          {editMode.images ? (
+            <div className="image-upload-area">
+              <div className="upload-grid">
+                {formData.images.map((img, index) => (
+                  <div key={index} className="preview-container">
+                    <img src={img} alt="preview" className="preview-img" />
+                    <button className="remove-img-btn" onClick={() => removeImage(index)}><IoTrash /></button>
+                  </div>
+                ))}
+                {formData.images.length < 5 && (
+                  <div className="upload-placeholder" onClick={() => fileInputRef.current.click()}>
+                    <IoCloudUpload size={30} />
+                    <span>Add Photo</span>
+                  </div>
+                )}
+              </div>
+              <input type="file" ref={fileInputRef} hidden multiple onChange={handleImageUpload} accept="image/*" />
+            </div>
+          ) : (
+            <div className="image-display-grid">
+              {formData.images.length > 0 ? (
+                formData.images.map((img, index) => <img key={index} src={img} alt="Listing" className="display-img" />)
+              ) : (
+                <p className="no-data">No photos uploaded yet.</p>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* LOCATION SECTION */}
         <div className="custom-section">
           <div className="section-header">
@@ -237,11 +288,7 @@ const AccommodationEdit = () => {
                   }}><IoLocate /> Current Position</button>
                 </div>
                 <div className="map-wrapper">
-                  <MapContainer 
-                    center={formData.location.coordinates} 
-                    zoom={15} 
-                    style={{ height: "100%", width: "100%", zIndex: 1 }}
-                  >
+                  <MapContainer center={formData.location.coordinates} zoom={15} style={{ height: "100%", width: "100%", zIndex: 1 }}>
                     <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                     <MapController center={formData.location.coordinates} interactive={true} />
                     <Marker draggable={true} eventHandlers={eventHandlers} position={formData.location.coordinates} ref={markerRef} />
@@ -255,12 +302,7 @@ const AccommodationEdit = () => {
                   <span className="distance-pill"><IoWalk /> {formData.distance} to SLIIT Campus</span>
                 </div>
                 <div className="static-map-wrapper">
-                   <MapContainer 
-                    center={formData.location.coordinates} 
-                    zoom={15} 
-                    zoomControl={false}
-                    style={{ height: "100%", width: "100%", zIndex: 0 }}
-                   >
+                   <MapContainer center={formData.location.coordinates} zoom={15} zoomControl={false} style={{ height: "100%", width: "100%", zIndex: 0 }}>
                       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                       <MapController center={formData.location.coordinates} interactive={false} />
                       <Marker position={formData.location.coordinates} />
