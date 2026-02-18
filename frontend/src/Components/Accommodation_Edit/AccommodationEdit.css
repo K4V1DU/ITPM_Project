@@ -1,0 +1,125 @@
+:root {
+  --primary: #00a699;
+  --secondary: #ff385c;
+  --dark: #222222;
+  --light-text: #717171;
+  --border: #dddddd;
+  --bg-card: #ffffff;
+}
+
+.custom-container { max-width: 800px; margin: 40px auto; padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: var(--dark); }
+.custom-header h1 { margin: 10px 0; font-weight: 800; font-size: 2rem; }
+.header-subtitle span { color: var(--primary); font-weight: 600; }
+.custom-back-btn { background: none; border: none; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px; margin-bottom: 10px; }
+
+.custom-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 25px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px; }
+.section-header h2 { font-size: 1.2rem; display: flex; align-items: center; gap: 8px; margin: 0; }
+.section-header h2 svg { color: var(--primary); }
+
+/* View Mode Details */
+.view-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 10px; }
+.badge-row { display: flex; gap: 8px; margin-bottom: 15px; }
+.type-badge { background: #eee; padding: 4px 10px; border-radius: 5px; font-size: 0.8rem; font-weight: 600; }
+.gender-badge { padding: 4px 10px; border-radius: 5px; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; gap: 4px; }
+.gender-badge.girls { background: #fff0f5; color: #db7093; }
+.gender-badge.boys { background: #e6f3ff; color: #4682b4; }
+.gender-badge.any { background: #f5f5f5; color: #666; }
+
+.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0; }
+.stat-card { background: #f9f9f9; padding: 12px; border-radius: 10px; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.9rem; border: 1px solid #eee; }
+.stat-card svg { color: var(--primary); }
+
+.u-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; margin-right: 8px; }
+.u-pill.inc { background: #e6f6f4; color: #008489; }
+.u-pill.exc { background: #fff1f2; color: #e11d48; }
+
+/* MAP FIX - Leaflet needs height */
+.map-wrapper, .static-map-wrapper { 
+  margin-top: 15px; 
+  border-radius: 12px; 
+  overflow: hidden; 
+  border: 1px solid #ddd;
+  position: relative;
+  height: 300px; /* Explicit height for edit map */
+  width: 100%;
+}
+.static-map-wrapper { height: 200px; }
+
+.map-controls { margin-bottom: 10px; display: flex; justify-content: flex-end; }
+.locate-btn { background: white; border: 1px solid var(--primary); color: var(--primary); padding: 6px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 600; }
+
+/* Amenities & Rules */
+.amenities-selection-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; margin: 15px 0; }
+.amenity-option { border: 1px solid #ddd; border-radius: 10px; padding: 10px; text-align: center; cursor: pointer; transition: 0.2s; }
+.amenity-option.active { border-color: var(--primary); background: #f0fafa; }
+.amenity-option svg { display: block; margin: 0 auto 5px; font-size: 1.2rem; }
+.amenity-option span { font-size: 0.75rem; font-weight: 600; }
+
+.rule-input-group { display: flex; gap: 8px; margin-top: 15px; }
+.add-rule-btn { background: var(--dark); color: white; border: none; padding: 0 12px; border-radius: 8px; cursor: pointer; }
+.rule-item-edit { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f5f5f5; border-radius: 8px; margin-top: 8px; }
+.rule-item-edit svg { color: var(--secondary); cursor: pointer; }
+
+.amenity-tag { display: inline-block; background: #f0f0f0; padding: 6px 15px; border-radius: 20px; font-size: 0.85rem; margin: 5px; font-weight: 500; }
+.rules-display-box { margin-top: 15px; background: #f9f9f9; padding: 15px; border-radius: 12px; }
+.rules-display-box h4 { margin: 0 0 10px 0; font-size: 1rem; }
+.rules-display-box ul { padding-left: 20px; margin: 0; color: var(--light-text); }
+
+/* Pricing */
+.price-summary { display: flex; flex-direction: column; }
+.main-price { font-size: 1.6rem; font-weight: 800; }
+.key-money-tag { color: var(--primary); font-weight: 700; font-size: 0.9rem; }
+
+/* Forms */
+.edit-form { display: flex; flex-direction: column; gap: 15px; }
+.form-group label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 5px; }
+input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; }
+.three-cols { grid-template-columns: 1fr 1fr 1fr; display: grid; gap: 10px; }
+.form-row { grid-template-columns: 1fr 1fr; display: grid; gap: 10px; }
+
+/* Footer Actions */
+.form-actions { display: flex; gap: 10px; margin-top: 30px; }
+.publish-btn { flex: 2; background: var(--secondary); color: white; border: none; padding: 15px; border-radius: 12px; font-weight: 700; cursor: pointer; }
+.draft-btn { flex: 1; background: white; border: 1px solid #ddd; padding: 15px; border-radius: 12px; cursor: pointer; }
+.edit-btn { background: #fff; border: 1px solid var(--dark); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
+.map-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.live-distance-badge {
+  background: #f0fafa;
+  color: var(--primary);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #cceeed;
+}
+
+.distance-display-row {
+  margin: 10px 0 15px 0;
+}
+
+.distance-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--dark);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.icon-teal {
+  color: var(--primary);
+  margin-right: 5px;
+}
