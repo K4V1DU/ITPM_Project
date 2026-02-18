@@ -1,97 +1,145 @@
 const mongoose = require("mongoose");
 
-const accommodationSchema = new mongoose.Schema({
-  owner: { 
-    type: String,
-    required: true 
-  },
-
-  title: { 
-    type: String, 
-    required: true, 
-    trim: true 
-  },
-
-  description: { 
-    type: String, 
-    trim: true 
-  },
-
-  address: { 
-    type: String, 
-    required: true 
-  },
-
-  location: {
-    type: {
+const accommodationSchema = new mongoose.Schema(
+  {
+    // 🔹 Owner (Hardcoded for now)
+    owner: {
       type: String,
-      enum: ["Point"],
-      default: "Point"
+      required: true,
     },
-    coordinates: {
-      type: [Number], // [lng, lat]
-      required: true
-    }
-  },
 
-  pricePerMonth: { 
-    type: Number, 
-    required: true 
-  },
+    // 🔹 Basic Info
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-  images: [String], 
+    description: {
+      type: String,
+      trim: true,
+    },
 
-  bedrooms: { 
-    type: Number, 
-    default: 1 
-  },
-  beds: { 
-    type: Number, 
-    default: 1 
-  },
-  bathrooms: { 
-    type: Number, 
-    default: 1 
-  },
+    address: {
+      type: String,
+      required: true,
+    },
 
-  amenities: [String], 
-  rules: [String],    
+    accommodationType: {
+      type: String,
+      enum: ["Apartment", "House", "Shared Room", "Private Room"],
+      required: true,
+    },
 
-  genderPreference: { 
-    type: String, 
-    enum: ["boys", "girls", "mixed"], 
-    required: true 
+    genderPreference: {
+      type: String,
+      enum: ["boys", "girls", "mixed"],
+      required: true,
+    },
+
+    // 🔹 Room Details (Bedrooms = number of rooms in your form)
+    bedrooms: {
+      type: Number,
+      default: 1,
+    },
+
+    beds: {
+      type: Number,
+      default: 1,
+    },
+
+    bathrooms: {
+      type: Number,
+      default: 1,
+    },
+
+    // 🔹 Utility Bills
+    utilityBills: {
+      electricityIncluded: {
+        type: Boolean,
+        default: false,
+      },
+      waterIncluded: {
+        type: Boolean,
+        default: false,
+      },
+    },
+
+    // 🔹 Pricing
+    pricePerMonth: {
+      type: Number,
+      required: true,
+    },
+
+    keyMoneyDuration: {
+      type: Number,
+      default: 0,
+    },
+
+    images: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Photo",
+      },
+    ],
+
+    // 🔹 Amenities & Rules
+    amenities: [String],
+
+    rules: [String],
+
+    // 🔹 Location (GeoJSON)
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number], // [lng, lat]
+        required: true,
+      },
+    },
+
+    distance: {
+      type: String,
+      required: true,
+      default: "Distance not available", 
+    },
+    // 🔹 Reviews & Ratings
+    reviews: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Review",
+      },
+    ],
+
+    ratingAverage: {
+      type: Number,
+      default: 0,
+    },
+
+    ratingCount: {
+      type: Number,
+      default: 0,
+    },
+
+    // 🔹 Availability
+    isAvailable: {
+      type: Boolean,
+      default: false,
+    },
+
+    expireDate: {
+      type: Date,
+    },
   },
-  
-  reviews: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Review",
-    }
-  ],
+  { timestamps: true },
+);
 
-  ratingAverage: { 
-    type: Number, 
-    default: 0 
-  },
-  ratingCount: { 
-    type: Number, 
-    default: 0 
-  },
-
-  isAvailable: { 
-    type: Boolean, 
-    default: true 
-  },
-
-  expireDate: {
-    type: Date,
-    required: false, // optional field
-  },
-
-}, { timestamps: true });
-
-// Geospatial index for distance queries
+// 🔹 Geospatial Index
 accommodationSchema.index({ location: "2dsphere" });
 
-module.exports = mongoose.models.Accommodation || mongoose.model("Accommodation", accommodationSchema);
+module.exports =
+  mongoose.models.Accommodation ||
+  mongoose.model("Accommodation", accommodationSchema);

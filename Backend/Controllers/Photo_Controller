@@ -1,159 +1,256 @@
-const Photo = require("../models/Photo");
+import React, { useState, useCallback } from "react";
+import "./AddAccommodation.css";
+import { GoogleMap, LoadScript, Marker, Autocomplete } from "@react-google-maps/api";
+import { useNavigate } from "react-router-dom";
+import { IoClose } from "react-icons/io5";
+import { FaTrash } from "react-icons/fa"; // Using a trash icon for removal
+import axios from "axios";
 
-// ==============================
-// Add New Photo
-// ==============================
-const addPhoto = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: "No file uploaded",
-      });
+const GOOGLE_MAPS_API_KEY = "AIzaSyDKKnxSMEUkZyZiLT83DXCJhR4eplblzKA";
+const SLIIT_LOCATION = { lat: 6.9147, lng: 79.9727 };
+const LIBRARIES = ["places"];
+
+const AddAccommodation = () => {
+  const navigate = useNavigate();
+
+  // --- FORM STATES ---
+  const [currentStep, setCurrentStep] = useState(1);
+  const [showForm, setShowForm] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+
+  // --- DATA STATES ---
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [genderPref, setGenderPref] = useState("mixed");
+  const [accType, setAccType] = useState("Private Room");
+  const [rooms, setRooms] = useState(1);
+  const [beds, setBeds] = useState(1);
+  const [bathrooms, setBathrooms] = useState(1);
+  const [price, setPrice] = useState("");
+  const [keyDuration, setKeyDuration] = useState(0);
+  const [amenities, setAmenities] = useState([]);
+  const [rules, setRules] = useState([]);
+  const [otherRules, setOtherRules] = useState("");
+  const [utilities, setUtilities] = useState({ electricity: false, water: false });
+  const [isVerified, setIsVerified] = useState(false);
+  const [isAgreed, setIsAgreed] = useState(false);
+
+  // --- PHOTO MANAGEMENT ---
+  // photoObjects stores { id: "mongo_id", preview: "blob_url" }
+  const [photoObjects, setPhotoObjects] = useState([]);
+  const [uploading, setUploading] = useState(false);
+
+  // --- MAP STATES ---
+  const [selectedLocation, setSelectedLocation] = useState(SLIIT_LOCATION);
+  const [address, setAddress] = useState("SLIIT University, Malabe, Sri Lanka");
+
+  // --- HANDLERS ---
+  const handleExit = () => navigate("/");
+  const handleGetStarted = () => setShowForm(true);
+
+  // 1. Immediate Upload
+  const handlePhotoUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setUploading(true);
+    
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append("photo", file); 
+      formData.append("order", photoObjects.length);
+
+      try {
+        const res = await axios.post("http://localhost:5000/Photo", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+
+        if (res.data.success) {
+          const newPhoto = {
+            id: res.data.data._id,
+            preview: URL.createObjectURL(file)
+          };
+          setPhotoObjects((prev) => [...prev, newPhoto]);
+        }
+      } catch (err) {
+        console.error("Upload failed:", err);
+        alert("Upload failed for one or more images.");
+      }
     }
+    setUploading(false);
+    e.target.value = null; // Reset input
+  };
 
-    const photo = new Photo({
-      data: req.file.buffer,
-      contentType: req.file.mimetype,
-      order: req.body.order || 0,
-    });
+  // 2. Immediate Removal
+  const handleRemovePhoto = async (idToRemove, index) => {
+    try {
+      // Call your backend delete route
+      await axios.delete(`http://localhost:5000/api/photos/${idToRemove}`);
+      
+      // Update local state
+      setPhotoObjects((prev) => prev.filter((_, i) => i !== index));
+    } catch (err) {
+      console.error("Delete failed:", err);
+      alert("Could not remove photo from server.");
+    }
+  };
 
-    await photo.save();
+  // 3. Final Publish
+  const handlePublish = async () => {
+    if (!isVerified || !isAgreed) return alert("Please confirm accuracy and agree to terms.");
+    
+    setIsPublishing(true);
 
-    res.status(201).json({
-      success: true,
-      message: "Photo uploaded successfully",
-      data: photo,
-    });
-  } catch (err) {
-    console.error("Add Photo Error:", err);
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
+    const payload = {
+      owner: "699174a3a19b70085fffefc8",
+      title,
+      description,
+      address,
+      accommodationType: accType,
+      genderPreference: genderPref,
+      bedrooms: Number(rooms),
+      beds: Number(beds),
+      bathrooms: Number(bathrooms),
+      pricePerMonth: Number(price),
+      keyMoneyDuration: Number(keyDuration),
+      amenities,
+      rules: otherRules ? [...rules, otherRules] : rules,
+      utilityBills: {
+        electricityIncluded: utilities.electricity,
+        waterIncluded: utilities.water,
+      },
+      location: {
+        type: "Point",
+        coordinates: [selectedLocation.lng, selectedLocation.lat],
+      },
+      distance: "Calculated Distance",
+      images: photoObjects.map(p => p.id), // Just send the IDs
+    };
+
+    try {
+      const res = await axios.post("http://localhost:5000/Accommodation", payload);
+      if (res.data) {
+        alert("Listing published successfully!");
+        navigate("/cust");
+      }
+    } catch (err) {
+      alert("Error: " + (err.response?.data?.message || "Publishing failed"));
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleNextStep = () => setCurrentStep(prev => prev + 1);
+  const handlePreviousStep = () => setCurrentStep(prev => prev - 1);
+
+  if (!showForm) {
+    return (
+      <div className="container">
+        <div className="header"><h1>It's easy to get started</h1></div>
+        <div className="button-container">
+          <button className="get-started-btn" onClick={handleGetStarted}>Get Started</button>
+        </div>
+      </div>
+    );
   }
+
+  return (
+    <div className="container">
+      <div className="header">
+        <h1>Step {currentStep} of 4</h1>
+        <button className="exit-btn" onClick={handleExit}><IoClose /></button>
+      </div>
+
+      {currentStep === 1 && (
+        <div className="form-container">
+          <h2>Basic Details</h2>
+          {/* Inputs for Rooms, Beds, Bathrooms, Amenities (Same as previous) */}
+          <button className="btn-next" onClick={handleNextStep}>Next</button>
+        </div>
+      )}
+
+      {currentStep === 3 && (
+        <div className="form-container">
+          <h2 className="form-title">Photos & Description</h2>
+          
+          <div className="form-group">
+            <label>Upload Photos {uploading && " (Uploading...)"}</label>
+            <div className="photo-upload-area" onClick={() => document.getElementById("photo-upload").click()}>
+              <input 
+                type="file" 
+                multiple 
+                accept="image/*" 
+                id="photo-upload" 
+                style={{ display: "none" }} 
+                onChange={handlePhotoUpload}
+                disabled={uploading} 
+              />
+              <button type="button" className="photo-upload-btn">
+                {uploading ? "Processing..." : "+ Add Photos"}
+              </button>
+            </div>
+          </div>
+
+          <div className="photo-grid-preview">
+            {[0, 1, 2, 3, 4].map((index) => (
+              <div key={index} className="photo-box">
+                {photoObjects[index] ? (
+                  <div className="image-wrapper">
+                    <img src={photoObjects[index].preview} alt="preview" />
+                    <button 
+                      className="remove-photo-badge" 
+                      onClick={() => handleRemovePhoto(photoObjects[index].id, index)}
+                    >
+                      <FaTrash />
+                    </button>
+                  </div>
+                ) : (
+                  <span className="placeholder-icon">+</span>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="form-group">
+            <label>Title</label>
+            <input type="text" className="form-input" value={title} onChange={(e) => setTitle(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label>Description</label>
+            <textarea className="form-textarea" value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+
+          <div className="form-navigation">
+            <button className="btn-prev" onClick={handlePreviousStep}>Previous</button>
+            <button className="btn-next" onClick={handleNextStep}>Next</button>
+          </div>
+        </div>
+      )}
+
+      {currentStep === 4 && (
+        <div className="form-container">
+          <h2>Finish & Publish</h2>
+          {/* Price and Verification Checkboxes */}
+          <div className="verification-section">
+            <label className="checkbox-label">
+              <input type="checkbox" checked={isVerified} onChange={(e) => setIsVerified(e.target.checked)} /> 
+              Information is accurate
+            </label>
+            <label className="checkbox-label">
+              <input type="checkbox" checked={isAgreed} onChange={(e) => setIsAgreed(e.target.checked)} /> 
+              Agree to terms
+            </label>
+          </div>
+          <div className="form-navigation">
+            <button className="btn-prev" onClick={handlePreviousStep}>Previous</button>
+            <button className="btn-publish" onClick={handlePublish} disabled={isPublishing || uploading}>
+              {isPublishing ? "Publishing..." : "Publish Listing"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
-
-// ==============================
-// Get Photo By ID
-// ==============================
-const getPhotoById = async (req, res) => {
-  try {
-    const photo = await Photo.findById(req.params.id);
-
-    if (!photo) {
-      return res.status(404).json({
-        success: false,
-        message: "Photo not found",
-      });
-    }
-
-    res.set("Content-Type", photo.contentType);
-    res.status(200).send(photo.data);
-  } catch (err) {
-    console.error("Get Photo By ID Error:", err);
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
-
-// ==============================
-// Update Photo
-// ==============================
-const updatePhoto = async (req, res) => {
-  try {
-    const updateData = {};
-    if (req.file) {
-      updateData.data = req.file.buffer;
-      updateData.contentType = req.file.mimetype;
-    }
-    if (req.body.order !== undefined) {
-      updateData.order = req.body.order;
-    }
-
-    const updated = await Photo.findByIdAndUpdate(req.params.id, updateData, {
-      new: true,
-      runValidators: true,
-    });
-
-    if (!updated) {
-      return res.status(404).json({
-        success: false,
-        message: "Photo not found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Photo updated successfully",
-      data: updated,
-    });
-  } catch (err) {
-    console.error("Update Photo Error:", err);
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
-
-// ==============================
-// Delete Photo
-// ==============================
-const deletePhoto = async (req, res) => {
-  try {
-    const deleted = await Photo.findByIdAndDelete(req.params.id);
-
-    if (!deleted) {
-      return res.status(404).json({
-        success: false,
-        message: "Photo not found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Photo deleted successfully",
-    });
-  } catch (err) {
-    console.error("Delete Photo Error:", err);
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
-
-// ==============================
-// Get All Photo IDs
-// ==============================
-const getAllPhotosID = async (req, res) => {
-  try {
-    const photos = await Photo.find().select("_id"); // only fetch _id
-    const photoIds = photos.map(photo => photo._id);
-
-    res.status(200).json({
-      success: true,
-      count: photoIds.length,
-      data: photoIds,
-    });
-  } catch (err) {
-    console.error("Get All Photo IDs Error:", err);
-    res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
-
-// Export everything, including the new function
-module.exports = {
-  addPhoto,
-  getAllPhotosID, // <-- make sure this is here
-  getPhotoById,
-  updatePhoto,
-  deletePhoto,
-};
+export default AddAccommodation;
