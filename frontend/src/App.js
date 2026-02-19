@@ -17,9 +17,10 @@ function App() {
     <Routes>
       <Route path="/" element={<Boardings />} />
       <Route path="/test" element={<AccommodationEdit />} />
+      
       <Route path="/host" element={<Hostpage />} />
       <Route path="/add-accommodation" element={<AddAccommodation />} />
-      <Route path="/edit-Accommodation" element={<AccommodationEdit />} />
+      <Route path="/edit-Accommodation/:id" element={<AccommodationEdit />} />
 
       
 

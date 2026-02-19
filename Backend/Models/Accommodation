@@ -37,7 +37,7 @@ const accommodationSchema = new mongoose.Schema(
       required: true,
     },
 
-    // 🔹 Room Details (Bedrooms = number of rooms in your form)
+    
     bedrooms: {
       type: Number,
       default: 1,
