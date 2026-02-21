@@ -15,9 +15,9 @@ import FoodService from "./Components/FoodServices/FoodService";
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<FoodService />} />
+      <Route path="/" element={<Boardings />} />
       <Route path="/Boardings" element={<Boardings />} />
-      <Route path="/FoodService" element={<FoodService />} />
+      <Route path="/FoodService/:id" element={<FoodService />} />
       <Route path="/host" element={<Hostpage />} />
       <Route path="/add-accommodation" element={<AddAccommodation />} />
       <Route path="/edit-Accommodation/:id" element={<AccommodationEdit />} />
