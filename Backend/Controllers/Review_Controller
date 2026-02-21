@@ -1,6 +1,20 @@
 const Review = require("../models/Review");
 const User = require("../models/User");
 const Accommodation = require("../models/Accommodation");
+const FoodService = require("../models/FoodService");
+
+// Helper: Recalculate rating for food service
+const updateFoodServiceRating = async (foodServiceId) => {
+  if (!foodServiceId) return;
+
+  const fs = await FoodService.findById(foodServiceId).populate("reviews");
+  if (!fs) return;
+
+  const allRatings = fs.reviews.map(r => r.rating);
+  fs.ratingCount = allRatings.length;
+  fs.ratingAverage = allRatings.length > 0 ? allRatings.reduce((sum, r) => sum + r, 0) / allRatings.length : 0;
+  await fs.save();
+};
 
 // Helper: Recalculate rating for accommodation
 const updateAccommodationRating = async (accommodationId) => {
@@ -33,14 +47,20 @@ const updateHostRating = async (hostId) => {
 // ==============================
 const addReview = async (req, res) => {
   try {
-    const { reviewer, accommodation, host, comment, rating, images } = req.body;
+    const { reviewer, accommodation, foodService, host, comment, rating, images } = req.body;
 
     if (!reviewer || !comment || !rating) {
       return res.status(400).json({ success: false, message: "Missing required fields" });
     }
 
-    const review = new Review({ reviewer, accommodation, host, comment, rating, images });
+    const review = new Review({ reviewer, accommodation, foodService, host, comment, rating, images });
     await review.save();
+
+    // ✅ Update foodService (Sync review ID and Recalculate Stats)
+    if (foodService) {
+      await FoodService.findByIdAndUpdate(foodService, { $push: { reviews: review._id } });
+      await updateFoodServiceRating(foodService);
+    }
 
     // Update accommodation
     if (accommodation) {
@@ -78,9 +98,10 @@ const updateReview = async (req, res) => {
 
     await review.save();
 
-    // Recalculate ratings
-    await updateAccommodationRating(review.accommodation);
-    await updateHostRating(review.host);
+    // Recalculate ratings for all relevant entities
+    if (review.foodService) await updateFoodServiceRating(review.foodService);
+    if (review.accommodation) await updateAccommodationRating(review.accommodation);
+    if (review.host) await updateHostRating(review.host);
 
     res.json({ success: true, message: "Review updated", data: review });
   } catch (err) {
@@ -96,6 +117,12 @@ const deleteReview = async (req, res) => {
   try {
     const review = await Review.findByIdAndDelete(req.params.id);
     if (!review) return res.status(404).json({ success: false, message: "Review not found" });
+
+    // ✅ Remove from foodService
+    if (review.foodService) {
+      await FoodService.findByIdAndUpdate(review.foodService, { $pull: { reviews: review._id } });
+      await updateFoodServiceRating(review.foodService);
+    }
 
     // Remove from accommodation
     if (review.accommodation) {
@@ -124,6 +151,7 @@ const getReviews = async (req, res) => {
     const reviews = await Review.find()
       .populate("reviewer", "name profileImage")
       .populate("accommodation", "title address")
+      .populate("foodService", "kitchenName address") // Added population for FoodService
       .populate("host", "name profileImage");
 
     res.json({ success: true, data: reviews });

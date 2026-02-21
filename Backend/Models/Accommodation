@@ -2,13 +2,12 @@ const mongoose = require("mongoose");
 
 const accommodationSchema = new mongoose.Schema(
   {
-    // 🔹 Owner (Hardcoded for now)
+    
     owner: {
       type: String,
       required: true,
     },
 
-    // 🔹 Basic Info
     title: {
       type: String,
       required: true,
@@ -53,7 +52,7 @@ const accommodationSchema = new mongoose.Schema(
       default: 1,
     },
 
-    // 🔹 Utility Bills
+    
     utilityBills: {
       electricityIncluded: {
         type: Boolean,
@@ -65,7 +64,7 @@ const accommodationSchema = new mongoose.Schema(
       },
     },
 
-    // 🔹 Pricing
+    
     pricePerMonth: {
       type: Number,
       required: true,
@@ -83,12 +82,12 @@ const accommodationSchema = new mongoose.Schema(
       },
     ],
 
-    // 🔹 Amenities & Rules
+   
     amenities: [String],
 
     rules: [String],
 
-    // 🔹 Location (GeoJSON)
+    
     location: {
       type: {
         type: String,
@@ -96,7 +95,7 @@ const accommodationSchema = new mongoose.Schema(
         default: "Point",
       },
       coordinates: {
-        type: [Number], // [lng, lat]
+        type: [Number], 
         required: true,
       },
     },
@@ -106,7 +105,7 @@ const accommodationSchema = new mongoose.Schema(
       required: true,
       default: "Distance not available", 
     },
-    // 🔹 Reviews & Ratings
+    
     reviews: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -124,7 +123,7 @@ const accommodationSchema = new mongoose.Schema(
       default: 0,
     },
 
-    // 🔹 Availability
+    
     isAvailable: {
       type: Boolean,
       default: false,
@@ -137,7 +136,7 @@ const accommodationSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-// 🔹 Geospatial Index
+
 accommodationSchema.index({ location: "2dsphere" });
 
 module.exports =

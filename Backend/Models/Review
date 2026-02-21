@@ -13,6 +13,11 @@ const reviewSchema = new mongoose.Schema(
       ref: "Accommodation",
     },
 
+    foodService: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FoodService",
+    },
+    
     host: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User", 

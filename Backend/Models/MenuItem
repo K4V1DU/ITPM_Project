@@ -1,0 +1,72 @@
+const mongoose = require("mongoose");
+
+const menuItemSchema = new mongoose.Schema(
+  {
+    foodServiceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+    },
+
+  
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    description: {
+      type: String,
+      trim: true,
+    },
+
+    price: {
+      type: Number,
+      required: true,
+    },
+
+
+    AvailableHours: {
+      open: { 
+        type: String, 
+        default: "08:00 AM" 
+      },
+      close: { 
+        type: String, 
+        default: "08:00 PM" 
+      },
+    },
+
+    image: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Photo",
+    },
+
+    category: {
+      type: String,
+      enum: ["Breakfast", "Lunch", "Dinner", "Snacks", "Drinks", "Dessert"],
+      required: true,
+    },
+
+    dietaryTags: {
+      type: [String],
+      enum: ["Vegetarian", "Vegan", "Spicy", "Gluten-Free"],
+    },
+
+    
+    isAvailable: {
+      type: Boolean,
+      default: true,
+    },
+
+    
+    prepTime: {
+      type: Number, 
+      default: 15,
+    },
+  },
+  { timestamps: true }
+);
+
+module.exports =
+  mongoose.models.MenuItem || 
+  mongoose.model("MenuItem", menuItemSchema);
