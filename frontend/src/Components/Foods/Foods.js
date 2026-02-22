@@ -31,17 +31,48 @@ const RATING_OPTIONS = [0, 3, 3.5, 4, 4.5];
 
 // ─── Default filter state ─────────────────────────────────────────────────
 const DEFAULT_FILTERS = {
-  serviceTypes: [],   // Kitchen Type chips
-  orderOptions: [],   // Delivery / Pickup chips
-  categories:   [],   // Menu Category chips
-  dietary:      [],   // Dietary chips
-  minRating:    0,    // Rating chip (0 = Any)
+  serviceTypes: [],
+  orderOptions: [],
+  categories:   [],
+  dietary:      [],
+  minRating:    0,
 };
 
 const countActive = (f) =>
   f.serviceTypes.length + f.orderOptions.length +
   f.categories.length + f.dietary.length +
   (f.minRating > 0 ? 1 : 0);
+
+// ─── Time-based open/closed helper ────────────────────────────────────────
+// Parses "08:00 AM" / "10:00 PM" style strings and checks if current
+// local time falls between open and close.
+function isCurrentlyOpen(operatingHours) {
+  try {
+    const parse = (str) => {
+      if (!str) return null;
+      const [time, period] = str.trim().split(" ");
+      let [h, m] = time.split(":").map(Number);
+      if (period === "PM" && h !== 12) h += 12;
+      if (period === "AM" && h === 12) h = 0;
+      return h * 60 + m; // minutes since midnight
+    };
+
+    const now   = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const openMin  = parse(operatingHours?.open);
+    const closeMin = parse(operatingHours?.close);
+
+    if (openMin === null || closeMin === null) return false;
+
+    // Handle overnight spans (e.g. 10 PM – 02 AM)
+    if (closeMin <= openMin) {
+      return nowMin >= openMin || nowMin < closeMin;
+    }
+    return nowMin >= openMin && nowMin < closeMin;
+  } catch {
+    return false;
+  }
+}
 
 // ─────────────────────────────────────────
 // CARD SKELETON
@@ -75,6 +106,9 @@ function FoodServiceCard({ service, onNavigate }) {
   const rateCount = service.ratingCount   ?? 0;
   const emoji     = SERVICE_TYPE_EMOJI[service.serviceType] ?? "🍽";
 
+  // Compute open/closed from actual operating hours (real-time)
+  const open = isCurrentlyOpen(service.operatingHours);
+
   return (
     <div className="fs-card" onClick={() => onNavigate(service._id)}>
       <div className="fs-card__image-wrapper">
@@ -83,9 +117,9 @@ function FoodServiceCard({ service, onNavigate }) {
               onError={() => setImgSrc(null)} />
           : <div className="fs-card__image-fallback">{emoji}</div>}
 
-        <div className={`fs-card__status ${service.isAvailable ? "fs-card__status--open" : "fs-card__status--closed"}`}>
+        <div className={`fs-card__status ${open ? "fs-card__status--open" : "fs-card__status--closed"}`}>
           <span className="fs-card__status-dot" />
-          {service.isAvailable ? "Open" : "Closed"}
+          {open ? "Open" : "Closed"}
         </div>
 
         <button className="fs-card__heart"
@@ -129,10 +163,9 @@ function FoodServiceCard({ service, onNavigate }) {
 }
 
 // ─────────────────────────────────────────
-// FILTER POPUP  — all chips, no toggles
+// FILTER POPUP
 // ─────────────────────────────────────────
 function FilterPopup({ draft, setDraft, onApply, onClear, onClose }) {
-  // Toggle a value in an array field
   const toggle = (field, val) =>
     setDraft(f => ({
       ...f,
@@ -141,7 +174,6 @@ function FilterPopup({ draft, setDraft, onApply, onClear, onClose }) {
         : [...f[field], val],
     }));
 
-  // Render a chip row
   const ChipRow = ({ field, items, emojiMap }) => (
     <div className="fsl-filter-chips">
       {items.map(item => (
@@ -159,50 +191,33 @@ function FilterPopup({ draft, setDraft, onApply, onClear, onClose }) {
   return (
     <div className="fsl-filter-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="fsl-filter-popup">
-
-        {/* ── Header ── */}
         <div className="fsl-filter-popup__header">
           <button className="fsl-filter-popup__close" onClick={onClose}><FaTimes /></button>
           <span className="fsl-filter-popup__title">Filters</span>
           <button className="fsl-filter-popup__clear" onClick={onClear}>Clear all</button>
         </div>
 
-        {/* ── Body ── */}
         <div className="fsl-filter-popup__body">
-
-          {/* Kitchen Type */}
           <div className="fsl-filter-section">
             <div className="fsl-filter-section__title">Kitchen Type</div>
             <ChipRow field="serviceTypes" items={SERVICE_TYPES} emojiMap={SERVICE_TYPE_EMOJI} />
           </div>
-
           <div className="fsl-filter-divider" />
-
-          {/* Order Options */}
           <div className="fsl-filter-section">
             <div className="fsl-filter-section__title">Order Options</div>
             <ChipRow field="orderOptions" items={ORDER_OPTIONS} emojiMap={ORDER_EMOJI} />
           </div>
-
           <div className="fsl-filter-divider" />
-
-          {/* Menu Category */}
           <div className="fsl-filter-section">
             <div className="fsl-filter-section__title">Menu Category</div>
             <ChipRow field="categories" items={CATEGORIES} emojiMap={CAT_EMOJI} />
           </div>
-
           <div className="fsl-filter-divider" />
-
-          {/* Dietary */}
           <div className="fsl-filter-section">
             <div className="fsl-filter-section__title">Dietary</div>
             <ChipRow field="dietary" items={DIET_TAGS} emojiMap={DIET_EMOJI} />
           </div>
-
           <div className="fsl-filter-divider" />
-
-          {/* Minimum Rating */}
           <div className="fsl-filter-section">
             <div className="fsl-filter-section__title">Minimum Rating</div>
             <div className="fsl-filter-chips">
@@ -217,16 +232,13 @@ function FilterPopup({ draft, setDraft, onApply, onClear, onClose }) {
               ))}
             </div>
           </div>
-
         </div>
 
-        {/* ── Footer ── */}
         <div className="fsl-filter-popup__footer">
           <button className="fsl-filter-apply-btn" onClick={onApply}>
             <FaSearch style={{ fontSize:13 }} /> Search
           </button>
         </div>
-
       </div>
     </div>
   );
@@ -253,16 +265,18 @@ export default function Foods() {
   const dropdownRef = useRef(null);
   const activeCount = countActive(appliedFilters);
 
-  // ── Fetch all services + enrich with menu metadata ─────────────────────
+  // ── Fetch — only services where isAvailable === true ──────────────────
   useEffect(() => {
     setLoading(true);
     fetch(`${API_BASE}/Foodservice`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(async raw => {
         const list = unwrap(raw);
-        const arr  = Array.isArray(list) ? list : [];
 
-        // For each service fetch its menu items to get categories + dietary tags
+        // ✅ Filter out any service where isAvailable is not true
+        const arr = (Array.isArray(list) ? list : []).filter(s => s.isAvailable === true);
+
+        // Enrich with menu metadata (categories + dietary tags)
         const enriched = await Promise.all(
           arr.map(async s => {
             if (!s.menu?.length) return { ...s, _cats: [], _diet: [] };
@@ -292,30 +306,21 @@ export default function Foods() {
       .finally(() => setLoading(false));
   }, []);
 
-  // ── Core filter + search logic ────────────────────────────────────────
+  // ── Core filter + search logic ─────────────────────────────────────────
   const runFilter = (f, q, base) => {
     let r = base;
-
     if (f.serviceTypes.length)
       r = r.filter(s => f.serviceTypes.includes(s.serviceType));
-
     if (f.orderOptions.includes("Delivery"))
       r = r.filter(s => s.deliveryAvailable);
-
     if (f.orderOptions.includes("Pickup"))
       r = r.filter(s => s.pickupAvailable);
-
-    // Service must have at least one menu item in any selected category
     if (f.categories.length)
       r = r.filter(s => f.categories.some(c => s._cats?.includes(c)));
-
-    // Service must have menu items covering ALL selected dietary tags
     if (f.dietary.length)
       r = r.filter(s => f.dietary.every(d => s._diet?.includes(d)));
-
     if (f.minRating > 0)
       r = r.filter(s => (s.ratingAverage ?? 0) >= f.minRating);
-
     if (q.trim()) {
       const lq = q.toLowerCase();
       r = r.filter(s =>
@@ -327,37 +332,30 @@ export default function Foods() {
     return r;
   };
 
-  // Re-apply after enriched services load
   useEffect(() => {
     if (services.length) setFiltered(runFilter(appliedFilters, searchQuery, services));
   }, [services]);
 
-  // ── Handlers ──────────────────────────────────────────────────────────
+  // ── Handlers ───────────────────────────────────────────────────────────
   const handleSearch = () => {
     setSearchQuery(searchInput);
     setFiltered(runFilter(appliedFilters, searchInput, services));
   };
-
-  const handleKeyDown = (e) => { if (e.key === "Enter") handleSearch(); };
-
-  const openFilter = () => { setDraftFilters(appliedFilters); setShowFilter(true); };
-
+  const handleKeyDown     = (e) => { if (e.key === "Enter") handleSearch(); };
+  const openFilter        = () => { setDraftFilters(appliedFilters); setShowFilter(true); };
   const handleFilterApply = () => {
     setAppliedFilters(draftFilters);
     setSearchQuery(searchInput);
     setShowFilter(false);
     setFiltered(runFilter(draftFilters, searchInput, services));
   };
-
-  const handleFilterClear  = () => setDraftFilters(DEFAULT_FILTERS);
-
-  const clearAllFilters = () => {
+  const handleFilterClear = () => setDraftFilters(DEFAULT_FILTERS);
+  const clearAllFilters   = () => {
     setAppliedFilters(DEFAULT_FILTERS);
     setDraftFilters(DEFAULT_FILTERS);
     setFiltered(runFilter(DEFAULT_FILTERS, searchQuery, services));
   };
 
-  // ── Navbar dropdown outside-click ─────────────────────────────────────
   useEffect(() => {
     const h = e => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target))
@@ -367,7 +365,6 @@ export default function Foods() {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  // ── Active filter summary label ────────────────────────────────────────
   const filterSummary = () => {
     const parts = [];
     if (appliedFilters.serviceTypes.length) parts.push(appliedFilters.serviceTypes.join(", "));
@@ -447,7 +444,6 @@ export default function Foods() {
         </div>
       </div>
 
-      {/* Active filter summary row */}
       {activeCount > 0 && (
         <div className="fsl-active-filters">
           <span className="fsl-active-filters__label">Active filters:</span>

@@ -53,6 +53,17 @@ const TIME_OPTIONS = (() => {
   return opts;
 })();
 
+// Index of a time string in TIME_OPTIONS
+const timeIdx = (t) => TIME_OPTIONS.indexOf(t);
+
+// Clamp a time string to stay within [opOpen, opClose]
+const clampTime = (t, opOpen, opClose) => {
+  const i = timeIdx(t), lo = timeIdx(opOpen), hi = timeIdx(opClose);
+  if (i < lo) return opOpen;
+  if (i > hi) return opClose;
+  return t;
+};
+
 const emptyMenuItem = () => ({
   name: "", description: "", price: "", category: "Lunch",
   dietaryTags: [],
@@ -417,8 +428,21 @@ function AddFoodService() {
                     <span className="time-picker-label">Opens</span>
                     <select className="form-input time-select"
                       value={operatingHours.open}
-                      onChange={e => setOperatingHours(p => ({ ...p, open: e.target.value }))}>
-                      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                      onChange={e => {
+                        const newOpen = e.target.value;
+                        const openIdx = TIME_OPTIONS.indexOf(newOpen);
+                        const closeIdx = TIME_OPTIONS.indexOf(operatingHours.close);
+                        const newClose = closeIdx > openIdx ? operatingHours.close : TIME_OPTIONS[openIdx + 1] || TIME_OPTIONS[openIdx];
+                        setOperatingHours({ open: newOpen, close: newClose });
+                        // Clamp all menu item times to stay within new operating hours
+                        setMenuItems(prev => prev.map(item => {
+                          const iOpen  = clampTime(item.AvailableHours.open,  newOpen, newClose);
+                          const iClose = clampTime(item.AvailableHours.close, newOpen, newClose);
+                          const finalClose = timeIdx(iClose) > timeIdx(iOpen) ? iClose : newClose;
+                          return { ...item, AvailableHours: { open: iOpen, close: finalClose } };
+                        }));
+                      }}>
+                      {TIME_OPTIONS.slice(0, -1).map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
                   <div className="time-picker-divider">→</div>
@@ -426,8 +450,19 @@ function AddFoodService() {
                     <span className="time-picker-label">Closes</span>
                     <select className="form-input time-select"
                       value={operatingHours.close}
-                      onChange={e => setOperatingHours(p => ({ ...p, close: e.target.value }))}>
-                      {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                      onChange={e => {
+                        const newClose = e.target.value;
+                        setOperatingHours(p => ({ ...p, close: newClose }));
+                        // Clamp all menu item times to stay within new operating hours
+                        setMenuItems(prev => prev.map(item => {
+                          const iOpen  = clampTime(item.AvailableHours.open,  operatingHours.open, newClose);
+                          const iClose = clampTime(item.AvailableHours.close, operatingHours.open, newClose);
+                          const finalClose = timeIdx(iClose) > timeIdx(iOpen) ? iClose : newClose;
+                          return { ...item, AvailableHours: { open: iOpen, close: finalClose } };
+                        }));
+                      }}>
+                      {TIME_OPTIONS.filter(t => TIME_OPTIONS.indexOf(t) > TIME_OPTIONS.indexOf(operatingHours.open))
+                        .map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
                 </div>
@@ -646,8 +681,24 @@ function AddFoodService() {
                         <span className="time-picker-label">From</span>
                         <select className="form-input time-select"
                           value={item.AvailableHours.open}
-                          onChange={e => updateMenuItemHours(index, "open", e.target.value)}>
-                          {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                          onChange={e => {
+                            const newOpen  = e.target.value;
+                            const openIdx  = TIME_OPTIONS.indexOf(newOpen);
+                            const closeIdx = TIME_OPTIONS.indexOf(item.AvailableHours.close);
+                            const opCloseIdx = TIME_OPTIONS.indexOf(operatingHours.close);
+                            updateMenuItemHours(index, "open", newOpen);
+                            // Ensure item close stays after new open and within operating hours close
+                            if (closeIdx <= openIdx) {
+                              const next = Math.min(openIdx + 1, opCloseIdx);
+                              updateMenuItemHours(index, "close", TIME_OPTIONS[next]);
+                            }
+                          }}>
+                          {TIME_OPTIONS
+                            .filter(t => {
+                              const i = TIME_OPTIONS.indexOf(t);
+                              return i >= timeIdx(operatingHours.open) && i < timeIdx(operatingHours.close);
+                            })
+                            .map(t => <option key={t} value={t}>{t}</option>)}
                         </select>
                       </div>
                       <div className="time-picker-divider">→</div>
@@ -656,7 +707,12 @@ function AddFoodService() {
                         <select className="form-input time-select"
                           value={item.AvailableHours.close}
                           onChange={e => updateMenuItemHours(index, "close", e.target.value)}>
-                          {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                          {TIME_OPTIONS
+                            .filter(t => {
+                              const i = TIME_OPTIONS.indexOf(t);
+                              return i > timeIdx(item.AvailableHours.open) && i <= timeIdx(operatingHours.close);
+                            })
+                            .map(t => <option key={t} value={t}>{t}</option>)}
                         </select>
                       </div>
                     </div>
