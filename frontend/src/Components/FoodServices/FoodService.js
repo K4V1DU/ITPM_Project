@@ -6,6 +6,7 @@ import {
   FaCog, FaSignOutAlt, FaEnvelope,
   FaMotorcycle, FaShoppingBag, FaPen,
   FaSpinner, FaExclamationTriangle, FaTimes,
+  FaHeart, FaRegHeart, FaEllipsisH, FaCommentAlt, FaUserCircle, FaShare, FaFlag,
 } from "react-icons/fa";
 import "./FoodService.css";
 
@@ -279,100 +280,6 @@ function ReviewCard({ review, index, total, expanded, onToggle }) {
 // ─────────────────────────────────────────
 // ALL REVIEWS MODAL
 // ─────────────────────────────────────────
-function AllReviewsModal({ reviews, onClose }) {
-  const [expanded, setExpanded] = useState({});
-
-  return (
-    <div className="fs-review-modal-overlay"
-      onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{
-        background: "#fff", borderRadius: 20, width: "100%", maxWidth: 760,
-        maxHeight: "88vh", overflowY: "auto",
-        boxShadow: "0 32px 80px rgba(0,0,0,0.22)",
-        animation: "fadeInScale 0.28s cubic-bezier(0.34,1.56,0.64,1)",
-      }}>
-        {/* Header */}
-        <div style={{
-          position: "sticky", top: 0, background: "#fff", zIndex: 10,
-          padding: "22px 28px 16px",
-          borderBottom: "1px solid #f0f0f0",
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-        }}>
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "#000" }}>
-              All Reviews
-            </div>
-            <div style={{ fontSize: 13, color: "#757575", marginTop: 2 }}>
-              {reviews.length} review{reviews.length !== 1 ? "s" : ""}
-            </div>
-          </div>
-          <button onClick={onClose} style={{
-            width: 36, height: 36, borderRadius: "50%",
-            border: "1px solid #e2e2e2", background: "#fff",
-            fontSize: 16, cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}><FaTimes /></button>
-        </div>
-
-        {/* Reviews list — single column in modal */}
-        <div style={{ padding: "0 28px 28px" }}>
-          {reviews.map((r, i) => {
-            const name      = r.reviewer?.name ?? "Guest";
-            const joined    = r.reviewer?.createdAt ? new Date(r.reviewer.createdAt).getFullYear() : null;
-            const yearsOn   = joined ? new Date().getFullYear() - joined : 0;
-            const color     = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
-            const date      = r.createdAt
-              ? new Date(r.createdAt).toLocaleString("en-US", { month: "long", year: "numeric" })
-              : "Recent";
-            const avatarSrc = r.reviewer?._profilePhotoUrl ?? null;
-            const isLong    = (r.comment?.length ?? 0) > SHOW_MORE_THRESHOLD;
-            const exp       = !!expanded[r._id ?? i];
-
-            return (
-              <div key={r._id ?? i} style={{
-                padding: "24px 0",
-                borderBottom: i < reviews.length - 1 ? "1px solid #f0f0f0" : "none",
-              }}>
-                <div className="fs-reviews__author">
-                  <div className="fs-reviews__avatar" style={{ background: color }}>
-                    {avatarSrc
-                      ? <img src={avatarSrc} alt={name}
-                          style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
-                          onError={e => { e.currentTarget.style.display = "none"; }}
-                        />
-                      : name[0].toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="fs-reviews__author-name">{name}</div>
-                    <div className="fs-reviews__author-years">
-                      {yearsOn > 0 ? `${yearsOn} year${yearsOn !== 1 ? "s" : ""} on Bodima` : "New member"}
-                    </div>
-                  </div>
-                </div>
-                <div className="fs-reviews__stars-row" style={{ marginTop: 10 }}>
-                  <span>{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span>
-                  <span style={{ color: "#ccc" }}>·</span>
-                  <span className="fs-reviews__date">{date}</span>
-                </div>
-                <div className={`fs-reviews__text${(!exp && isLong) ? " fs-reviews__text--clamped" : ""}`}
-                  style={{ marginTop: 10 }}>
-                  {r.comment}
-                </div>
-                {isLong && (
-                  <button className="fs-reviews__toggle-btn" style={{ fontFamily: FONT }}
-                    onClick={() => setExpanded(e => ({ ...e, [r._id ?? i]: !e[r._id ?? i] }))}>
-                    {exp ? "Show less" : "Show more"}
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─────────────────────────────────────────
 // MENU ITEM ROW
 // ─────────────────────────────────────────
@@ -483,10 +390,13 @@ export default function FoodService() {
   const [showReviewModal,  setShowReviewModal]  = useState(false);
   const [showAllReviews,   setShowAllReviews]   = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [isFavourited,     setIsFavourited]     = useState(false);
+  const [showActionMenu,   setShowActionMenu]   = useState(false);
 
-  const sectionRefs = useRef({});
-  const toastTimer  = useRef(null);
-  const dropdownRef = useRef(null);
+  const sectionRefs   = useRef({});
+  const toastTimer    = useRef(null);
+  const dropdownRef   = useRef(null);
+  const actionMenuRef = useRef(null);
 
   // ─────────────────────────────────────
   // FETCH: FoodService
@@ -658,8 +568,8 @@ export default function FoodService() {
   // ─────────────────────────────────────
   useEffect(() => {
     const onScroll = () => {
-      let cur = CATEGORIES[0];
-      CATEGORIES.forEach(cat => {
+      let cur = activeCategories[0] ?? CATEGORIES[0];
+      activeCategories.forEach(cat => {
         const el = sectionRefs.current[`cat-${cat}`];
         if (el && el.getBoundingClientRect().top < 140) cur = cat;
       });
@@ -679,6 +589,8 @@ export default function FoodService() {
     const h = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target))
         setShowDropdown(false);
+      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target))
+        setShowActionMenu(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
@@ -745,6 +657,9 @@ export default function FoodService() {
   const mapSrc      = `https://maps.google.com/maps?q=${mapLat},${mapLng}&z=16&output=embed`;
   const deliveryFee = orderType === "delivery" ? 150 : 0;
   const orderTotal  = cartTotal + deliveryFee;
+
+  // Categories that actually exist in this service's menu (preserves display order)
+  const activeCategories = CATEGORIES.filter(cat => menuItems.some(i => i.category === cat));
 
   // Max 4 reviews shown on page; rest in modal
   const previewReviews = reviews.slice(0, 4);
@@ -841,13 +756,14 @@ export default function FoodService() {
       </nav>
 
       {/* ══ HERO ══ */}
-      <div className="fs-hero">
-        {service?.BackgroundImage
-          ? <img src={photoSrc(service.BackgroundImage)} alt="banner"
-              style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
-                objectFit: "cover", zIndex: 0 }} />
-          : <><div className="fs-hero__dots" /><div className="fs-hero__gradient" /></>}
-        <span className="fs-hero__emoji" style={{ zIndex: 1 }}>🍗</span>
+      <div style={{ padding: "0 24px" }}>
+        <div className="fs-hero">
+          {service?.BackgroundImage
+            ? <img src={photoSrc(service.BackgroundImage)} alt="banner"
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
+                  objectFit: "cover", zIndex: 0 }} />
+            : <><div className="fs-hero__dots" /><div className="fs-hero__gradient" /></>}
+        </div>
       </div>
 
       {/* ══ WRAPPER ══ */}
@@ -905,8 +821,108 @@ export default function FoodService() {
           </div>
 
           <div className="fs-restaurant-header__actions">
-            <button className="fs-restaurant-header__action-btn" style={{ fontSize: 16 }}>🤍</button>
-            <button className="fs-restaurant-header__action-btn" style={{ fontSize: 14, fontWeight: 700 }}>•••</button>
+            {/* Favourite button */}
+            <button
+              className={`fs-action-btn${isFavourited ? " fs-action-btn--favourited" : ""}`}
+              onClick={() => {
+                setIsFavourited(p => !p);
+                showToast(isFavourited ? "Removed from favourites" : "Added to favourites ❤️");
+              }}
+              title={isFavourited ? "Remove from favourites" : "Add to favourites"}
+            >
+              {isFavourited
+                ? <FaHeart style={{ color: PINK, fontSize: 16 }} />
+                : <FaRegHeart style={{ color: "#444", fontSize: 16 }} />}
+            </button>
+
+            {/* Three-dot menu */}
+            <div ref={actionMenuRef} style={{ position: "relative" }}>
+              <button
+                className="fs-action-btn"
+                onClick={() => setShowActionMenu(p => !p)}
+                title="More options"
+              >
+                <FaEllipsisH style={{ color: "#444", fontSize: 15 }} />
+              </button>
+
+              {showActionMenu && (
+                <div className="fs-action-dropdown">
+
+                  {/* Host info section */}
+                  <div className="fs-action-dropdown__host">
+                    <div className="fs-action-dropdown__host-avatar">
+                      {currentUser?.profileImage
+                        ? <img src={
+                            /^[a-f\d]{24}$/i.test(currentUser.profileImage)
+                              ? photoSrc(currentUser.profileImage)
+                              : currentUser.profileImage
+                          } alt="host"
+                            style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
+                            onError={e => { e.currentTarget.style.display = "none"; }}
+                          />
+                        : <FaUserCircle style={{ fontSize: 36, color: "#bbb" }} />}
+                    </div>
+                    <div>
+                      <div className="fs-action-dropdown__host-label">Hosted by</div>
+                      <div className="fs-action-dropdown__host-name">
+                        {service?.owner
+                          ? (currentUser?.name ?? "Host")
+                          : "Host"}
+                      </div>
+                      <div className="fs-action-dropdown__host-since">
+                        {currentUser?.createdAt
+                          ? `Member since ${new Date(currentUser.createdAt).getFullYear()}`
+                          : "Bodima Host"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="fs-action-dropdown__divider" />
+
+                  {/* Message host */}
+                  <button
+                    className="fs-action-dropdown__item fs-action-dropdown__item--primary"
+                    onClick={() => { setShowActionMenu(false); showToast("Opening messages…"); }}
+                  >
+                    <FaCommentAlt style={{ fontSize: 13 }} />
+                    Message Host
+                  </button>
+
+                  {/* View host profile */}
+                  <button
+                    className="fs-action-dropdown__item"
+                    onClick={() => { setShowActionMenu(false); }}
+                  >
+                    <FaUserCircle style={{ fontSize: 14 }} />
+                    View Host Profile
+                  </button>
+
+                  <div className="fs-action-dropdown__divider" />
+
+                  {/* Share */}
+                  <button
+                    className="fs-action-dropdown__item"
+                    onClick={() => {
+                      setShowActionMenu(false);
+                      navigator.clipboard?.writeText(window.location.href);
+                      showToast("Link copied to clipboard!");
+                    }}
+                  >
+                    <FaShare style={{ fontSize: 13 }} />
+                    Share this kitchen
+                  </button>
+
+                  {/* Report */}
+                  <button
+                    className="fs-action-dropdown__item fs-action-dropdown__item--danger"
+                    onClick={() => { setShowActionMenu(false); showToast("Report submitted. Thank you."); }}
+                  >
+                    <FaFlag style={{ fontSize: 13 }} />
+                    Report
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -917,7 +933,7 @@ export default function FoodService() {
 
           {/* Sidebar */}
           <nav className="fs-sidebar">
-            {CATEGORIES.map(cat => (
+            {activeCategories.map(cat => (
               <button key={cat}
                 onClick={() => scrollTo(`cat-${cat}`)}
                 className={`fs-sidebar__btn${activeNav === cat ? " fs-sidebar__btn--active" : ""}`}
@@ -944,7 +960,7 @@ export default function FoodService() {
                 </div>
               : menuItems.length === 0
                 ? <div style={{ textAlign: "center", padding: "60px 0", color: "#757575" }}>No menu items found.</div>
-                : CATEGORIES.map(cat => {
+                : activeCategories.map(cat => {
                     const items = menuItems.filter(i => i.category === cat);
                     if (!items.length) return null;
                     return (
@@ -1089,26 +1105,28 @@ export default function FoodService() {
                   No reviews yet — be the first to share your experience!
                 </div>
               : <div className="fs-reviews__grid">
-                  {previewReviews.map((r, i) => (
+                  {(showAllReviews ? reviews : previewReviews).map((r, i) => (
                     <ReviewCard
                       key={r._id ?? i}
                       review={r}
                       index={i}
-                      total={previewReviews.length}
+                      total={showAllReviews ? reviews.length : previewReviews.length}
                       expanded={!!expanded[r._id ?? i]}
                       onToggle={() => setExpanded(e => ({ ...e, [r._id ?? i]: !e[r._id ?? i] }))}
                     />
                   ))}
                 </div>}
 
-          {/* Show all button — only if more than 4 */}
-          {reviews.length > 0 && (
+          {/* Show all / Show less button */}
+          {reviews.length > 4 && (
             <button
               className="fs-reviews__show-all-btn"
               style={{ fontFamily: FONT }}
-              onClick={() => setShowAllReviews(true)}
+              onClick={() => setShowAllReviews(p => !p)}
             >
-              Show all {reviews.length} review{reviews.length !== 1 ? "s" : ""}
+              {showAllReviews
+                ? "Show less"
+                : `Show all ${reviews.length} reviews`}
             </button>
           )}
         </div>
@@ -1236,14 +1254,6 @@ export default function FoodService() {
           onClose={() => setShowReviewModal(false)}
           onSubmit={handleReviewSubmit}
           submitting={reviewSubmitting}
-        />
-      )}
-
-      {/* ══ ALL REVIEWS MODAL ══ */}
-      {showAllReviews && (
-        <AllReviewsModal
-          reviews={reviews}
-          onClose={() => setShowAllReviews(false)}
         />
       )}
 

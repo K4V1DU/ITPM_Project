@@ -177,9 +177,12 @@
 /* ── Hero Banner ── */
 .fs-hero {
   width: 100%;
+  max-width: 1200px;
+  margin: 16px auto;
   height: 280px;
   overflow: hidden;
   position: relative;
+  border-radius: 16px;
   background: linear-gradient(135deg, #c0392b 0%, #8e1a1a 50%, #5a0f0f 100%);
   display: flex;
   align-items: center;
@@ -290,13 +293,117 @@
   flex-shrink: 0;
 }
 
-.fs-restaurant-header__action-btn {
+/* ── Action Buttons (heart / three-dot) ── */
+.fs-action-btn {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 1px solid #e2e2e2;
+  border: 1.5px solid #e2e2e2;
   background: #fff;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+}
+.fs-action-btn:hover {
+  border-color: #ccc;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  background: #fafafa;
+}
+.fs-action-btn--favourited {
+  border-color: #fecaca;
+  background: #fff5f5;
+}
+
+/* ── Three-dot action dropdown ── */
+.fs-action-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  background: #fff;
+  border: 1px solid #ebebeb;
+  border-radius: 16px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.16);
+  min-width: 240px;
+  z-index: 400;
+  overflow: hidden;
+  animation: dropdownSmooth 0.18s ease;
+}
+
+.fs-action-dropdown__host {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 16px 12px;
+}
+
+.fs-action-dropdown__host-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.fs-action-dropdown__host-label {
+  font-size: 11px;
+  color: #999;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+
+.fs-action-dropdown__host-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1b1b1b;
+}
+
+.fs-action-dropdown__host-since {
+  font-size: 12px;
+  color: #757575;
+  margin-top: 1px;
+}
+
+.fs-action-dropdown__divider {
+  height: 1px;
+  background: #f0f0f0;
+  margin: 2px 0;
+}
+
+.fs-action-dropdown__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1b1b1b;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.14s;
+}
+.fs-action-dropdown__item:hover {
+  background: #f7f7f7;
+}
+.fs-action-dropdown__item--primary {
+  color: #FF385C;
+  font-weight: 600;
+}
+.fs-action-dropdown__item--danger {
+  color: #dc2626;
+}
+.fs-action-dropdown__item--danger:hover {
+  background: #fff5f5;
 }
 
 .fs-divider {
