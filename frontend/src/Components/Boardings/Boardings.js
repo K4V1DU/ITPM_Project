@@ -323,7 +323,7 @@ const Boarding = () => {
           </div>
         </div>
         <div className="bd-nav__right">
-          <button className="bd-nav__host-btn">Become a Host</button>
+          <button className="bd-nav__host-btn" onClick={() => window.location.href = "/host"}>Become a Host</button>
           <div className="bd-nav__icon-btn"><FaUser /></div>
           <div ref={dropdownRef} className="bd-dropdown">
             <div className="bd-nav__icon-btn" onClick={() => setShowDropdown(p => !p)}>
