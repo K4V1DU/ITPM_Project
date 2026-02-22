@@ -195,7 +195,7 @@ const AddAccommodation = () => {
       const res = await axios.post("http://localhost:8000/Accommodation", payload);
       if (res.data) {
         alert("Your accommodation has been saved successfully!");
-        navigate("/cust");
+        navigate("/edit-Accommodation/:id");
       }
     } catch (err) {
       alert("Error: " + (err.response?.data?.message || "Check required fields"));
