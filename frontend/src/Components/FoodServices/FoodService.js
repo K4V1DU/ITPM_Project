@@ -13,7 +13,7 @@ import "./FoodService.css";
 // ─────────────────────────────────────────
 // CONFIG
 // ─────────────────────────────────────────
-const API_BASE        = "http://localhost:5000";
+const API_BASE        = "http://localhost:8000";
 const CURRENT_USER_ID = "6991714fa19b70085fffefbc"; // replace with auth later
 
 // ─────────────────────────────────────────

@@ -26,7 +26,7 @@ const Boarding = () => {
     const fetchAccommodations = async () => {
       try {
         setLoading(true);
-        const res = await axios.get("http://localhost:5000/accommodation");
+        const res = await axios.get("http://localhost:8000/accommodation");
 
         if (res.data.success) {
           const accData = res.data.data.filter((acc) => acc.isAvailable);
@@ -40,7 +40,7 @@ const Boarding = () => {
                 const imageId = acc.images[0];
                 try {
                   const imageRes = await axios.get(
-                    `http://localhost:5000/Photo/${imageId}`,
+                    `http://localhost:8000/Photo/${imageId}`,
                     { responseType: "blob" },
                   );
                   const imageUrl = URL.createObjectURL(imageRes.data);
