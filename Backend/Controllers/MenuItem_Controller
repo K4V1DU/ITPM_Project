@@ -1,0 +1,155 @@
+const MenuItem = require("../models/MenuItem");
+const FoodService = require("../models/FoodService");
+
+// ==============================
+// Add New Menu Item
+// ==============================
+const addMenuItem = async (req, res) => {
+  try {
+    const {
+      foodServiceId,
+      name,
+      description,
+      price,
+      AvailableHours,
+      image,
+      category,
+      dietaryTags,
+      isAvailable,
+      prepTime
+    } = req.body;
+
+    // ✅ Validation
+    if (!foodServiceId || !name || !price || !category) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields: foodServiceId, name, price, or category.",
+      });
+    }
+
+    const newMenuItem = new MenuItem({
+      foodServiceId,
+      name,
+      description,
+      price: Number(price),
+      AvailableHours: AvailableHours || { open: "08:00 AM", close: "08:00 PM" },
+      image: image || null, // Stores only the ObjectId
+      category,
+      dietaryTags: dietaryTags || [],
+      isAvailable: isAvailable ?? true,
+      prepTime: Number(prepTime) || 15
+    });
+
+    await newMenuItem.save();
+
+    // 🔹 Sync Logic: Push the new item ID to the FoodService menu array
+    await FoodService.findByIdAndUpdate(foodServiceId, {
+      $push: { menu: newMenuItem._id },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Menu item added successfully",
+      data: newMenuItem,
+    });
+  } catch (err) {
+    console.error("MenuItem Insert Error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ==============================
+// Get All Menu Items (No Populate)
+// ==============================
+const getAllMenuItems = async (req, res) => {
+  try {
+    const items = await MenuItem.find().sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: items.length,
+      data: items,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ==============================
+// Get Menu Item By ID (No Populate)
+// ==============================
+const getMenuItemById = async (req, res) => {
+  try {
+    const item = await MenuItem.findById(req.params.id);
+
+    if (!item) {
+      return res.status(404).json({ success: false, message: "Item not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: item,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ==============================
+// Update Menu Item
+// ==============================
+const updateMenuItem = async (req, res) => {
+  try {
+    const updated = await MenuItem.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ success: false, message: "Item not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Menu item updated successfully",
+      data: updated,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ==============================
+// Delete Menu Item
+// ==============================
+const deleteMenuItem = async (req, res) => {
+  try {
+    const item = await MenuItem.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ success: false, message: "Item not found" });
+    }
+
+    // 🔹 Sync Logic: Remove the ID from FoodService array before deleting the item
+    await FoodService.findByIdAndUpdate(item.foodServiceId, {
+      $pull: { menu: item._id },
+    });
+
+    await MenuItem.findByIdAndDelete(req.params.id);
+
+    res.status(200).json({
+      success: true,
+      message: "Menu item deleted successfully",
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+module.exports = {
+  addMenuItem,
+  getAllMenuItems,
+  getMenuItemById,
+  updateMenuItem,
+  deleteMenuItem,
+};

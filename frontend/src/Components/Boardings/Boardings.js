@@ -92,14 +92,14 @@ const Boarding = () => {
           </a>
 
           <div className="nav-menu">
-            <a href="#" className="nav-item active">
+            <a href="Boardings" className="nav-item active">
               Boardings
             </a>
-            <a href="#" className="nav-item">
+            <a href="Foods" className="nav-item">
               Food Services
             </a>
             <a href="#" className="nav-item">
-              Online Experiences
+              Orders
             </a>
           </div>
         </div>
