@@ -3,6 +3,7 @@ import Boardings from "./Components/Boardings/Boardings";
 import Hostpage from "./Components/HostPage/HostPage";
 import AddAccommodation from "./Components/AddAccommodation/AddAccommodation";
 import AccommodationEdit from "./Components/Accommodation_Edit/AccommodationEdit";
+import AccommodationDetails from "./Components/AccommodationDetails/AccommodationDetails"
 import FoodService from "./Components/FoodServices/FoodService";
 import Foods from "./Components/Foods/Foods";
 import AddFoodService from "./Components/FoodService_Add/AddFoodService";
@@ -24,6 +25,7 @@ function App() {
       <Route path="/host" element={<Hostpage />} />
       <Route path="/add-accommodation" element={<AddAccommodation />} />
       <Route path="/edit-Accommodation/:id" element={<AccommodationEdit />} />
+      <Route path="/details-Accommodation/:id" element={<AccommodationDetails />} />
       <Route path="/Foods" element={<Foods />} />
 
 
