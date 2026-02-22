@@ -12,7 +12,7 @@ import axios from "axios";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const GOOGLE_MAPS_API_KEY = "AIzaSyDKKnxSMEUkZyZiLT83DXCJhR4eplblzKA";
-const BASE_URL = "http://localhost:5000";
+const BASE_URL = "http://localhost:8000";
 
 const SLIIT_LOCATION = { lat: 6.9147, lng: 79.9727 };
 const LIBRARIES = ["places"];

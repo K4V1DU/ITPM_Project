@@ -73,7 +73,7 @@ const AccommodationEdit = () => {
   useEffect(() => {
     const fetchAccommodation = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/accommodation/${id}`);
+        const response = await axios.get(`http://localhost:8000/accommodation/${id}`);
         if (response.data.success) {
           const data = response.data.data;
           // Mongoose stores as [lng, lat], Leaflet needs [lat, lng]
@@ -84,7 +84,7 @@ const AccommodationEdit = () => {
           });
           if (data.images) {
             setUploadedImageIds(data.images);
-            setPhotos(data.images.map(imgId => `http://localhost:5000/photo/${imgId}`));
+            setPhotos(data.images.map(imgId => `http://localhost:8000/photo/${imgId}`));
           }
         }
       } catch (error) {
@@ -105,7 +105,7 @@ const AccommodationEdit = () => {
       const data = new FormData();
       data.append("photo", file);
       try {
-        const res = await axios.post("http://localhost:5000/photo", data);
+        const res = await axios.post("http://localhost:8000/photo", data);
         if (res.data.success) {
           setPhotos(prev => [...prev, URL.createObjectURL(file)]);
           setUploadedImageIds(prev => [...prev, res.data.data._id]);
@@ -118,7 +118,7 @@ const AccommodationEdit = () => {
   const handleDeletePhoto = async (index) => {
     if (!window.confirm("Delete photo permanently?")) return;
     try {
-      await axios.delete(`http://localhost:5000/photo/${uploadedImageIds[index]}`);
+      await axios.delete(`http://localhost:8000/photo/${uploadedImageIds[index]}`);
       setPhotos(prev => prev.filter((_, i) => i !== index));
       setUploadedImageIds(prev => prev.filter((_, i) => i !== index));
     } catch (err) { alert("Delete failed."); }
@@ -136,7 +136,7 @@ const AccommodationEdit = () => {
     const data = new FormData();
     data.append("photo", file);
     try {
-      const res = await axios.put(`http://localhost:5000/photo/${uploadedImageIds[updatingIndex]}`, data);
+      const res = await axios.put(`http://localhost:8000/photo/${uploadedImageIds[updatingIndex]}`, data);
       if (res.data.success) {
         const newPhotos = [...photos];
         newPhotos[updatingIndex] = URL.createObjectURL(file);
@@ -168,7 +168,7 @@ const AccommodationEdit = () => {
       const updateData = { ...formData, images: uploadedImageIds };
       // Convert back to [lng, lat] for Mongoose
       updateData.location.coordinates = [formData.location.coordinates[1], formData.location.coordinates[0]];
-      const res = await axios.put(`http://localhost:5000/accommodation/${id}`, updateData);
+      const res = await axios.put(`http://localhost:8000/accommodation/${id}`, updateData);
       if (res.data.success) { alert("Updated successfully!"); navigate(-1); }
     } catch (err) { alert("Update failed."); }
   };

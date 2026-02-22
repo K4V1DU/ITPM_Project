@@ -10,7 +10,7 @@ import {
 import "./Foods.css";
 
 // ─── Config ───────────────────────────────────────────────────────────────
-const API_BASE = "http://localhost:5000";
+const API_BASE = "http://localhost:8000";
 const photoSrc = (id) => id ? `${API_BASE}/Photo/${id}` : null;
 function unwrap(raw) { return raw?.data ?? raw?.result ?? raw; }
 

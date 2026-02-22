@@ -192,7 +192,7 @@ const AddAccommodation = () => {
     };
 
     try {
-      const res = await axios.post("http://localhost:5000/Accommodation", payload);
+      const res = await axios.post("http://localhost:8000/Accommodation", payload);
       if (res.data) {
         alert("Your accommodation has been saved successfully!");
         navigate("/cust");
@@ -214,7 +214,7 @@ const AddAccommodation = () => {
       const formData = new FormData();
       formData.append("photo", file);
       try {
-        const res = await axios.post("http://localhost:5000/Photo", formData);
+        const res = await axios.post("http://localhost:8000/Photo", formData);
         if (res.data.success) {
           setPhotos((prev) => [...prev, URL.createObjectURL(file)]);
           setUploadedImageIds((prev) => [...prev, res.data.data._id]);
@@ -230,7 +230,7 @@ const AddAccommodation = () => {
   const handleDeletePhoto = async (index) => {
     const idToDelete = uploadedImageIds[index];
     try {
-      await axios.delete(`http://localhost:5000/Photo/${idToDelete}`);
+      await axios.delete(`http://localhost:8000/Photo/${idToDelete}`);
       setPhotos((prev) => prev.filter((_, i) => i !== index));
       setUploadedImageIds((prev) => prev.filter((_, i) => i !== index));
     } catch (err) {
@@ -253,7 +253,7 @@ const AddAccommodation = () => {
     formData.append("photo", file);
 
     try {
-      const res = await axios.put(`http://localhost:5000/Photo/${idToUpdate}`, formData);
+      const res = await axios.put(`http://localhost:8000/Photo/${idToUpdate}`, formData);
       if (res.data.success) {
         const newPhotos = [...photos];
         newPhotos[updatingIndex] = URL.createObjectURL(file);

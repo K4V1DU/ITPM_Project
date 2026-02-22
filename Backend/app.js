@@ -37,12 +37,12 @@ const connectWithRetry = () => {
   console.log("Attempting to connect to MongoDB...");
   
   mongoose.connect(MONGO_URI, {
-    serverSelectionTimeoutMS: 5000, 
+    serverSelectionTimeoutMS: 8000, 
     family: 4 
   })
     .then(() => {
       console.log("✅ Connected to MongoDB");
-      const PORT = 5000;
+      const PORT = 8000;
       app.listen(PORT, () => {
         console.log(`🚀 Server running on port ${PORT}`);
       });
@@ -51,7 +51,7 @@ const connectWithRetry = () => {
       console.error("❌ MongoDB connection failed:", err.message);
       console.log("Retrying in 5 seconds...");
       // Wait 5 seconds before retrying
-      setTimeout(connectWithRetry, 5000);
+      setTimeout(connectWithRetry, 8000);
     });
 };
 
