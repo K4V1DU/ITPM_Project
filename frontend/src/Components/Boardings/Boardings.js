@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import "./Boardings.css";
 import {
   FaAirbnb,
@@ -59,11 +60,11 @@ function CardSkeleton() {
 }
 
 // ─── Boarding Card ────────────────────────────────────────────────────────
-function BoardingCard({ acc, imageUrl }) {
+function BoardingCard({ acc, imageUrl, onNavigate }) {
   const [favourited, setFavourited] = useState(false);
 
   return (
-    <div className="bd-card">
+    <div className="bd-card" onClick={() => onNavigate(acc._id)}>
       <div className="bd-card__image-wrapper">
         <img
           src={imageUrl || "https://via.placeholder.com/400x300"}
@@ -184,6 +185,7 @@ function FilterPopup({ draft, setDraft, onApply, onClear, onClose }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────
 const Boarding = () => {
+  const navigate = useNavigate();
   const [accommodations, setAccommodations] = useState([]);
   const [filtered,       setFiltered]       = useState([]);
   const [imageUrls,      setImageUrls]      = useState({});
@@ -410,7 +412,7 @@ const Boarding = () => {
                 </div>
               )
               : filtered.map(acc => (
-                  <BoardingCard key={acc._id} acc={acc} imageUrl={imageUrls[acc._id]} />
+                  <BoardingCard key={acc._id} acc={acc} imageUrl={imageUrls[acc._id]} onNavigate={id => navigate(`/details-Accommodation/${id}`)} />
                 ))}
         </div>
       </section>
