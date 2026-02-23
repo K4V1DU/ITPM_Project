@@ -14,7 +14,9 @@ import "./FoodService.css";
 // CONFIG
 // ─────────────────────────────────────────
 const API_BASE        = "http://localhost:8000";
-const CURRENT_USER_ID = "6991714fa19b70085fffefbc"; // replace with auth later
+
+// ✅ Read from localStorage — set by Login page on sign-in
+const CURRENT_USER_ID = localStorage.getItem("CurrentUserId") ?? "";
 
 // ─────────────────────────────────────────
 // CONSTANTS
@@ -44,7 +46,6 @@ const TAG_ICON   = { Spicy: "🌶", Vegetarian: "🥦", Vegan: "🌱", "Gluten-F
 const STAR_HINTS = ["", "Poor", "Fair", "Good", "Very Good", "Excellent"];
 const AVATAR_COLORS = ["#1a1a2e","#6a3093","#11998e","#c94b4b","#f7971e","#1d4350","#0f3460","#e94560","#533483","#2b5876"];
 
-// Minimum comment length to show "Show more" button
 const SHOW_MORE_THRESHOLD = 120;
 
 // ─────────────────────────────────────────
@@ -68,17 +69,11 @@ async function apiPost(path, body) {
   return res.json();
 }
 
-/** Unwrap { success, data: X } → X, or return raw if already the object */
 function unwrap(raw) {
   return raw?.data ?? raw?.result ?? raw;
 }
 
-/**
- * Check if current time is within a menu item's available hours.
- * AvailableHours.open / .close are strings like "08:00 AM", "09:30 PM"
- */
 function isItemAvailableNow(item) {
-  // If the item's own isAvailable flag is false, respect that
   if (!item.isAvailable) return false;
 
   const open  = item.AvailableHours?.open;
@@ -86,7 +81,6 @@ function isItemAvailableNow(item) {
   if (!open || !close) return item.isAvailable;
 
   const parseTime = (str) => {
-    // "08:00 AM" → minutes since midnight
     const [time, period] = str.trim().split(" ");
     let [h, m] = time.split(":").map(Number);
     if (period === "PM" && h !== 12) h += 12;
@@ -99,7 +93,6 @@ function isItemAvailableNow(item) {
   const openMin  = parseTime(open);
   const closeMin = parseTime(close);
 
-  // Handle overnight (e.g. 10 PM – 2 AM)
   if (openMin <= closeMin) {
     return nowMin >= openMin && nowMin < closeMin;
   } else {
@@ -222,10 +215,7 @@ function ReviewCard({ review, index, total, expanded, onToggle }) {
     : "Recent";
   const isLeft        = index % 2 === 0;
   const hasBorderBtm  = index < total - 2;
-  // Only show "Show more" if comment is long enough to be clipped
   const isLong        = (review.comment?.length ?? 0) > SHOW_MORE_THRESHOLD;
-
-  // Reviewer profile image: fetched separately and stored on reviewer object
   const avatarSrc = reviewer?._profilePhotoUrl ?? null;
 
   return (
@@ -266,7 +256,6 @@ function ReviewCard({ review, index, total, expanded, onToggle }) {
         <div className={`fs-reviews__text${(!expanded && isLong) ? " fs-reviews__text--clamped" : ""}`}>
           {review.comment}
         </div>
-        {/* Only show toggle button if comment is long enough */}
         {isLong && (
           <button className="fs-reviews__toggle-btn" style={{ fontFamily: FONT }} onClick={onToggle}>
             {expanded ? "Show less" : "Show more"}
@@ -278,16 +267,11 @@ function ReviewCard({ review, index, total, expanded, onToggle }) {
 }
 
 // ─────────────────────────────────────────
-// ALL REVIEWS MODAL
-// ─────────────────────────────────────────
-// ─────────────────────────────────────────
 // MENU ITEM ROW
 // ─────────────────────────────────────────
 function MenuItemRow({ item, onOpen, onAdd, isLast, bgIndex }) {
-  // Check time-based availability
   const availableNow = isItemAvailableNow(item);
   const bg = BG_CYCLE[bgIndex % BG_CYCLE.length];
-
   const openTime  = item.AvailableHours?.open  ?? "—";
   const closeTime = item.AvailableHours?.close ?? "—";
 
@@ -296,7 +280,7 @@ function MenuItemRow({ item, onOpen, onAdd, isLast, bgIndex }) {
       onClick={() => availableNow && onOpen(item)}
       className={[
         "fs-menu-item",
-        isLast       ? "fs-menu-item--last"        : "",
+        isLast        ? "fs-menu-item--last"        : "",
         !availableNow ? "fs-menu-item--unavailable" : "",
       ].join(" ")}
     >
@@ -435,8 +419,7 @@ export default function FoodService() {
   }, [service]);
 
   // ─────────────────────────────────────
-  // FETCH: Reviews for this food service
-  // Then fetch each reviewer's profile image via /user/:id → /Photo/:photoId
+  // FETCH: Reviews
   // ─────────────────────────────────────
   useEffect(() => {
     if (!service) return;
@@ -445,14 +428,12 @@ export default function FoodService() {
     const loadReviews = async () => {
       let list = [];
 
-      // Try query param first: GET /review?foodService=<id>
       try {
         const r   = await fetch(`${API_BASE}/review?foodService=${FOOD_SERVICE_ID}`);
         const raw = await r.json();
         const docs = unwrap(raw);
         list = Array.isArray(docs) ? docs : [];
       } catch (_) {
-        // Fallback: GET /review/foodservice/<id>
         try {
           const r   = await fetch(`${API_BASE}/review/foodservice/${FOOD_SERVICE_ID}`);
           const raw = await r.json();
@@ -463,15 +444,12 @@ export default function FoodService() {
         }
       }
 
-      // Filter to only reviews that belong to this food service
-      // (in case the backend returns mixed results)
       list = list.filter(rv =>
         !rv.foodService ||
         rv.foodService === FOOD_SERVICE_ID ||
         rv.foodService?._id === FOOD_SERVICE_ID
       );
 
-      // For each review, fetch the reviewer's profile photo
       const enriched = await Promise.all(
         list.map(async (rv) => {
           const reviewerId = rv.reviewer?._id ?? rv.reviewer;
@@ -482,16 +460,11 @@ export default function FoodService() {
             const raw = await ur.json();
             const user = unwrap(raw);
 
-            // profileImage on user schema is a String (URL or filename)
-            // if it's a Photo ObjectId, build the /Photo/:id URL instead
             let photoUrl = null;
             if (user?.profileImage) {
-              // If it looks like a Mongo ObjectId (24 hex chars) → use Photo endpoint
-              if (/^[a-f\d]{24}$/i.test(user.profileImage)) {
-                photoUrl = photoSrc(user.profileImage);
-              } else {
-                photoUrl = user.profileImage; // already a URL/path
-              }
+              photoUrl = /^[a-f\d]{24}$/i.test(user.profileImage)
+                ? photoSrc(user.profileImage)
+                : user.profileImage;
             }
 
             return {
@@ -517,9 +490,10 @@ export default function FoodService() {
   }, [service]);
 
   // ─────────────────────────────────────
-  // FETCH: Current User
+  // FETCH: Current User — uses localStorage ID
   // ─────────────────────────────────────
   useEffect(() => {
+    if (!CURRENT_USER_ID) return; // not logged in
     fetch(`${API_BASE}/user/${CURRENT_USER_ID}`)
       .then(r => r.json())
       .then(raw => setCurrentUser(unwrap(raw)))
@@ -610,7 +584,6 @@ export default function FoodService() {
       });
       const saved = unwrap(raw);
 
-      // Build reviewer with current user's photo
       let photoUrl = null;
       if (currentUser?.profileImage) {
         photoUrl = /^[a-f\d]{24}$/i.test(currentUser.profileImage)
@@ -658,11 +631,8 @@ export default function FoodService() {
   const deliveryFee = orderType === "delivery" ? 150 : 0;
   const orderTotal  = cartTotal + deliveryFee;
 
-  // Categories that actually exist in this service's menu (preserves display order)
   const activeCategories = CATEGORIES.filter(cat => menuItems.some(i => i.category === cat));
-
-  // Max 4 reviews shown on page; rest in modal
-  const previewReviews = reviews.slice(0, 4);
+  const previewReviews   = reviews.slice(0, 4);
 
   // ─────────────────────────────────────
   // GUARDS
@@ -821,7 +791,6 @@ export default function FoodService() {
           </div>
 
           <div className="fs-restaurant-header__actions">
-            {/* Favourite button */}
             <button
               className={`fs-action-btn${isFavourited ? " fs-action-btn--favourited" : ""}`}
               onClick={() => {
@@ -835,7 +804,6 @@ export default function FoodService() {
                 : <FaRegHeart style={{ color: "#444", fontSize: 16 }} />}
             </button>
 
-            {/* Three-dot menu */}
             <div ref={actionMenuRef} style={{ position: "relative" }}>
               <button
                 className="fs-action-btn"
@@ -847,8 +815,6 @@ export default function FoodService() {
 
               {showActionMenu && (
                 <div className="fs-action-dropdown">
-
-                  {/* Host info section */}
                   <div className="fs-action-dropdown__host">
                     <div className="fs-action-dropdown__host-avatar">
                       {currentUser?.profileImage
@@ -865,9 +831,7 @@ export default function FoodService() {
                     <div>
                       <div className="fs-action-dropdown__host-label">Hosted by</div>
                       <div className="fs-action-dropdown__host-name">
-                        {service?.owner
-                          ? (currentUser?.name ?? "Host")
-                          : "Host"}
+                        {service?.owner ? (currentUser?.name ?? "Host") : "Host"}
                       </div>
                       <div className="fs-action-dropdown__host-since">
                         {currentUser?.createdAt
@@ -879,7 +843,6 @@ export default function FoodService() {
 
                   <div className="fs-action-dropdown__divider" />
 
-                  {/* Message host */}
                   <button
                     className="fs-action-dropdown__item fs-action-dropdown__item--primary"
                     onClick={() => { setShowActionMenu(false); showToast("Opening messages…"); }}
@@ -888,7 +851,6 @@ export default function FoodService() {
                     Message Host
                   </button>
 
-                  {/* View host profile */}
                   <button
                     className="fs-action-dropdown__item"
                     onClick={() => { setShowActionMenu(false); }}
@@ -899,7 +861,6 @@ export default function FoodService() {
 
                   <div className="fs-action-dropdown__divider" />
 
-                  {/* Share */}
                   <button
                     className="fs-action-dropdown__item"
                     onClick={() => {
@@ -912,7 +873,6 @@ export default function FoodService() {
                     Share this kitchen
                   </button>
 
-                  {/* Report */}
                   <button
                     className="fs-action-dropdown__item fs-action-dropdown__item--danger"
                     onClick={() => { setShowActionMenu(false); showToast("Report submitted. Thank you."); }}
@@ -1081,7 +1041,6 @@ export default function FoodService() {
             onClick={() => setShowReviewModal(true)}
           ><FaPen style={{ fontSize: 13 }} /> Write a Review</button>
 
-          {/* Reviews grid — max 4 */}
           {loadingReviews
             ? <div className="fs-reviews__grid">
                 {[1,2,3,4].map(i => (
@@ -1117,16 +1076,13 @@ export default function FoodService() {
                   ))}
                 </div>}
 
-          {/* Show all / Show less button */}
           {reviews.length > 4 && (
             <button
               className="fs-reviews__show-all-btn"
               style={{ fontFamily: FONT }}
               onClick={() => setShowAllReviews(p => !p)}
             >
-              {showAllReviews
-                ? "Show less"
-                : `Show all ${reviews.length} reviews`}
+              {showAllReviews ? "Show less" : `Show all ${reviews.length} reviews`}
             </button>
           )}
         </div>

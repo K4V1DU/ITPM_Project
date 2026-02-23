@@ -6,6 +6,7 @@ import AccommodationEdit from "./Components/Accommodation_Edit/AccommodationEdit
 import FoodService from "./Components/FoodServices/FoodService";
 import Foods from "./Components/Foods/Foods";
 import AddFoodService from "./Components/FoodService_Add/AddFoodService";
+import Login from "./Components/Login/Login";
 
 
 
@@ -18,6 +19,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Boardings />} />
+      <Route path="/Login" element={<Login />} />
       <Route path="/Boardings" element={<Boardings />} />
       <Route path="/FoodService/:id" element={<FoodService />} />
       <Route path="/AddFoodService" element={<AddFoodService />} />
