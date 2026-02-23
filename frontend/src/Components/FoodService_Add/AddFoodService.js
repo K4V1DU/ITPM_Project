@@ -113,7 +113,7 @@ function AddFoodService() {
   const [isAgreed,   setIsAgreed]   = useState(false);
 
   // ── Navigation ──────────────────────────────────────────────────────────────
-  const handleExit       = () => navigate("/");
+  const handleExit       = () => navigate("/host");
   const handleGetStarted = () => setShowForm(true);
 
   const handleNextStep = () => {
@@ -289,7 +289,7 @@ function AddFoodService() {
     try {
       setSaveProgress("Creating food service...");
       const fsRes = await axios.post(`${BASE_URL}/Foodservice`, {
-        owner: "699174a3a19b70085fffefc8",
+        owner: localStorage.getItem("CurrentUserId"),
         kitchenName, description, address,
         location: { type: "Point", coordinates: [selectedLocation.lng, selectedLocation.lat] },
         operatingHours, serviceType, deliveryAvailable, pickupAvailable,
