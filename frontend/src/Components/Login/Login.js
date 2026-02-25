@@ -45,7 +45,7 @@ export default function Login() {
       // Role-based redirect
       const role = (user.role ?? "").toLowerCase();
       if (role === "host") {
-        navigate("/host");
+        navigate("/Listings");
       } else {
         // student or any other role → Boardings
         navigate("/Boardings");

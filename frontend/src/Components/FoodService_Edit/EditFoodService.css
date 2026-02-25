@@ -1,0 +1,224 @@
+/* ─── EditFoodService.css ────────────────────────────────────────────────── */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background: #f7f7f7; color: #333; }
+
+/* ── Container ───────────────────────────────────────────────────────────── */
+.container { max-width: 860px; margin: 0 auto; padding: 30px 20px 60px; }
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+.header-left { display: flex; align-items: center; gap: 12px; }
+.header h1 { font-size: 26px; font-weight: 700; color: #1a1a1a; }
+.edit-badge {
+  background: #fff4ec; border: 1.5px solid #e67e22; color: #e67e22;
+  padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700;
+  white-space: nowrap;
+}
+.exit-btn { background: none; border: none; cursor: pointer; padding: 6px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+.exit-btn:hover { background: #eee; }
+.close-icon { font-size: 22px; color: #555; }
+
+/* ── Loading / Error States ──────────────────────────────────────────────── */
+.loading-state, .error-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 16px; padding: 80px 20px; text-align: center;
+  background: #fff; border-radius: 16px;
+  box-shadow: 0 2px 14px rgba(0,0,0,0.08);
+}
+.loading-spinner {
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 4px solid #f0c080; border-top-color: #e67e22;
+  animation: spin 0.8s linear infinite;
+}
+.loading-state p { font-size: 15px; color: #666; }
+.error-state { gap: 12px; }
+.error-icon { font-size: 40px; }
+.error-state p { font-size: 15px; color: #c0392b; font-weight: 500; }
+
+/* ── Progress Bar ────────────────────────────────────────────────────────── */
+.progress-bar-container { margin-bottom: 32px; }
+.progress-steps { display: flex; align-items: center; justify-content: center; }
+.progress-step { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.progress-step-number { width: 36px; height: 36px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #888; transition: background 0.3s, color 0.3s; }
+.progress-step.active .progress-step-number { background: #e67e22; color: #fff; }
+.progress-step-label { font-size: 12px; color: #888; font-weight: 500; }
+.progress-step.active .progress-step-label { color: #e67e22; font-weight: 700; }
+.progress-line { flex: 1; height: 3px; background: #ddd; margin-bottom: 18px; transition: background 0.3s; }
+.progress-line.active { background: #e67e22; }
+
+/* ── Form Container ──────────────────────────────────────────────────────── */
+.form-container { background: #fff; border-radius: 16px; padding: 32px 28px; box-shadow: 0 2px 14px rgba(0,0,0,0.08); }
+.form-title { font-size: 22px; font-weight: 700; margin-bottom: 24px; color: #1a1a1a; }
+
+/* ── Form Elements ───────────────────────────────────────────────────────── */
+.form-group { margin-bottom: 22px; }
+.form-group > label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #333; }
+.field-hint { font-size: 12px; color: #888; margin-bottom: 8px; margin-top: -4px; display: block; }
+.form-input { width: 100%; padding: 11px 14px; font-size: 14px; border: 1.5px solid #ddd; border-radius: 9px; outline: none; transition: border-color 0.2s; background: #fafafa; }
+.form-input:focus { border-color: #e67e22; background: #fff; }
+.form-textarea { width: 100%; padding: 11px 14px; font-size: 14px; border: 1.5px solid #ddd; border-radius: 9px; outline: none; resize: vertical; transition: border-color 0.2s; background: #fafafa; font-family: inherit; }
+.form-textarea:focus { border-color: #e67e22; background: #fff; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* ── Service Type Card Grid ──────────────────────────────────────────────── */
+.service-type-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.service-type-card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 16px 10px; border-radius: 12px; border: 2px solid #e8e8e8; background: #fafafa; cursor: pointer; transition: all 0.2s; text-align: center; }
+.service-type-card:hover { border-color: #e67e22; background: #fef9f5; }
+.service-type-card.selected { border-color: #e67e22; background: #fff4ec; box-shadow: 0 0 0 3px rgba(230,126,34,0.15); }
+.service-type-emoji { font-size: 28px; line-height: 1; }
+.service-type-name { font-size: 13px; font-weight: 700; color: #1a1a1a; }
+.service-type-desc { font-size: 11px; color: #888; line-height: 1.3; }
+
+/* ── Time Picker Row ─────────────────────────────────────────────────────── */
+.time-picker-row { display: flex; align-items: flex-end; gap: 12px; }
+.time-picker-group { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.time-picker-label { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+.time-select { cursor: pointer; }
+.time-picker-divider { font-size: 18px; color: #bbb; padding-bottom: 11px; flex-shrink: 0; }
+
+/* ── Service Option Cards ────────────────────────────────────────────────── */
+.service-option-row { display: flex; gap: 14px; }
+.service-option-card { flex: 1; display: flex; align-items: center; gap: 12px; padding: 16px 18px; border-radius: 12px; border: 2px solid #e8e8e8; background: #fafafa; cursor: pointer; transition: all 0.2s; text-align: left; }
+.service-option-card:hover { border-color: #e67e22; }
+.service-option-card.active { border-color: #e67e22; background: #fff4ec; }
+.service-option-icon { font-size: 26px; flex-shrink: 0; }
+.service-option-name { flex: 1; font-size: 15px; font-weight: 700; color: #1a1a1a; }
+.service-option-badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; }
+.service-option-badge.on  { background: #dcfce7; color: #16a34a; }
+.service-option-badge.off { background: #f3f4f6; color: #9ca3af; }
+
+/* ── Map ─────────────────────────────────────────────────────────────────── */
+.map-wrapper { margin-bottom: 14px; border-radius: 12px; overflow: hidden; }
+.quick-locations { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.quick-location-btn { background: #fff; border: 1.5px solid #e67e22; color: #e67e22; padding: 8px 18px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s, color 0.2s; }
+.quick-location-btn:hover { background: #e67e22; color: #fff; }
+
+/* ── Photo Upload ────────────────────────────────────────────────────────── */
+.photo-upload-area { border: 2px dashed #ddd; border-radius: 12px; padding: 28px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
+.photo-upload-area:hover { border-color: #e67e22; background: #fef9f5; }
+.photo-upload-btn { background: none; border: none; font-size: 15px; font-weight: 600; color: #e67e22; cursor: pointer; }
+.single-photo-preview { position: relative; display: inline-block; width: 100%; }
+.preview-img { border-radius: 10px; object-fit: cover; display: block; }
+.icon-preview { width: 120px; height: 120px; border-radius: 50%; }
+.bg-preview { width: 100%; max-height: 220px; }
+.photo-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 6px; z-index: 3; }
+.action-btn { width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: opacity 0.2s, transform 0.15s; }
+.action-btn:hover { opacity: 0.85; transform: scale(1.08); }
+.action-btn.delete { background: #e74c3c; color: #fff; }
+.action-btn.update { background: #3498db; color: #fff; }
+
+/* Clickable photo preview with hover overlay */
+.clickable-preview { cursor: pointer; }
+.clickable-preview .preview-img,
+.clickable-preview .menu-item-img { transition: filter 0.2s; }
+.clickable-preview:hover .preview-img,
+.clickable-preview:hover .menu-item-img { filter: brightness(0.65); }
+.photo-click-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s;
+  border-radius: 10px; pointer-events: none; z-index: 2;
+}
+.clickable-preview:hover .photo-click-overlay { opacity: 1; }
+.photo-click-overlay span {
+  background: rgba(0,0,0,0.55); color: #fff;
+  padding: 7px 16px; border-radius: 20px;
+  font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; gap: 6px;
+}
+.photo-click-overlay span::before { content: "📷"; font-size: 15px; }
+
+/* ── Menu Item Cards ─────────────────────────────────────────────────────── */
+.menu-item-card { background: #fafafa; border: 1.5px solid #e8e8e8; border-radius: 14px; padding: 22px; margin-bottom: 20px; }
+.menu-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+.menu-item-header-left { display: flex; align-items: center; gap: 10px; }
+.menu-item-header h3 { font-size: 16px; font-weight: 700; color: #1a1a1a; }
+.remove-item-btn { display: flex; align-items: center; gap: 6px; background: #fdecea; border: 1px solid #f5c6cb; color: #c0392b; padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+.remove-item-btn:hover { background: #f5c6cb; }
+.menu-item-photo-area { padding: 16px 28px; }
+.menu-item-img-preview { position: relative; display: block; }
+.menu-item-img { width: 100%; max-height: 180px; object-fit: cover; border-radius: 10px; display: block; }
+.img-uploading-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.45); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 15px; }
+.add-item-btn { width: 100%; padding: 14px; background: #fff; border: 2px dashed #e67e22; border-radius: 12px; color: #e67e22; font-size: 15px; font-weight: 700; cursor: pointer; margin-bottom: 24px; transition: background 0.2s; }
+.add-item-btn:hover { background: #fef3e9; }
+
+/* ── Item Badges ─────────────────────────────────────────────────────────── */
+.existing-badge {
+  background: #e0f2fe; color: #0284c7;
+  padding: 3px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.3px;
+}
+.new-badge {
+  background: #dcfce7; color: #16a34a;
+  padding: 3px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.3px;
+}
+
+/* ── Dietary Tag Pills ───────────────────────────────────────────────────── */
+.dietary-tags-row { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 4px; }
+.dietary-tag-btn { display: flex; align-items: center; gap: 7px; padding: 8px 16px; border-radius: 24px; font-size: 13px; cursor: pointer; transition: all 0.18s; white-space: nowrap; }
+.dietary-tag-btn:hover { filter: brightness(0.95); transform: translateY(-1px); }
+.tag-check { font-size: 12px; margin-left: 2px; }
+
+/* ── Availability Toggle ─────────────────────────────────────────────────── */
+.availability-toggle { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 10px; cursor: pointer; transition: background 0.2s; font-size: 14px; font-weight: 600; user-select: none; }
+.availability-toggle.available   { background: #dcfce7; color: #15803d; }
+.availability-toggle.unavailable { background: #f3f4f6; color: #6b7280; }
+.availability-toggle-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+.availability-toggle.available   .availability-toggle-dot { background: #16a34a; }
+.availability-toggle.unavailable .availability-toggle-dot { background: #d1d5db; }
+
+/* ── Summary ─────────────────────────────────────────────────────────────── */
+.summary-card { background: #fafafa; border: 1.5px solid #e8e8e8; border-radius: 14px; padding: 22px; margin-bottom: 22px; }
+.summary-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 14px; color: #1a1a1a; }
+.summary-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+.summary-row:last-child { border-bottom: none; }
+.summary-row span { color: #666; }
+.summary-row strong { color: #1a1a1a; text-align: right; max-width: 60%; }
+.deleted-notice strong { color: #c0392b; }
+.menu-preview-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+.menu-preview-row:last-child { border-bottom: none; }
+.menu-preview-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+.menu-preview-no-img { width: 44px; height: 44px; background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+.menu-preview-name { flex: 1; font-weight: 600; color: #1a1a1a; }
+.menu-preview-cat { background: #fef3e9; color: #e67e22; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+.menu-preview-price { font-weight: 700; color: #27ae60; min-width: 100px; text-align: right; }
+
+/* ── Verification ────────────────────────────────────────────────────────── */
+.verification-section { background: #fafafa; border: 1.5px solid #e8e8e8; border-radius: 14px; padding: 22px; margin-bottom: 22px; }
+.verification-section h3 { font-size: 16px; font-weight: 700; margin-bottom: 14px; color: #1a1a1a; }
+.checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #444; cursor: pointer; padding: 6px 0; }
+.checkbox-label:hover { color: #1a1a1a; }
+
+/* ── Save Progress ───────────────────────────────────────────────────────── */
+.save-progress { display: flex; align-items: center; gap: 12px; background: #fef3e9; border: 1px solid #f0c080; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; font-size: 14px; font-weight: 600; color: #c0641a; }
+.save-progress-spinner { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; border: 3px solid #f0c080; border-top-color: #e67e22; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Navigation Buttons ──────────────────────────────────────────────────── */
+.form-navigation { display: flex; justify-content: space-between; align-items: center; margin-top: 28px; gap: 12px; }
+.btn-prev { background: #fff; border: 1.5px solid #ccc; color: #555; padding: 12px 28px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+.btn-prev:hover:not(:disabled) { background: #f5f5f5; border-color: #aaa; }
+.btn-prev:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-next { background: #e67e22; color: #fff; border: none; padding: 12px 36px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; margin-left: auto; transition: background 0.2s, transform 0.15s; }
+.btn-next:hover { background: #d35400; transform: translateY(-1px); }
+.btn-publish { background: #27ae60; color: #fff; border: none; padding: 12px 36px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; margin-left: auto; transition: background 0.2s, transform 0.15s; }
+.btn-publish:hover:not(:disabled) { background: #219a52; transform: translateY(-1px); }
+.btn-publish:disabled { background: #a0d9b8; cursor: not-allowed; }
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .form-row            { grid-template-columns: 1fr; }
+  .service-type-grid   { grid-template-columns: 1fr 1fr; }
+  .service-option-row  { flex-direction: column; }
+  .time-picker-row     { flex-direction: column; gap: 10px; }
+  .time-picker-divider { display: none; }
+  .progress-step-label { display: none; }
+  .header-left         { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .header h1           { font-size: 20px; }
+  .form-container      { padding: 22px 16px; }
+  .menu-item-card      { padding: 16px; }
+  .dietary-tags-row    { gap: 8px; }
+  .menu-item-header    { flex-direction: column; align-items: flex-start; gap: 10px; }
+}
