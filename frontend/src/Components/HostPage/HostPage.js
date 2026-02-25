@@ -10,6 +10,9 @@ const HostPage = () => {
     if (selected === "home") {
       navigate("/add-accommodation");
     }
+    if (selected === "service") {
+      navigate("/AddFoodService");
+    }
     // passe experience / food ekata passe add karanna puluwan
   };
 
