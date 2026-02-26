@@ -2,28 +2,29 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
-  FaAirbnb, FaBars, FaUser, FaTimes,
+  FaAirbnb, FaBars, FaUser, FaTimes, // FaUser kept for dropdown menu item icon
   FaFacebookF, FaTwitter, FaInstagram,
-  FaCog, FaSignOutAlt, FaEnvelope,
+  FaSignOutAlt,
   FaMapMarkerAlt, FaClock, FaMotorcycle,
   FaShoppingBag, FaStar, FaCreditCard,
-  FaCheckCircle, FaEdit, FaTrash,
+  FaEdit, FaTrash,
 } from "react-icons/fa";
 import "./HostListings.css";
 
 const BASE_URL        = "http://localhost:8000";
 const CURRENT_USER_ID = localStorage.getItem("CurrentUserId") ?? "";
 const photoUrl        = (id) => `${BASE_URL}/photo/${id}`;
+const DEFAULT_AVATAR  = "/default-avatar.png";
 
 // ─── Listing Card ─────────────────────────────────────────────────────────────
 function ListingCard({ item, type, onClick }) {
   const coverImg = type === "food"
     ? (item.BackgroundImage ? photoUrl(item.BackgroundImage) : null)
-    : (item.photos?.[0]     ? photoUrl(item.photos[0])       : null);
+    : (item.images?.[0]     ? photoUrl(item.images[0])       : null);
 
-  const isAvailable = type === "food" ? item.isAvailable : item.isActive;
-  const title       = type === "food" ? item.kitchenName  : item.title;
-  const subtitle    = type === "food" ? item.serviceType  : (item.propertyType || "Accommodation");
+  const isAvailable = item.isAvailable;
+  const title       = type === "food" ? item.kitchenName : item.title;
+  const subtitle    = type === "food" ? item.serviceType : (item.accommodationType || "Accommodation");
 
   return (
     <div className="listing-card" onClick={() => onClick(item, type)}>
@@ -64,27 +65,38 @@ function ListingCard({ item, type, onClick }) {
           {type === "food" && item.deliveryAvailable && <span className="chip chip-blue"><FaMotorcycle /> Delivery</span>}
           {type === "food" && item.pickupAvailable   && <span className="chip chip-orange"><FaShoppingBag /> Pickup</span>}
           {type === "food" && item.menu?.length > 0  && <span className="chip chip-gray">{item.menu.length} menu items</span>}
-          {type === "accommodation" && item.pricePerNight && (
-            <span className="chip chip-green">LKR {Number(item.pricePerNight).toLocaleString()} / night</span>
+          {type === "accommodation" && item.pricePerMonth && (
+            <span className="chip chip-green">LKR {Number(item.pricePerMonth).toLocaleString()} / month</span>
           )}
         </div>
 
-        <p className="card-click-hint">Click to manage →</p>
+
       </div>
     </div>
   );
 }
 
 // ─── Menu Item Row ────────────────────────────────────────────────────────────
-function MenuItemRow({ menuItemId }) {
-  const [menuItem,  setMenuItem]  = useState(null);
-  const [toggling,  setToggling]  = useState(false);
+// ✅ Fix: accepts pre-fetched cachedData + onUpdate callback so the parent
+//    cache stays in sync when the toggle changes isAvailable.
+function MenuItemRow({ menuItemId, cachedData, onUpdate }) {
+  const [menuItem, setMenuItem] = useState(cachedData || null);
+  const [toggling, setToggling] = useState(false);
 
   useEffect(() => {
+    // ✅ Fix: only fetch from network if we don't already have cached data
+    if (cachedData) {
+      setMenuItem(cachedData);
+      return;
+    }
     axios.get(`${BASE_URL}/menuitem/${menuItemId}`)
-      .then(r => setMenuItem(r.data?.data || r.data))
+      .then(r => {
+        const data = r.data?.data || r.data;
+        setMenuItem(data);
+        onUpdate?.(menuItemId, data); // store in parent cache
+      })
       .catch(() => {});
-  }, [menuItemId]);
+  }, [menuItemId, cachedData]);
 
   const handleToggle = async () => {
     if (!menuItem) return;
@@ -92,7 +104,9 @@ function MenuItemRow({ menuItemId }) {
     try {
       const newVal = !menuItem.isAvailable;
       await axios.put(`${BASE_URL}/menuitem/${menuItemId}`, { isAvailable: newVal });
-      setMenuItem(m => ({ ...m, isAvailable: newVal }));
+      const updated = { ...menuItem, isAvailable: newVal };
+      setMenuItem(updated);
+      onUpdate?.(menuItemId, updated); // keep parent cache in sync
     } catch { alert("Failed to update menu item."); }
     finally { setToggling(false); }
   };
@@ -135,17 +149,20 @@ function MenuItemRow({ menuItemId }) {
 }
 
 // ─── Listing Detail Popup ─────────────────────────────────────────────────────
-function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPayment }) {
+// ✅ Fix: receives menuItemCache + onMenuItemCacheUpdate so images persist
+//    across close/reopen cycles without re-fetching.
+function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPayment, menuItemCache, onMenuItemCacheUpdate }) {
   const [toggling, setToggling] = useState(false);
 
   const coverImg = type === "food"
     ? (item.BackgroundImage ? photoUrl(item.BackgroundImage) : null)
-    : (item.photos?.[0]     ? photoUrl(item.photos[0])       : null);
+    : (item.images?.[0]     ? photoUrl(item.images[0])       : null);
 
+  // ✅ Fix: iconImg derived directly from item — no async fetch, always stable
   const iconImg     = type === "food" && item.iconImage ? photoUrl(item.iconImage) : null;
-  const isAvailable = type === "food" ? item.isAvailable : item.isActive;
-  const title       = type === "food" ? item.kitchenName  : item.title;
-  const subtitle    = type === "food" ? item.serviceType  : (item.propertyType || "Accommodation");
+  const isAvailable = item.isAvailable;
+  const title       = type === "food" ? item.kitchenName : item.title;
+  const subtitle    = type === "food" ? item.serviceType : (item.accommodationType || "Accommodation");
 
   const handleToggle = async () => {
     setToggling(true);
@@ -160,7 +177,7 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
     <div className="popup-overlay" onClick={onClose}>
       <div className="popup" onClick={e => e.stopPropagation()}>
 
-        {/* ── Fixed cover (not scrollable) */}
+        {/* ── Fixed cover */}
         <div className="popup-cover">
           {coverImg
             ? <img src={coverImg} alt={title} className="popup-cover-img" />
@@ -170,9 +187,15 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
           <div className={`popup-status-badge ${isAvailable ? "on" : "off"}`}>
             <span className="pill-dot" />{isAvailable ? "Listed" : "Unlisted"}
           </div>
+          {/* ✅ Fix: iconImg is a stable URL — no flicker. onError hides if broken. */}
           {iconImg && (
             <div className="popup-icon-wrap">
-              <img src={iconImg} alt="icon" className="popup-icon" />
+              <img
+                src={iconImg}
+                alt="icon"
+                className="popup-icon"
+                onError={e => { e.currentTarget.style.display = "none"; }}
+              />
             </div>
           )}
         </div>
@@ -221,10 +244,27 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
                 <span>{item.menu.length} menu item{item.menu.length !== 1 ? "s" : ""}</span>
               </div>
             )}
-            {type === "accommodation" && item.pricePerNight && (
+            {type === "accommodation" && item.pricePerMonth && (
               <div className="popup-detail-row">
                 <FaCreditCard className="popup-detail-icon" />
-                <span>LKR {Number(item.pricePerNight).toLocaleString()} / night</span>
+                <span>LKR {Number(item.pricePerMonth).toLocaleString()} / month</span>
+              </div>
+            )}
+            {type === "accommodation" && (item.bedrooms || item.bathrooms) && (
+              <div className="popup-detail-row">
+                <span className="popup-detail-icon" style={{ fontSize: 13 }}>🛏</span>
+                <span>
+                  {[
+                    item.bedrooms  && `${item.bedrooms} bedroom${item.bedrooms  !== 1 ? "s" : ""}`,
+                    item.bathrooms && `${item.bathrooms} bathroom${item.bathrooms !== 1 ? "s" : ""}`,
+                  ].filter(Boolean).join(" · ")}
+                </span>
+              </div>
+            )}
+            {type === "accommodation" && item.genderPreference && (
+              <div className="popup-detail-row">
+                <span className="popup-detail-icon" style={{ fontSize: 13 }}>👥</span>
+                <span style={{ textTransform: "capitalize" }}>{item.genderPreference}</span>
               </div>
             )}
             {item.expireDate && (
@@ -237,39 +277,50 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
             )}
           </div>
 
-          {/* Menu items section — food only */}
+          {/* ✅ Fix: pass cachedData + onUpdate to each MenuItemRow */}
           {type === "food" && item.menu?.length > 0 && (
             <div className="popup-menu-section">
               <h4 className="popup-section-title">Menu Items</h4>
               <div className="popup-menu-list">
                 {item.menu.map(id => (
-                  <MenuItemRow key={id} menuItemId={id} />
+                  <MenuItemRow
+                    key={id}
+                    menuItemId={id}
+                    cachedData={menuItemCache[id] || null}
+                    onUpdate={onMenuItemCacheUpdate}
+                  />
                 ))}
               </div>
             </div>
           )}
 
+          {/* Listing Status Toggle */}
+          <div className="popup-status-toggle-section">
+            <div className="popup-status-toggle-label">
+              <span className="toggle-label-text">Listing Status</span>
+              <span className={`toggle-label-status ${isAvailable ? "active" : "inactive"}`}>
+                {isAvailable ? "Active" : "Unlisted"}
+              </span>
+            </div>
+            <div
+              className={`toggle-switch-large ${isAvailable ? "on" : "off"} ${toggling ? "loading" : ""}`}
+              onClick={!toggling ? handleToggle : undefined}
+              title={isAvailable ? "Click to unlist" : "Click to activate"}
+            >
+              <span className="toggle-thumb-large" />
+            </div>
+          </div>
+
           {/* Action buttons */}
           <div className="popup-actions">
-            <button
-              className={`popup-btn popup-btn--status ${isAvailable ? "deactivate" : "activate"}`}
-              onClick={handleToggle}
-              disabled={toggling}
-            >
-              <FaCheckCircle />
-              {toggling ? "Updating…" : isAvailable ? "Mark as Unlisted" : "Mark as Active"}
-            </button>
-
             <button className="popup-btn popup-btn--payment" onClick={() => onAddPayment(item._id, type)}>
               <FaCreditCard />
               Add Payment
             </button>
-
             <button className="popup-btn popup-btn--edit" onClick={() => onEdit(item._id, type)}>
               <FaEdit />
               Edit Listing
             </button>
-
             <button className="popup-btn popup-btn--delete" onClick={() => onDelete(item._id, type)}>
               <FaTrash />
               Delete
@@ -322,11 +373,26 @@ export default function HostListings() {
   const [accommodations, setAccommodations] = useState([]);
   const [loading,        setLoading]        = useState(true);
   const [deleteTarget,   setDeleteTarget]   = useState(null);
-  const [selectedItem,   setSelectedItem]   = useState(null); // { item, type }
+  const [selectedItem,   setSelectedItem]   = useState(null);
   const [showDropdown,   setShowDropdown]   = useState(false);
   const [activeNav,      setActiveNav]      = useState("listings");
 
+  // ✅ Profile image — default shown immediately, replaced once fetch resolves
+  const [profileImageUrl, setProfileImageUrl] = useState(DEFAULT_AVATAR);
+
+  // ✅ Fix: persistent cache for menu item data — survives popup close/reopen
+  // menuItemCacheRef holds the data synchronously; menuItemCache is the state
+  // copy so MenuItemRow re-renders instantly with cached data on reopen.
+  const menuItemCacheRef = useRef({});
+  const [menuItemCache, setMenuItemCache] = useState({});
+
   const dropdownRef = useRef(null);
+
+  // ✅ Callback passed into MenuItemRow / ListingPopup to update both ref + state
+  const handleMenuItemCacheUpdate = (id, data) => {
+    menuItemCacheRef.current[id] = data;
+    setMenuItemCache(prev => ({ ...prev, [id]: data }));
+  };
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -336,6 +402,20 @@ export default function HostListings() {
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  // ✅ Fetch profile image from user table on mount
+  useEffect(() => {
+    if (!CURRENT_USER_ID) return;
+    axios.get(`${BASE_URL}/user/${CURRENT_USER_ID}`)
+      .then(r => {
+        const user = r.data?.data || r.data;
+        if (user?.profileImage) {
+          setProfileImageUrl(photoUrl(user.profileImage));
+        }
+        // else: keep DEFAULT_AVATAR already set in state
+      })
+      .catch(() => {}); // silently fail — default avatar already showing
   }, []);
 
   // ── Fetch listings belonging to this host ──────────────────────────────────
@@ -363,7 +443,7 @@ export default function HostListings() {
   // ── Actions ────────────────────────────────────────────────────────────────
   const handleEdit = (id, type) => {
     setSelectedItem(null);
-    navigate(type === "food" ? `/host/food/edit/${id}` : `/host/accommodation/edit/${id}`);
+    navigate(type === "food" ? `/EditFoodService/${id}` : `/edit-Accommodation/${id}`);
   };
 
   const handleToggle = async (id, val, type) => {
@@ -371,23 +451,20 @@ export default function HostListings() {
       if (type === "food") {
         await axios.put(`${BASE_URL}/Foodservice/${id}`, { isAvailable: val });
         setFoodServices(p => p.map(f => f._id === id ? { ...f, isAvailable: val } : f));
-        // keep popup in sync
         setSelectedItem(s => s && s.item._id === id
           ? { ...s, item: { ...s.item, isAvailable: val } } : s);
       } else {
-        await axios.put(`${BASE_URL}/accommodation/${id}`, { isActive: val });
-        setAccommodations(p => p.map(a => a._id === id ? { ...a, isActive: val } : a));
+        await axios.put(`${BASE_URL}/accommodation/${id}`, { isAvailable: val });
+        setAccommodations(p => p.map(a => a._id === id ? { ...a, isAvailable: val } : a));
         setSelectedItem(s => s && s.item._id === id
-          ? { ...s, item: { ...s.item, isActive: val } } : s);
+          ? { ...s, item: { ...s.item, isAvailable: val } } : s);
       }
     } catch { alert("Failed to update status."); }
   };
 
   const handleAddPayment = (id, type) => {
     setSelectedItem(null);
-    navigate(type === "food"
-      ? `/host/food/payment/${id}`
-      : `/host/accommodation/payment/${id}`);
+    navigate(type === "food" ? `/EditFoodService/${id}` : `/edit-Accommodation/${id}`);
   };
 
   const handleDeleteRequest = (id, type) => {
@@ -417,18 +494,15 @@ export default function HostListings() {
 
       {/* ══ NAVBAR ══ */}
       <nav className="hl-nav">
-        {/* Logo — left */}
         <div className="hl-nav__logo-wrap">
-          <a href="/" className="hl-nav__logo"><FaAirbnb /> Bodima</a>
+          <a href="/Boardings" className="hl-nav__logo"><FaAirbnb /> Bodima</a>
         </div>
 
-        {/* Nav tabs — center */}
         <div className="hl-nav__center">
           {[
             { key: "today",    label: "Today",    href: "/host" },
-            { key: "calendar", label: "Calendar", href: "/host/calendar" },
-            { key: "listings", label: "Listings", href: "/host/listings" },
-            { key: "messages", label: "Messages", href: "/host/messages" },
+            { key: "listings", label: "Listings", href: "/Listings" },
+            { key: "food",     label: "Foods",    href: "/Foods" },
           ].map(({ key, label, href }) => (
             <a
               key={key} href={href}
@@ -441,9 +515,8 @@ export default function HostListings() {
           ))}
         </div>
 
-        {/* Right — switch + menu+avatar */}
         <div className="hl-nav__right">
-          <button className="hl-nav__switch-btn" onClick={() => navigate("/")}>
+          <button className="hl-nav__switch-btn" onClick={() => navigate("/Boardings")}>
             Switch to exploring
           </button>
           <div ref={dropdownRef} className="hl-dropdown">
@@ -452,22 +525,29 @@ export default function HostListings() {
               onClick={() => setShowDropdown(p => !p)}
             >
               <FaBars className="hl-menu-icon" />
-              <FaUser className="hl-user-icon" />
+              {/* ✅ Show profile photo, fallback to default avatar on error or no image */}
+              <img
+                src={profileImageUrl}
+                alt="profile"
+                className="hl-user-avatar"
+                onError={e => {
+                  // Guard against infinite loop if default-avatar.png itself is missing
+                  if (e.currentTarget.src !== window.location.origin + DEFAULT_AVATAR) {
+                    e.currentTarget.src = DEFAULT_AVATAR;
+                  }
+                }}
+              />
             </button>
             {showDropdown && (
               <div className="hl-dropdown__menu">
-                <div className="hl-dropdown__item" onClick={() => navigate("/profile")}>
-                  <FaUser style={{ opacity: 0.6 }} /> Profile
-                </div>
-                <div className="hl-dropdown__item" onClick={() => navigate("/messages")}>
-                  <FaEnvelope style={{ opacity: 0.6 }} /> Messages
+                <div className="hl-dropdown__item" onClick={() => navigate("/host")}>
+                  <FaUser style={{ opacity: 0.6 }} /> Host Dashboard
                 </div>
                 <div className="hl-dropdown__divider" />
-                <div className="hl-dropdown__item" onClick={() => navigate("/settings")}>
-                  <FaCog style={{ opacity: 0.6 }} /> Settings
-                </div>
-                <div className="hl-dropdown__item hl-dropdown__item--danger"
-                  onClick={() => { localStorage.clear(); navigate("/login"); }}>
+                <div
+                  className="hl-dropdown__item hl-dropdown__item--danger"
+                  onClick={() => { localStorage.clear(); navigate("/Login"); }}
+                >
                   <FaSignOutAlt style={{ opacity: 0.6 }} /> Logout
                 </div>
               </div>
@@ -483,13 +563,13 @@ export default function HostListings() {
             <h1 className="page-title">Your listings</h1>
             {!loading && (
               <span className="listings-count">
-                {currentList.length} listing{currentList.length !== 1 ? "s" : ""}
+                {foodServices.length + accommodations.length} listing{foodServices.length + accommodations.length !== 1 ? "s" : ""}
               </span>
             )}
           </div>
           <button
             className="btn-create"
-            onClick={() => navigate(activeTab === "food" ? "/host/food/add" : "/host/accommodation/add")}
+            onClick={() => navigate(activeTab === "food" ? "/AddFoodService" : "/add-accommodation")}
           >
             + Create listing
           </button>
@@ -525,7 +605,7 @@ export default function HostListings() {
         ) : currentList.length === 0 ? (
           <EmptyState
             type={activeTab}
-            onAdd={() => navigate(activeTab === "food" ? "/host/food/add" : "/host/accommodation/add")}
+            onAdd={() => navigate(activeTab === "food" ? "/AddFoodService" : "/add-accommodation")}
           />
         ) : (
           <div className="grid">
@@ -576,6 +656,9 @@ export default function HostListings() {
           onDelete={handleDeleteRequest}
           onToggle={handleToggle}
           onAddPayment={handleAddPayment}
+          // ✅ Pass cache down so images don't disappear on reopen
+          menuItemCache={menuItemCache}
+          onMenuItemCacheUpdate={handleMenuItemCacheUpdate}
         />
       )}
 
