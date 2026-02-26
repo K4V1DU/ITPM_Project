@@ -1,28 +1,26 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   FaAirbnb, FaBars, FaUser,
   FaFacebookF, FaTwitter, FaInstagram,
-  FaCog, FaSignOutAlt, FaEnvelope,
+  FaSignOutAlt, FaEnvelope,
   FaMotorcycle, FaShoppingBag, FaPen,
   FaSpinner, FaExclamationTriangle, FaTimes,
   FaHeart, FaRegHeart, FaEllipsisH, FaCommentAlt, FaUserCircle, FaShare, FaFlag,
+  FaExclamationCircle, FaSignInAlt,
 } from "react-icons/fa";
 import "./FoodService.css";
 
 // ─────────────────────────────────────────
 // CONFIG
 // ─────────────────────────────────────────
-const API_BASE        = "http://localhost:8000";
-
-// ✅ Read from localStorage — set by Login page on sign-in
-const CURRENT_USER_ID = localStorage.getItem("CurrentUserId") ?? "";
+const API_BASE = "http://localhost:8000";
 
 // ─────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────
-const PINK = "#FF385C";
-const FONT = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+const ORANGE = "#FF6B2B";
+const FONT   = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
 const BG_CYCLE = [
   "linear-gradient(135deg,#fff5f0,#fde8e8)",
@@ -33,53 +31,42 @@ const BG_CYCLE = [
   "linear-gradient(135deg,#fff7ed,#fed7aa)",
 ];
 
-const CAT_EMOJI  = { Breakfast: "🍳", Lunch: "🥗", Dinner: "🍗", Snacks: "🌶", Drinks: "🥤", Dessert: "🍮" };
-const CATEGORIES = ["Breakfast", "Lunch", "Dinner", "Snacks", "Drinks", "Dessert"];
+const CAT_EMOJI  = { Breakfast:"🍳", Lunch:"🥗", Dinner:"🍗", Snacks:"🌶", Drinks:"🥤", Dessert:"🍮" };
+const CATEGORIES = ["Breakfast","Lunch","Dinner","Snacks","Drinks","Dessert"];
 
 const TAG_STYLE = {
-  Spicy:         { color: "#b91c1c", background: "#fff1f2", border: "1px solid #fecaca" },
-  Vegetarian:    { color: "#15803d", background: "#f0fdf4", border: "1px solid #bbf7d0" },
-  Vegan:         { color: "#166534", background: "#dcfce7", border: "1px solid #86efac" },
-  "Gluten-Free": { color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a" },
+  Spicy:         { color:"#b91c1c", background:"#fff1f2", border:"1px solid #fecaca" },
+  Vegetarian:    { color:"#15803d", background:"#f0fdf4", border:"1px solid #bbf7d0" },
+  Vegan:         { color:"#166534", background:"#dcfce7", border:"1px solid #86efac" },
+  "Gluten-Free": { color:"#92400e", background:"#fffbeb", border:"1px solid #fde68a" },
 };
-const TAG_ICON   = { Spicy: "🌶", Vegetarian: "🥦", Vegan: "🌱", "Gluten-Free": "🌾" };
-const STAR_HINTS = ["", "Poor", "Fair", "Good", "Very Good", "Excellent"];
+const TAG_ICON      = { Spicy:"🌶", Vegetarian:"🥦", Vegan:"🌱", "Gluten-Free":"🌾" };
+const STAR_HINTS    = ["","Poor","Fair","Good","Very Good","Excellent"];
 const AVATAR_COLORS = ["#1a1a2e","#6a3093","#11998e","#c94b4b","#f7971e","#1d4350","#0f3460","#e94560","#533483","#2b5876"];
-
 const SHOW_MORE_THRESHOLD = 120;
 
 // ─────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────
-const photoSrc = (photoId) => photoId ? `${API_BASE}/Photo/${photoId}` : null;
-
-async function apiFetch(path) {
-  const res = await fetch(`${API_BASE}${path}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
+const photoSrc = (id) => id ? `${API_BASE}/Photo/${id}` : null;
 
 async function apiPost(path, body) {
   const res = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
-function unwrap(raw) {
-  return raw?.data ?? raw?.result ?? raw;
-}
+function unwrap(raw) { return raw?.data ?? raw?.result ?? raw; }
 
 function isItemAvailableNow(item) {
   if (!item.isAvailable) return false;
-
   const open  = item.AvailableHours?.open;
   const close = item.AvailableHours?.close;
   if (!open || !close) return item.isAvailable;
-
   const parseTime = (str) => {
     const [time, period] = str.trim().split(" ");
     let [h, m] = time.split(":").map(Number);
@@ -87,29 +74,66 @@ function isItemAvailableNow(item) {
     if (period === "AM" && h === 12) h = 0;
     return h * 60 + m;
   };
-
-  const now   = new Date();
-  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const now      = new Date();
+  const nowMin   = now.getHours() * 60 + now.getMinutes();
   const openMin  = parseTime(open);
   const closeMin = parseTime(close);
+  if (openMin <= closeMin) return nowMin >= openMin && nowMin < closeMin;
+  return nowMin >= openMin || nowMin < closeMin;
+}
 
-  if (openMin <= closeMin) {
-    return nowMin >= openMin && nowMin < closeMin;
-  } else {
-    return nowMin >= openMin || nowMin < closeMin;
-  }
+// ─────────────────────────────────────────
+// LOGOUT CONFIRM MODAL
+// ─────────────────────────────────────────
+function LogoutModal({ onConfirm, onCancel }) {
+  return (
+    <div className="fs-gen-modal-overlay" onClick={onCancel}>
+      <div className="fs-gen-modal" onClick={e => e.stopPropagation()}>
+        <div className="fs-gen-modal__icon fs-gen-modal__icon--logout"><FaSignOutAlt /></div>
+        <h3 className="fs-gen-modal__title">Logout</h3>
+        <p className="fs-gen-modal__msg">Are you sure you want to logout?</p>
+        <div className="fs-gen-modal__actions">
+          <button className="fs-gen-modal__btn fs-gen-modal__btn--cancel" onClick={onCancel}>Cancel</button>
+          <button className="fs-gen-modal__btn fs-gen-modal__btn--danger" onClick={onConfirm}>Yes, Logout</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────
+// LOGIN REQUIRED MODAL
+// ─────────────────────────────────────────
+function LoginRequiredModal({ onClose, onLogin }) {
+  return (
+    <div className="fs-gen-modal-overlay" onClick={onClose}>
+      <div className="fs-gen-modal" onClick={e => e.stopPropagation()}>
+        <div className="fs-gen-modal__icon fs-gen-modal__icon--warn"><FaExclamationCircle /></div>
+        <h3 className="fs-gen-modal__title">Student Login Required</h3>
+        <p className="fs-gen-modal__msg">
+          This feature is only available for student accounts.
+          Please login as a student to continue.
+        </p>
+        <div className="fs-gen-modal__actions">
+          <button className="fs-gen-modal__btn fs-gen-modal__btn--cancel" onClick={onClose}>Close</button>
+          <button className="fs-gen-modal__btn fs-gen-modal__btn--confirm" onClick={onLogin}>
+            <FaSignInAlt /> Go to Login
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────
 // SKELETON
 // ─────────────────────────────────────────
-function Skeleton({ w = "100%", h = 18, radius = 8, mb = 0 }) {
+function Skeleton({ w="100%", h=18, radius=8, mb=0 }) {
   return (
     <div style={{
-      width: w, height: h, borderRadius: radius, marginBottom: mb,
-      background: "linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%)",
-      backgroundSize: "200% 100%",
-      animation: "fsSkeleton 1.4s ease infinite",
+      width:w, height:h, borderRadius:radius, marginBottom:mb,
+      background:"linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%)",
+      backgroundSize:"200% 100%", animation:"fsSkeleton 1.4s ease infinite",
     }} />
   );
 }
@@ -118,11 +142,7 @@ function Skeleton({ w = "100%", h = 18, radius = 8, mb = 0 }) {
 // DIETARY TAG
 // ─────────────────────────────────────────
 function DietTag({ tag }) {
-  return (
-    <span className="fs-diet-tag" style={TAG_STYLE[tag]}>
-      {TAG_ICON[tag]} {tag}
-    </span>
-  );
+  return <span className="fs-diet-tag" style={TAG_STYLE[tag]}>{TAG_ICON[tag]} {tag}</span>;
 }
 
 // ─────────────────────────────────────────
@@ -138,16 +158,11 @@ function StarRater({ value, onChange }) {
         {[1,2,3,4,5].map(n => (
           <button key={n} type="button"
             className={`fs-star-rater__star${display >= n ? " fs-star-rater__star--active" : ""}`}
-            onMouseEnter={() => setHovered(n)}
-            onMouseLeave={() => setHovered(0)}
-            onClick={() => onChange(n)}
-            aria-label={`${n} star`}
-          >⭐</button>
+            onMouseEnter={() => setHovered(n)} onMouseLeave={() => setHovered(0)}
+            onClick={() => onChange(n)} aria-label={`${n} star`}>⭐</button>
         ))}
       </div>
-      <div className="fs-star-rater__hint">
-        {display ? STAR_HINTS[display] : "Tap a star to rate"}
-      </div>
+      <div className="fs-star-rater__hint">{display ? STAR_HINTS[display] : "Tap a star to rate"}</div>
     </div>
   );
 }
@@ -160,10 +175,8 @@ function ReviewModal({ onClose, onSubmit, submitting }) {
   const [text,  setText]  = useState("");
   const MAX = 400;
   const canSubmit = stars > 0 && text.trim().length >= 10 && !submitting;
-
   return (
-    <div className="fs-review-modal-overlay"
-      onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="fs-review-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="fs-review-modal">
         <div className="fs-review-modal__header">
           <div>
@@ -176,24 +189,17 @@ function ReviewModal({ onClose, onSubmit, submitting }) {
           <StarRater value={stars} onChange={setStars} />
           <div className="fs-review-field">
             <div className="fs-review-field__label">Your Review</div>
-            <textarea
-              className="fs-review-field__textarea"
+            <textarea className="fs-review-field__textarea"
               placeholder="Tell others about your experience — the food, delivery speed, flavour… (min 10 characters)"
               value={text} maxLength={MAX}
-              onChange={e => setText(e.target.value)}
-              style={{ fontFamily: FONT }}
-            />
+              onChange={e => setText(e.target.value)} style={{ fontFamily:FONT }} />
             <div className="fs-review-field__char-count">{text.length} / {MAX}</div>
           </div>
-          <button
-            className="fs-review-submit-btn"
-            disabled={!canSubmit}
-            onClick={() => onSubmit({ stars, text: text.trim() })}
-            style={{ fontFamily: FONT }}
-          >
+          <button className="fs-review-submit-btn" disabled={!canSubmit}
+            onClick={() => onSubmit({ stars, text:text.trim() })} style={{ fontFamily:FONT }}>
             {submitting
-              ? <><FaSpinner className="fs-spin" style={{ fontSize: 14 }} /> Submitting…</>
-              : <><FaPen style={{ fontSize: 13 }} /> Submit Review</>}
+              ? <><FaSpinner className="fs-spin" style={{ fontSize:14 }} /> Submitting…</>
+              : <><FaPen style={{ fontSize:13 }} /> Submit Review</>}
           </button>
         </div>
       </div>
@@ -211,34 +217,30 @@ function ReviewCard({ review, index, total, expanded, onToggle }) {
   const yearsOn    = joined ? new Date().getFullYear() - joined : 0;
   const color      = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
   const date       = review.createdAt
-    ? new Date(review.createdAt).toLocaleString("en-US", { month: "long", year: "numeric" })
+    ? new Date(review.createdAt).toLocaleString("en-US", { month:"long", year:"numeric" })
     : "Recent";
-  const isLeft        = index % 2 === 0;
-  const hasBorderBtm  = index < total - 2;
-  const isLong        = (review.comment?.length ?? 0) > SHOW_MORE_THRESHOLD;
-  const avatarSrc = reviewer?._profilePhotoUrl ?? null;
-
+  const isLeft       = index % 2 === 0;
+  const hasBorderBtm = index < total - 2;
+  const isLong       = (review.comment?.length ?? 0) > SHOW_MORE_THRESHOLD;
+  const avatarSrc    = reviewer?._profilePhotoUrl ?? null;
   return (
     <div className={`fs-reviews__card${hasBorderBtm ? " fs-reviews__card--border-bottom" : ""}`}>
       <div className={isLeft ? "fs-reviews__card-inner-left" : "fs-reviews__card-inner-right"}>
         <div className="fs-reviews__author">
-          <div className="fs-reviews__avatar" style={{ background: color }}>
+          <div className="fs-reviews__avatar" style={{ background:color }}>
             {avatarSrc
               ? <img src={avatarSrc} alt={name}
-                  style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
-                  onError={e => { e.currentTarget.style.display = "none"; }}
-                />
+                  style={{ width:"100%", height:"100%", borderRadius:"50%", objectFit:"cover" }}
+                  onError={e => { e.currentTarget.style.display="none"; }} />
               : name[0].toUpperCase()}
           </div>
           <div>
             <div className="fs-reviews__author-name">
               {name}
               {review.isNew && (
-                <span style={{
-                  marginLeft: 8, fontSize: 11, fontWeight: 700,
-                  background: "#dcfce7", color: "#166534",
-                  border: "1px solid #86efac", padding: "2px 8px", borderRadius: 20,
-                }}>New</span>
+                <span style={{ marginLeft:8, fontSize:11, fontWeight:700,
+                  background:"#dcfce7", color:"#166534",
+                  border:"1px solid #86efac", padding:"2px 8px", borderRadius:20 }}>New</span>
               )}
             </div>
             <div className="fs-reviews__author-years">
@@ -246,18 +248,16 @@ function ReviewCard({ review, index, total, expanded, onToggle }) {
             </div>
           </div>
         </div>
-
         <div className="fs-reviews__stars-row">
           <span>{"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}</span>
-          <span style={{ color: "#ccc" }}>·</span>
+          <span style={{ color:"#ccc" }}>·</span>
           <span className="fs-reviews__date">{date}</span>
         </div>
-
         <div className={`fs-reviews__text${(!expanded && isLong) ? " fs-reviews__text--clamped" : ""}`}>
           {review.comment}
         </div>
         {isLong && (
-          <button className="fs-reviews__toggle-btn" style={{ fontFamily: FONT }} onClick={onToggle}>
+          <button className="fs-reviews__toggle-btn" style={{ fontFamily:FONT }} onClick={onToggle}>
             {expanded ? "Show less" : "Show more"}
           </button>
         )}
@@ -271,19 +271,13 @@ function ReviewCard({ review, index, total, expanded, onToggle }) {
 // ─────────────────────────────────────────
 function MenuItemRow({ item, onOpen, onAdd, isLast, bgIndex }) {
   const availableNow = isItemAvailableNow(item);
-  const bg = BG_CYCLE[bgIndex % BG_CYCLE.length];
-  const openTime  = item.AvailableHours?.open  ?? "—";
-  const closeTime = item.AvailableHours?.close ?? "—";
-
+  const bg           = BG_CYCLE[bgIndex % BG_CYCLE.length];
+  const openTime     = item.AvailableHours?.open  ?? "—";
+  const closeTime    = item.AvailableHours?.close ?? "—";
   return (
-    <div
-      onClick={() => availableNow && onOpen(item)}
-      className={[
-        "fs-menu-item",
-        isLast        ? "fs-menu-item--last"        : "",
-        !availableNow ? "fs-menu-item--unavailable" : "",
-      ].join(" ")}
-    >
+    <div onClick={() => availableNow && onOpen(item)}
+      className={["fs-menu-item", isLast ? "fs-menu-item--last" : "",
+        !availableNow ? "fs-menu-item--unavailable" : ""].join(" ")}>
       <div className="fs-menu-item__info">
         <div className="fs-menu-item__name">
           {item.name}
@@ -307,14 +301,12 @@ function MenuItemRow({ item, onOpen, onAdd, isLast, bgIndex }) {
           <span className="fs-menu-item__price">LKR {item.price?.toLocaleString()}.00</span>
         </div>
       </div>
-
-      <div className="fs-menu-item__image" style={{ background: bg }}>
+      <div className="fs-menu-item__image" style={{ background:bg }}>
         {item.image
           ? <img src={photoSrc(item.image)} alt={item.name}
-              style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 10 }}
-              onError={e => { e.currentTarget.style.display = "none"; }}
-            />
-          : <span style={{ fontSize: 40 }}>{CAT_EMOJI[item.category] ?? "🍽"}</span>}
+              style={{ width:"100%", height:"100%", objectFit:"cover", borderRadius:10 }}
+              onError={e => { e.currentTarget.style.display="none"; }} />
+          : <span style={{ fontSize:40 }}>{CAT_EMOJI[item.category] ?? "🍽"}</span>}
         {availableNow && (
           <button className="fs-menu-item__add-btn"
             onClick={e => { e.stopPropagation(); onAdd(item); }}>+</button>
@@ -331,13 +323,12 @@ function OrderTypeToggle({ value, onChange }) {
   return (
     <div className="fs-order-toggle">
       {[
-        { key: "delivery", label: "Delivery", icon: <FaMotorcycle style={{ fontSize: 13 }} /> },
-        { key: "pickup",   label: "Pickup",   icon: <FaShoppingBag style={{ fontSize: 12 }} /> },
+        { key:"delivery", label:"Delivery", icon:<FaMotorcycle style={{ fontSize:13 }} /> },
+        { key:"pickup",   label:"Pickup",   icon:<FaShoppingBag style={{ fontSize:12 }} /> },
       ].map(({ key, label, icon }) => (
         <button key={key} onClick={() => onChange(key)}
           className={`fs-order-toggle__btn${value === key ? " fs-order-toggle__btn--active" : ""}`}
-          style={{ fontFamily: FONT }}
-        >{icon} {label}</button>
+          style={{ fontFamily:FONT }}>{icon} {label}</button>
       ))}
     </div>
   );
@@ -348,18 +339,24 @@ function OrderTypeToggle({ value, onChange }) {
 // ─────────────────────────────────────────
 export default function FoodService() {
   const { id: FOOD_SERVICE_ID } = useParams();
+  const navigate = useNavigate();
 
   // ── API state ─────────────────────────
-  const [service,     setService]     = useState(null);
-  const [menuItems,   setMenuItems]   = useState([]);
-  const [reviews,     setReviews]     = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [service,   setService]   = useState(null);
+  const [menuItems, setMenuItems] = useState([]);
+  const [reviews,   setReviews]   = useState([]);
+
+  // ── Auth state ────────────────────────
+  const [currentUser,       setCurrentUser]       = useState(null);
+  const [userAvatarSrc,     setUserAvatarSrc]     = useState(null);
+  const [showLogoutModal,   setShowLogoutModal]   = useState(false);
+  const [showLoginRequired, setShowLoginRequired] = useState(false);
 
   // ── Loading / error ───────────────────
-  const [loadingService,  setLoadingService]  = useState(true);
-  const [loadingMenu,     setLoadingMenu]     = useState(true);
-  const [loadingReviews,  setLoadingReviews]  = useState(true);
-  const [errorService,    setErrorService]    = useState(null);
+  const [loadingService, setLoadingService] = useState(true);
+  const [loadingMenu,    setLoadingMenu]    = useState(true);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+  const [errorService,   setErrorService]  = useState(null);
 
   // ── UI state ──────────────────────────
   const [activeTab,        setActiveTab]        = useState("food");
@@ -367,7 +364,7 @@ export default function FoodService() {
   const [cart,             setCart]             = useState({});
   const [modal,            setModal]            = useState(null);
   const [modalQty,         setModalQty]         = useState(1);
-  const [toast,            setToast]            = useState({ show: false, msg: "" });
+  const [toast,            setToast]            = useState({ show:false, msg:"" });
   const [expanded,         setExpanded]         = useState({});
   const [showDropdown,     setShowDropdown]     = useState(false);
   const [orderType,        setOrderType]        = useState("delivery");
@@ -382,9 +379,28 @@ export default function FoodService() {
   const dropdownRef   = useRef(null);
   const actionMenuRef = useRef(null);
 
-  // ─────────────────────────────────────
-  // FETCH: FoodService
-  // ─────────────────────────────────────
+  // Derived role helpers
+  const userId     = localStorage.getItem("CurrentUserId");
+  const isLoggedIn = !!userId;
+  const userRole   = currentUser?.role ?? null;
+  const isStudent  = userRole === "student";
+  const isHost     = userRole === "host";
+
+  // ── Fetch current user ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!userId) return;
+    fetch(`${API_BASE}/User/${userId}`)
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(raw => {
+        const user = unwrap(raw);
+        setCurrentUser(user);
+        const photoId = user?.profileImage ?? null;
+        if (photoId) setUserAvatarSrc(`${API_BASE}/Photo/${photoId}`);
+      })
+      .catch(() => { setCurrentUser(null); setUserAvatarSrc(null); });
+  }, []);
+
+  // ── Fetch: FoodService ────────────────────────────────────────────────
   useEffect(() => {
     if (!FOOD_SERVICE_ID) { setLoadingService(false); return; }
     setLoadingService(true);
@@ -400,34 +416,26 @@ export default function FoodService() {
       .finally(() => setLoadingService(false));
   }, [FOOD_SERVICE_ID]);
 
-  // ─────────────────────────────────────
-  // FETCH: MenuItems
-  // ─────────────────────────────────────
+  // ── Fetch: MenuItems ──────────────────────────────────────────────────
   useEffect(() => {
     if (!service?.menu?.length) { setLoadingMenu(false); return; }
     setLoadingMenu(true);
     Promise.all(
       service.menu.map(id =>
         fetch(`${API_BASE}/menuitem/${id}`)
-          .then(r => r.json())
-          .then(raw => unwrap(raw))
-          .catch(() => null)
+          .then(r => r.json()).then(raw => unwrap(raw)).catch(() => null)
       )
     )
       .then(items => setMenuItems(items.filter(Boolean)))
       .finally(() => setLoadingMenu(false));
   }, [service]);
 
-  // ─────────────────────────────────────
-  // FETCH: Reviews
-  // ─────────────────────────────────────
+  // ── Fetch: Reviews ────────────────────────────────────────────────────
   useEffect(() => {
     if (!service) return;
     setLoadingReviews(true);
-
     const loadReviews = async () => {
       let list = [];
-
       try {
         const r   = await fetch(`${API_BASE}/review?foodService=${FOOD_SERVICE_ID}`);
         const raw = await r.json();
@@ -439,107 +447,71 @@ export default function FoodService() {
           const raw = await r.json();
           const docs = unwrap(raw);
           list = Array.isArray(docs) ? docs : [];
-        } catch (__) {
-          list = [];
-        }
+        } catch (__) { list = []; }
       }
-
       list = list.filter(rv =>
         !rv.foodService ||
         rv.foodService === FOOD_SERVICE_ID ||
         rv.foodService?._id === FOOD_SERVICE_ID
       );
-
       const enriched = await Promise.all(
         list.map(async (rv) => {
           const reviewerId = rv.reviewer?._id ?? rv.reviewer;
           if (!reviewerId) return rv;
-
           try {
-            const ur  = await fetch(`${API_BASE}/user/${reviewerId}`);
-            const raw = await ur.json();
+            const ur   = await fetch(`${API_BASE}/user/${reviewerId}`);
+            const raw  = await ur.json();
             const user = unwrap(raw);
-
             let photoUrl = null;
             if (user?.profileImage) {
               photoUrl = /^[a-f\d]{24}$/i.test(user.profileImage)
-                ? photoSrc(user.profileImage)
-                : user.profileImage;
+                ? photoSrc(user.profileImage) : user.profileImage;
             }
-
             return {
               ...rv,
               reviewer: {
                 ...(typeof rv.reviewer === "object" ? rv.reviewer : {}),
-                _id:              reviewerId,
-                name:             user?.name ?? "Guest",
-                createdAt:        user?.createdAt,
-                _profilePhotoUrl: photoUrl,
+                _id:reviewerId, name:user?.name ?? "Guest",
+                createdAt:user?.createdAt, _profilePhotoUrl:photoUrl,
               },
             };
-          } catch (_) {
-            return rv;
-          }
+          } catch (_) { return rv; }
         })
       );
-
       setReviews(enriched);
     };
-
     loadReviews().finally(() => setLoadingReviews(false));
   }, [service]);
 
-  // ─────────────────────────────────────
-  // FETCH: Current User — uses localStorage ID
-  // ─────────────────────────────────────
-  useEffect(() => {
-    if (!CURRENT_USER_ID) return; // not logged in
-    fetch(`${API_BASE}/user/${CURRENT_USER_ID}`)
-      .then(r => r.json())
-      .then(raw => setCurrentUser(unwrap(raw)))
-      .catch(() => {});
-  }, []);
-
-  // ─────────────────────────────────────
-  // CART
-  // ─────────────────────────────────────
+  // ── Cart ──────────────────────────────────────────────────────────────
   const addToCart = (item) => {
-    setCart(prev => ({ ...prev, [item._id]: { ...item, qty: (prev[item._id]?.qty || 0) + 1 } }));
+    setCart(prev => ({ ...prev, [item._id]:{ ...item, qty:(prev[item._id]?.qty || 0) + 1 } }));
     showToast(`Added "${item.name}" to cart`);
   };
   const changeQty = (id, delta) => {
     setCart(prev => {
       const qty = (prev[id]?.qty || 0) + delta;
       if (qty <= 0) { const n = { ...prev }; delete n[id]; return n; }
-      return { ...prev, [id]: { ...prev[id], qty } };
+      return { ...prev, [id]:{ ...prev[id], qty } };
     });
   };
   const cartItems = Object.values(cart);
-  const cartTotal = cartItems.reduce((s, i) => s + i.price * i.qty, 0);
-  const cartCount = cartItems.reduce((s, i) => s + i.qty, 0);
+  const cartTotal = cartItems.reduce((s,i) => s + i.price * i.qty, 0);
+  const cartCount = cartItems.reduce((s,i) => s + i.qty, 0);
 
-  // ─────────────────────────────────────
-  // TOAST
-  // ─────────────────────────────────────
+  // ── Toast ─────────────────────────────────────────────────────────────
   const showToast = (msg) => {
-    setToast({ show: true, msg });
+    setToast({ show:true, msg });
     clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast({ show: false, msg: "" }), 2400);
+    toastTimer.current = setTimeout(() => setToast({ show:false, msg:"" }), 2400);
   };
 
-  // ─────────────────────────────────────
-  // ITEM MODAL
-  // ─────────────────────────────────────
-  const openModal  = (item) => { setModal(item); setModalQty(1); };
-  const closeModal = ()     => setModal(null);
-  const addFromModal = () => {
-    for (let i = 0; i < modalQty; i++) addToCart(modal);
-    closeModal();
-  };
+  // ── Item modal ────────────────────────────────────────────────────────
+  const openModal    = (item) => { setModal(item); setModalQty(1); };
+  const closeModal   = ()     => setModal(null);
+  const addFromModal = ()     => { for (let i = 0; i < modalQty; i++) addToCart(modal); closeModal(); };
 
-  // ─────────────────────────────────────
-  // SCROLL SPY
-  // ─────────────────────────────────────
+  // ── Scroll spy ────────────────────────────────────────────────────────
   useEffect(() => {
     const onScroll = () => {
       let cur = activeCategories[0] ?? CATEGORIES[0];
@@ -549,61 +521,73 @@ export default function FoodService() {
       });
       setActiveNav(cur);
     };
-    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive:true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   const scrollTo = (id) =>
-    sectionRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
+    sectionRefs.current[id]?.scrollIntoView({ behavior:"smooth", block:"start" });
 
-  // ─────────────────────────────────────
-  // DROPDOWN OUTSIDE CLICK
-  // ─────────────────────────────────────
+  // ── Outside click ─────────────────────────────────────────────────────
   useEffect(() => {
     const h = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target))
-        setShowDropdown(false);
-      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target))
-        setShowActionMenu(false);
+      if (dropdownRef.current   && !dropdownRef.current.contains(e.target))   setShowDropdown(false);
+      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target)) setShowActionMenu(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  // ─────────────────────────────────────
-  // SUBMIT REVIEW
-  // ─────────────────────────────────────
+  // ── Logout ────────────────────────────────────────────────────────────
+  const handleLogoutConfirm = () => {
+    localStorage.removeItem("CurrentUserId");
+    setShowDropdown(false);
+    setShowLogoutModal(false);
+    navigate("/Login");
+  };
+
+  // ── Dropdown guard — non-students see login-required modal ─────────────
+  const handleProtectedClick = (cb) => {
+    if (!isLoggedIn || !isStudent) {
+      setShowDropdown(false);
+      setShowLoginRequired(true);
+      return;
+    }
+    setShowDropdown(false);
+    cb?.();
+  };
+
+  // ── Navbar action button ──────────────────────────────────────────────
+  // Not logged in → "Login", Student → hidden, Host → "Host Page" → /Listings
+  const hostBtnLabel  = !isLoggedIn ? "Login" : isHost ? "Host Page" : null;
+  const hostBtnAction = () => navigate(!isLoggedIn ? "/Login" : "/Listings");
+
+  // ── Submit review ─────────────────────────────────────────────────────
   const handleReviewSubmit = async ({ stars, text }) => {
     setReviewSubmitting(true);
     try {
-      const raw   = await apiPost("/review", {
-        reviewer:    CURRENT_USER_ID,
+      const raw  = await apiPost("/review", {
+        reviewer:    userId,
         foodService: FOOD_SERVICE_ID,
         rating:      stars,
         comment:     text,
       });
       const saved = unwrap(raw);
-
       let photoUrl = null;
       if (currentUser?.profileImage) {
         photoUrl = /^[a-f\d]{24}$/i.test(currentUser.profileImage)
-          ? photoSrc(currentUser.profileImage)
-          : currentUser.profileImage;
+          ? photoSrc(currentUser.profileImage) : currentUser.profileImage;
       }
-
       setReviews(prev => [{
         ...saved,
-        _id:       saved._id ?? Date.now().toString(),
-        reviewer:  {
-          _id:              CURRENT_USER_ID,
-          name:             currentUser?.name ?? "You",
-          createdAt:        currentUser?.createdAt,
-          _profilePhotoUrl: photoUrl,
+        _id:      saved._id ?? Date.now().toString(),
+        reviewer: {
+          _id:userId, name:currentUser?.name ?? "You",
+          createdAt:currentUser?.createdAt, _profilePhotoUrl:photoUrl,
         },
         createdAt: saved.createdAt ?? new Date().toISOString(),
         isNew:     true,
       }, ...prev]);
-
       setShowReviewModal(false);
       showToast("Thanks for your review! 🎉");
     } catch (err) {
@@ -613,51 +597,45 @@ export default function FoodService() {
     }
   };
 
-  // ─────────────────────────────────────
-  // DERIVED VALUES
-  // ─────────────────────────────────────
-  const kitchenName = service?.kitchenName   ?? "Loading…";
-  const address     = service?.address       ?? "";
-  const isOpen      = service?.isAvailable   ?? false;
-  const closeTime   = service?.operatingHours?.close ?? "10:00 PM";
-  const ratingAvg   = service?.ratingAverage ?? 0;
-  const ratingCount = service?.ratingCount   ?? 0;
-  const canDeliver  = service?.deliveryAvailable ?? true;
-  const canPickup   = service?.pickupAvailable   ?? true;
-  const coords      = service?.location?.coordinates;
-  const mapLat      = coords ? coords[1] : 6.9020;
-  const mapLng      = coords ? coords[0] : 79.9667;
-  const mapSrc      = `https://maps.google.com/maps?q=${mapLat},${mapLng}&z=16&output=embed`;
-  const deliveryFee = orderType === "delivery" ? 150 : 0;
-  const orderTotal  = cartTotal + deliveryFee;
-
+  // ── Derived ───────────────────────────────────────────────────────────
+  const kitchenName      = service?.kitchenName        ?? "Loading…";
+  const address          = service?.address            ?? "";
+  const isOpen           = service?.isAvailable        ?? false;
+  const closeTime        = service?.operatingHours?.close ?? "10:00 PM";
+  const ratingAvg        = service?.ratingAverage      ?? 0;
+  const ratingCount      = service?.ratingCount        ?? 0;
+  const canDeliver       = service?.deliveryAvailable  ?? true;
+  const canPickup        = service?.pickupAvailable    ?? true;
+  const coords           = service?.location?.coordinates;
+  const mapLat           = coords ? coords[1] : 6.9020;
+  const mapLng           = coords ? coords[0] : 79.9667;
+  const mapSrc           = `https://maps.google.com/maps?q=${mapLat},${mapLng}&z=16&output=embed`;
+  const deliveryFee      = orderType === "delivery" ? 150 : 0;
+  const orderTotal       = cartTotal + deliveryFee;
   const activeCategories = CATEGORIES.filter(cat => menuItems.some(i => i.category === cat));
   const previewReviews   = reviews.slice(0, 4);
 
-  // ─────────────────────────────────────
-  // GUARDS
-  // ─────────────────────────────────────
+  // ── Guards ────────────────────────────────────────────────────────────
   if (!FOOD_SERVICE_ID) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center",
-        justifyContent: "center", minHeight: "60vh", gap: 16, fontFamily: FONT }}>
-        <FaExclamationTriangle style={{ fontSize: 40, color: PINK }} />
-        <div style={{ fontSize: 18, fontWeight: 700 }}>No food service ID in URL</div>
-        <div style={{ fontSize: 14, color: "#757575" }}>Expected: <code>/FoodService/&lt;id&gt;</code></div>
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center",
+        justifyContent:"center", minHeight:"60vh", gap:16, fontFamily:FONT }}>
+        <FaExclamationTriangle style={{ fontSize:40, color:ORANGE }} />
+        <div style={{ fontSize:18, fontWeight:700 }}>No food service ID in URL</div>
+        <div style={{ fontSize:14, color:"#757575" }}>Expected: <code>/FoodService/&lt;id&gt;</code></div>
       </div>
     );
   }
-
   if (errorService) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center",
-        justifyContent: "center", minHeight: "60vh", gap: 16, fontFamily: FONT }}>
-        <FaExclamationTriangle style={{ fontSize: 40, color: PINK }} />
-        <div style={{ fontSize: 18, fontWeight: 700 }}>Failed to load</div>
-        <div style={{ fontSize: 14, color: "#757575" }}>{errorService}</div>
+      <div style={{ display:"flex", flexDirection:"column", alignItems:"center",
+        justifyContent:"center", minHeight:"60vh", gap:16, fontFamily:FONT }}>
+        <FaExclamationTriangle style={{ fontSize:40, color:ORANGE }} />
+        <div style={{ fontSize:18, fontWeight:700 }}>Failed to load</div>
+        <div style={{ fontSize:14, color:"#757575" }}>{errorService}</div>
         <button onClick={() => window.location.reload()} style={{
-          padding: "10px 24px", background: PINK, color: "#fff", border: "none",
-          borderRadius: 10, fontFamily: FONT, fontSize: 14, fontWeight: 600, cursor: "pointer",
+          padding:"10px 24px", background:ORANGE, color:"#fff", border:"none",
+          borderRadius:10, fontFamily:FONT, fontSize:14, fontWeight:600, cursor:"pointer",
         }}>Retry</button>
       </div>
     );
@@ -667,58 +645,103 @@ export default function FoodService() {
   // RENDER
   // ─────────────────────────────────────
   return (
-    <div style={{ fontFamily: FONT, background: "#fff", color: "#1b1b1b", fontSize: 14, lineHeight: 1.5 }}>
+    <div style={{ fontFamily:FONT, background:"#fff", color:"#1b1b1b", fontSize:14, lineHeight:1.5 }}>
 
       {/* ══ NAVBAR ══ */}
       <nav className="fs-nav">
         <div className="fs-nav__left">
-          <a href="#" className="fs-nav__logo"><FaAirbnb /> Bodima</a>
-          <div className="fs-nav__tabs">
-            {[
-              { key: "boardings",   label: "Boardings" },
-              { key: "food",        label: "Food Services" },
-              { key: "experiences", label: "Online Experiences" },
-            ].map(({ key, label }) => {
-              const active = activeTab === key;
-              return (
-                <a key={key} href="#"
-                  onClick={e => { e.preventDefault(); setActiveTab(key); }}
-                  className={`fs-nav__tab${active ? " fs-nav__tab--active" : ""}`}
-                >
-                  {label}
-                  {active && <span className="fs-nav__tab-underline" />}
-                </a>
-              );
-            })}
-          </div>
+          <a href="/" className="fs-nav__logo"><FaAirbnb /> Bodima</a>
         </div>
+
+        {/* Centered tabs */}
+        <div className="fs-nav__tabs">
+          {[
+            { key:"boardings",   label:"Boardings",          href:"/Boardings"    },
+            { key:"food",        label:"Food Services",      href:"/FoodServices" },
+            { key:"experiences", label:"Online Experiences", href:"#"             },
+          ].map(({ key, label, href }) => (
+            <a key={key} href={href}
+              className={`fs-nav__tab${activeTab === key ? " fs-nav__tab--active" : ""}`}
+              onClick={() => setActiveTab(key)}>
+              {label}
+              {activeTab === key && <span className="fs-nav__tab-underline" />}
+            </a>
+          ))}
+        </div>
+
         <div className="fs-nav__right">
-          <button className="fs-nav__host-btn" style={{ fontFamily: FONT }}>Become a Host</button>
-          <div className="fs-nav__icon-btn" title={currentUser?.name}>
-            {currentUser?._profilePhotoUrl
-              ? <img src={currentUser._profilePhotoUrl} alt="me"
-                  style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
-              : <FaUser />}
+          {/* Login / Host Page — hidden for students */}
+          {hostBtnLabel && (
+            <button className="fs-nav__host-btn" style={{ fontFamily:FONT }} onClick={hostBtnAction}>
+              {hostBtnLabel}
+            </button>
+          )}
+
+          {/* Avatar — neutral border, no orange */}
+          <div className="fs-nav__avatar">
+            {userAvatarSrc
+              ? <img src={userAvatarSrc} alt="Profile" className="fs-nav__avatar-img"
+                  onError={() => setUserAvatarSrc(null)} />
+              : <FaUser className="fs-nav__avatar-icon" />}
           </div>
+
           <div ref={dropdownRef} className="fs-dropdown">
             <div className="fs-nav__icon-btn" onClick={() => setShowDropdown(p => !p)}>
               <FaBars />
             </div>
+
             {showDropdown && (
               <div className="fs-dropdown__menu">
-                {[
-                  { icon: <FaUser style={{ opacity: 0.75, fontSize: 15 }} />,     label: "Profile" },
-                  { icon: <FaEnvelope style={{ opacity: 0.75, fontSize: 15 }} />, label: "Messages" },
-                ].map(({ icon, label }) => (
-                  <div key={label} className="fs-dropdown__item">{icon} {label}</div>
-                ))}
-                <div className="fs-dropdown__divider" />
-                <div className="fs-dropdown__item">
-                  <FaCog style={{ opacity: 0.75, fontSize: 15 }} /> Settings
-                </div>
-                <div className="fs-dropdown__item fs-dropdown__item--danger">
-                  <FaSignOutAlt style={{ opacity: 0.75, fontSize: 15 }} /> Logout
-                </div>
+                {/* User info — only when logged in */}
+                {isLoggedIn && currentUser && (
+                  <>
+                    <div className="fs-dropdown__user">
+                      <span className="fs-dropdown__username">{currentUser.name ?? "User"}</span>
+                      <span className="fs-dropdown__email">{currentUser.email ?? ""}</span>
+                      <span className={`fs-dropdown__role fs-dropdown__role--${userRole}`}>{userRole}</span>
+                    </div>
+                    <div className="fs-dropdown__divider" />
+                  </>
+                )}
+
+                {/* Profile — students and hosts */}
+                {(isStudent || isHost) && (
+                  <div className="fs-dropdown__item"
+                    onClick={() => { setShowDropdown(false); navigate("/Profile"); }}>
+                    <FaUser style={{ opacity:0.7 }} /> Profile
+                  </div>
+                )}
+
+                {/* Not logged in — trigger login-required modal */}
+                {!isLoggedIn && (
+                  <>
+                    <div className="fs-dropdown__item" onClick={() => handleProtectedClick()}>
+                      <FaUser style={{ opacity:0.7 }} /> Profile
+                    </div>
+                    <div className="fs-dropdown__item" onClick={() => handleProtectedClick()}>
+                      <FaEnvelope style={{ opacity:0.7 }} /> Messages
+                    </div>
+                  </>
+                )}
+
+                {/* Messages — students only */}
+                {isStudent && (
+                  <div className="fs-dropdown__item"
+                    onClick={() => { setShowDropdown(false); navigate("/Messages"); }}>
+                    <FaEnvelope style={{ opacity:0.7 }} /> Messages
+                  </div>
+                )}
+
+                {/* Logout — students and hosts */}
+                {isLoggedIn && (isStudent || isHost) && (
+                  <>
+                    <div className="fs-dropdown__divider" />
+                    <div className="fs-dropdown__item fs-dropdown__item--danger"
+                      onClick={() => { setShowDropdown(false); setShowLogoutModal(true); }}>
+                      <FaSignOutAlt style={{ opacity:0.7 }} /> Logout
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -726,12 +749,12 @@ export default function FoodService() {
       </nav>
 
       {/* ══ HERO ══ */}
-      <div style={{ padding: "0 24px" }}>
+      <div style={{ padding:"0 24px" }}>
         <div className="fs-hero">
           {service?.BackgroundImage
             ? <img src={photoSrc(service.BackgroundImage)} alt="banner"
-                style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
-                  objectFit: "cover", zIndex: 0 }} />
+                style={{ position:"absolute", inset:0, width:"100%", height:"100%",
+                  objectFit:"cover", zIndex:0 }} />
             : <><div className="fs-hero__dots" /><div className="fs-hero__gradient" /></>}
         </div>
       </div>
@@ -744,7 +767,7 @@ export default function FoodService() {
           <div className="fs-restaurant-header__logo">
             {service?.iconImage
               ? <img src={photoSrc(service.iconImage)} alt="icon"
-                  style={{ width: "100%", height: "100%", borderRadius: 10, objectFit: "cover" }} />
+                  style={{ width:"100%", height:"100%", borderRadius:10, objectFit:"cover" }} />
               : "🍗"}
           </div>
 
@@ -754,38 +777,38 @@ export default function FoodService() {
               : <>
                   <h1 className="fs-restaurant-header__title">{kitchenName}</h1>
                   <div className="fs-restaurant-header__meta">
-                    <span style={{ fontWeight: 600, color: "#1b1b1b" }}>⭐ {ratingAvg.toFixed(1)}</span>
+                    <span style={{ fontWeight:600, color:"#1b1b1b" }}>⭐ {ratingAvg.toFixed(1)}</span>
                     {[`(${ratingCount} ratings)`, service?.serviceType, "$"].filter(Boolean).map(t => (
-                      <span key={t} style={{ display: "contents" }}>
-                        <span style={{ color: "#ccc" }}>•</span><span>{t}</span>
+                      <span key={t} style={{ display:"contents" }}>
+                        <span style={{ color:"#ccc" }}>•</span><span>{t}</span>
                       </span>
                     ))}
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap", marginBottom:14 }}>
                     <span className="fs-restaurant-header__badge">
                       <span className="fs-restaurant-header__status-dot"
-                        style={{ background: isOpen ? "#038a3a" : "#dc2626" }} />
-                      <span style={{ color: isOpen ? "#038a3a" : "#dc2626", fontWeight: 600 }}>
+                        style={{ background:isOpen ? "#038a3a" : "#dc2626" }} />
+                      <span style={{ color:isOpen ? "#038a3a" : "#dc2626", fontWeight:600 }}>
                         {isOpen ? "Open" : "Closed"}
                       </span>
-                      <span style={{ color: "#545454" }}>· Closes {closeTime}</span>
+                      <span style={{ color:"#545454" }}>· Closes {closeTime}</span>
                     </span>
                     {canDeliver && (
-                      <span style={{ fontSize: 12, color: "#038a3a", fontWeight: 600,
-                        display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ fontSize:12, color:"#038a3a", fontWeight:600,
+                        display:"flex", alignItems:"center", gap:4 }}>
                         <FaMotorcycle /> Delivery
                       </span>
                     )}
                     {canPickup && (
-                      <span style={{ fontSize: 12, color: "#0369a1", fontWeight: 600,
-                        display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ fontSize:12, color:"#0369a1", fontWeight:600,
+                        display:"flex", alignItems:"center", gap:4 }}>
                         <FaShoppingBag /> Pickup
                       </span>
                     )}
                   </div>
                   {address && <div className="fs-restaurant-header__address">📍 {address}</div>}
                   {service?.description && (
-                    <div style={{ fontSize: 13, color: "#757575", marginTop: 6 }}>{service.description}</div>
+                    <div style={{ fontSize:13, color:"#757575", marginTop:6 }}>{service.description}</div>
                   )}
                 </>}
           </div>
@@ -793,40 +816,27 @@ export default function FoodService() {
           <div className="fs-restaurant-header__actions">
             <button
               className={`fs-action-btn${isFavourited ? " fs-action-btn--favourited" : ""}`}
-              onClick={() => {
-                setIsFavourited(p => !p);
-                showToast(isFavourited ? "Removed from favourites" : "Added to favourites ❤️");
-              }}
-              title={isFavourited ? "Remove from favourites" : "Add to favourites"}
-            >
+              onClick={() => { setIsFavourited(p => !p); showToast(isFavourited ? "Removed from favourites" : "Added to favourites ❤️"); }}>
               {isFavourited
-                ? <FaHeart style={{ color: PINK, fontSize: 16 }} />
-                : <FaRegHeart style={{ color: "#444", fontSize: 16 }} />}
+                ? <FaHeart    style={{ color:ORANGE, fontSize:16 }} />
+                : <FaRegHeart style={{ color:"#444",  fontSize:16 }} />}
             </button>
 
-            <div ref={actionMenuRef} style={{ position: "relative" }}>
-              <button
-                className="fs-action-btn"
-                onClick={() => setShowActionMenu(p => !p)}
-                title="More options"
-              >
-                <FaEllipsisH style={{ color: "#444", fontSize: 15 }} />
+            <div ref={actionMenuRef} style={{ position:"relative" }}>
+              <button className="fs-action-btn" onClick={() => setShowActionMenu(p => !p)}>
+                <FaEllipsisH style={{ color:"#444", fontSize:15 }} />
               </button>
-
               {showActionMenu && (
                 <div className="fs-action-dropdown">
                   <div className="fs-action-dropdown__host">
                     <div className="fs-action-dropdown__host-avatar">
                       {currentUser?.profileImage
-                        ? <img src={
-                            /^[a-f\d]{24}$/i.test(currentUser.profileImage)
-                              ? photoSrc(currentUser.profileImage)
-                              : currentUser.profileImage
-                          } alt="host"
-                            style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
-                            onError={e => { e.currentTarget.style.display = "none"; }}
-                          />
-                        : <FaUserCircle style={{ fontSize: 36, color: "#bbb" }} />}
+                        ? <img src={/^[a-f\d]{24}$/i.test(currentUser.profileImage)
+                              ? photoSrc(currentUser.profileImage) : currentUser.profileImage}
+                            alt="host"
+                            style={{ width:"100%", height:"100%", borderRadius:"50%", objectFit:"cover" }}
+                            onError={e => { e.currentTarget.style.display="none"; }} />
+                        : <FaUserCircle style={{ fontSize:36, color:"#bbb" }} />}
                     </div>
                     <div>
                       <div className="fs-action-dropdown__host-label">Hosted by</div>
@@ -840,45 +850,23 @@ export default function FoodService() {
                       </div>
                     </div>
                   </div>
-
                   <div className="fs-action-dropdown__divider" />
-
-                  <button
-                    className="fs-action-dropdown__item fs-action-dropdown__item--primary"
-                    onClick={() => { setShowActionMenu(false); showToast("Opening messages…"); }}
-                  >
-                    <FaCommentAlt style={{ fontSize: 13 }} />
-                    Message Host
+                  <button className="fs-action-dropdown__item fs-action-dropdown__item--primary"
+                    onClick={() => { setShowActionMenu(false); showToast("Opening messages…"); }}>
+                    <FaCommentAlt style={{ fontSize:13 }} /> Message Host
                   </button>
-
-                  <button
-                    className="fs-action-dropdown__item"
-                    onClick={() => { setShowActionMenu(false); }}
-                  >
-                    <FaUserCircle style={{ fontSize: 14 }} />
-                    View Host Profile
+                  <button className="fs-action-dropdown__item"
+                    onClick={() => { setShowActionMenu(false); }}>
+                    <FaUserCircle style={{ fontSize:14 }} /> View Host Profile
                   </button>
-
                   <div className="fs-action-dropdown__divider" />
-
-                  <button
-                    className="fs-action-dropdown__item"
-                    onClick={() => {
-                      setShowActionMenu(false);
-                      navigator.clipboard?.writeText(window.location.href);
-                      showToast("Link copied to clipboard!");
-                    }}
-                  >
-                    <FaShare style={{ fontSize: 13 }} />
-                    Share this kitchen
+                  <button className="fs-action-dropdown__item"
+                    onClick={() => { setShowActionMenu(false); navigator.clipboard?.writeText(window.location.href); showToast("Link copied!"); }}>
+                    <FaShare style={{ fontSize:13 }} /> Share this kitchen
                   </button>
-
-                  <button
-                    className="fs-action-dropdown__item fs-action-dropdown__item--danger"
-                    onClick={() => { setShowActionMenu(false); showToast("Report submitted. Thank you."); }}
-                  >
-                    <FaFlag style={{ fontSize: 13 }} />
-                    Report
+                  <button className="fs-action-dropdown__item fs-action-dropdown__item--danger"
+                    onClick={() => { setShowActionMenu(false); showToast("Report submitted. Thank you."); }}>
+                    <FaFlag style={{ fontSize:13 }} /> Report
                   </button>
                 </div>
               )}
@@ -894,32 +882,30 @@ export default function FoodService() {
           {/* Sidebar */}
           <nav className="fs-sidebar">
             {activeCategories.map(cat => (
-              <button key={cat}
-                onClick={() => scrollTo(`cat-${cat}`)}
+              <button key={cat} onClick={() => scrollTo(`cat-${cat}`)}
                 className={`fs-sidebar__btn${activeNav === cat ? " fs-sidebar__btn--active" : ""}`}
-                style={{ fontFamily: FONT }}
-              >{CAT_EMOJI[cat]} {cat}</button>
+                style={{ fontFamily:FONT }}>
+                {CAT_EMOJI[cat]} {cat}
+              </button>
             ))}
           </nav>
 
           {/* Menu */}
           <main>
             {loadingMenu
-              ? <div style={{ padding: "32px 0" }}>
+              ? <div style={{ padding:"32px 0" }}>
                   {[1,2,3,4].map(i => (
-                    <div key={i} style={{ display: "flex", gap: 16, padding: "16px 0", borderBottom: "1px solid #f0f0f0" }}>
-                      <div style={{ flex: 1 }}>
-                        <Skeleton h={18} w="55%" mb={8} />
-                        <Skeleton h={13} w="90%" mb={6} />
-                        <Skeleton h={13} w="70%" mb={6} />
-                        <Skeleton h={14} w="30%" />
+                    <div key={i} style={{ display:"flex", gap:16, padding:"16px 0", borderBottom:"1px solid #f0f0f0" }}>
+                      <div style={{ flex:1 }}>
+                        <Skeleton h={18} w="55%" mb={8} /><Skeleton h={13} w="90%" mb={6} />
+                        <Skeleton h={13} w="70%" mb={6} /><Skeleton h={14} w="30%" />
                       </div>
                       <Skeleton w={96} h={96} radius={10} />
                     </div>
                   ))}
                 </div>
               : menuItems.length === 0
-                ? <div style={{ textAlign: "center", padding: "60px 0", color: "#757575" }}>No menu items found.</div>
+                ? <div style={{ textAlign:"center", padding:"60px 0", color:"#757575" }}>No menu items found.</div>
                 : activeCategories.map(cat => {
                     const items = menuItems.filter(i => i.category === cat);
                     if (!items.length) return null;
@@ -928,12 +914,9 @@ export default function FoodService() {
                         ref={el => sectionRefs.current[`cat-${cat}`] = el}>
                         <div className="fs-cat-section__title">{CAT_EMOJI[cat]} {cat}</div>
                         {items.map((item, idx) => (
-                          <MenuItemRow
-                            key={item._id} item={item}
-                            isLast={idx === items.length - 1}
-                            bgIndex={idx}
-                            onOpen={openModal} onAdd={addToCart}
-                          />
+                          <MenuItemRow key={item._id} item={item}
+                            isLast={idx === items.length - 1} bgIndex={idx}
+                            onOpen={openModal} onAdd={addToCart} />
                         ))}
                       </section>
                     );
@@ -951,13 +934,13 @@ export default function FoodService() {
                 <div className="fs-cart__subtitle">{kitchenName}</div>
                 {canDeliver && canPickup
                   ? <OrderTypeToggle value={orderType} onChange={setOrderType} />
-                  : <div style={{ fontSize: 13, color: "#757575", marginBottom: 12 }}>
+                  : <div style={{ fontSize:13, color:"#757575", marginBottom:12 }}>
                       {canDeliver ? "🛵 Delivery only" : "🛍 Pickup only"}
                     </div>}
                 <div className="fs-cart__hint">
                   {orderType === "delivery"
-                    ? <><FaMotorcycle style={{ color: PINK }} /> Estimated delivery: 30–45 min</>
-                    : <><FaShoppingBag style={{ color: PINK }} /> Ready for pickup in 15–20 min</>}
+                    ? <><FaMotorcycle style={{ color:ORANGE }} /> Estimated delivery: 30–45 min</>
+                    : <><FaShoppingBag style={{ color:ORANGE }} /> Ready for pickup in 15–20 min</>}
                 </div>
               </div>
 
@@ -972,7 +955,7 @@ export default function FoodService() {
                       <div key={item._id} className="fs-cart__item">
                         <div className="fs-cart__item-name">{item.name}</div>
                         <div className="fs-cart__qty-controls">
-                          <button className="fs-cart__qty-btn" onClick={() => changeQty(item._id, -1)}>−</button>
+                          <button className="fs-cart__qty-btn" onClick={() => changeQty(item._id,-1)}>−</button>
                           <span className="fs-cart__qty-value">{item.qty}</span>
                           <button className="fs-cart__qty-btn" onClick={() => changeQty(item._id, 1)}>+</button>
                         </div>
@@ -986,7 +969,7 @@ export default function FoodService() {
                       {orderType === "delivery" && (
                         <div className="fs-cart__summary-row">
                           <span>Delivery fee</span>
-                          <span style={{ fontWeight: 600 }}>LKR {deliveryFee.toLocaleString()}</span>
+                          <span style={{ fontWeight:600 }}>LKR {deliveryFee.toLocaleString()}</span>
                         </div>
                       )}
                       {orderType === "pickup" && (
@@ -1001,14 +984,11 @@ export default function FoodService() {
                   </>}
 
               <div className="fs-cart__footer">
-                <button
-                  disabled={cartItems.length === 0}
-                  className="fs-cart__checkout-btn"
-                  style={{ fontFamily: FONT }}
-                >
+                <button disabled={cartItems.length === 0}
+                  className="fs-cart__checkout-btn" style={{ fontFamily:FONT }}>
                   <span>{orderType === "delivery" ? "Go to checkout" : "Place pickup order"}</span>
                   {cartItems.length > 0 && (
-                    <span style={{ fontSize: 14, opacity: 0.9 }}>LKR {orderTotal.toLocaleString()}</span>
+                    <span style={{ fontSize:14, opacity:0.9 }}>LKR {orderTotal.toLocaleString()}</span>
                   )}
                 </button>
               </div>
@@ -1027,61 +1007,52 @@ export default function FoodService() {
               : <>
                   <span className="fs-reviews__score">{ratingAvg.toFixed(1)}</span>
                   <div>
-                    <div style={{ fontSize: 18 }}>
+                    <div style={{ fontSize:18 }}>
                       {"★".repeat(Math.round(ratingAvg))}{"☆".repeat(5 - Math.round(ratingAvg))}
                     </div>
-                    <div style={{ fontSize: 14, color: "#757575" }}>{ratingCount} ratings</div>
+                    <div style={{ fontSize:14, color:"#757575" }}>{ratingCount} ratings</div>
                   </div>
                 </>}
           </div>
 
-          <button
-            className="fs-write-review-btn"
-            style={{ fontFamily: FONT }}
-            onClick={() => setShowReviewModal(true)}
-          ><FaPen style={{ fontSize: 13 }} /> Write a Review</button>
+          <button className="fs-write-review-btn" style={{ fontFamily:FONT }}
+            onClick={() => setShowReviewModal(true)}>
+            <FaPen style={{ fontSize:13 }} /> Write a Review
+          </button>
 
           {loadingReviews
             ? <div className="fs-reviews__grid">
                 {[1,2,3,4].map(i => (
-                  <div key={i} style={{ padding: "28px 0",
-                    paddingRight: i % 2 === 1 ? 40 : 0, paddingLeft: i % 2 === 0 ? 40 : 0 }}>
-                    <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+                  <div key={i} style={{ padding:"28px 0",
+                    paddingRight:i % 2 === 1 ? 40 : 0, paddingLeft:i % 2 === 0 ? 40 : 0 }}>
+                    <div style={{ display:"flex", gap:12, marginBottom:12 }}>
                       <Skeleton w={48} h={48} radius={24} />
-                      <div style={{ flex: 1 }}>
-                        <Skeleton h={16} w="50%" mb={6} />
-                        <Skeleton h={13} w="70%" />
+                      <div style={{ flex:1 }}>
+                        <Skeleton h={16} w="50%" mb={6} /><Skeleton h={13} w="70%" />
                       </div>
                     </div>
                     <Skeleton h={13} w="100%" mb={6} />
-                    <Skeleton h={13} w="85%" mb={6} />
+                    <Skeleton h={13} w="85%"  mb={6} />
                     <Skeleton h={13} w="60%" />
                   </div>
                 ))}
               </div>
             : reviews.length === 0
-              ? <div style={{ textAlign: "center", padding: "40px 0", color: "#757575", fontSize: 15 }}>
+              ? <div style={{ textAlign:"center", padding:"40px 0", color:"#757575", fontSize:15 }}>
                   No reviews yet — be the first to share your experience!
                 </div>
               : <div className="fs-reviews__grid">
-                  {(showAllReviews ? reviews : previewReviews).map((r, i) => (
-                    <ReviewCard
-                      key={r._id ?? i}
-                      review={r}
-                      index={i}
+                  {(showAllReviews ? reviews : previewReviews).map((r,i) => (
+                    <ReviewCard key={r._id ?? i} review={r} index={i}
                       total={showAllReviews ? reviews.length : previewReviews.length}
                       expanded={!!expanded[r._id ?? i]}
-                      onToggle={() => setExpanded(e => ({ ...e, [r._id ?? i]: !e[r._id ?? i] }))}
-                    />
+                      onToggle={() => setExpanded(e => ({ ...e, [r._id ?? i]:!e[r._id ?? i] }))} />
                   ))}
                 </div>}
 
           {reviews.length > 4 && (
-            <button
-              className="fs-reviews__show-all-btn"
-              style={{ fontFamily: FONT }}
-              onClick={() => setShowAllReviews(p => !p)}
-            >
+            <button className="fs-reviews__show-all-btn" style={{ fontFamily:FONT }}
+              onClick={() => setShowAllReviews(p => !p)}>
               {showAllReviews ? "Show less" : `Show all ${reviews.length} reviews`}
             </button>
           )}
@@ -1094,46 +1065,26 @@ export default function FoodService() {
           <div className="fs-map__title">📍 Where you'll find us</div>
           <div className="fs-map__address">{address}</div>
           <div className="fs-map__container">
-            <iframe
-              className="fs-map__iframe"
-              src={mapSrc}
+            <iframe className="fs-map__iframe" src={mapSrc}
               allowFullScreen loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              title={kitchenName}
-            />
+              referrerPolicy="no-referrer-when-downgrade" title={kitchenName} />
             <div className="fs-map__card">
-              <span style={{ fontSize: 24 }}>🍗</span>
+              <span style={{ fontSize:24 }}>🍗</span>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#000" }}>{kitchenName}</div>
-                <div style={{ fontSize: 12, color: "#757575", marginTop: 2 }}>{address}</div>
+                <div style={{ fontSize:14, fontWeight:700, color:"#000" }}>{kitchenName}</div>
+                <div style={{ fontSize:12, color:"#757575", marginTop:2 }}>{address}</div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ══ FOOTER ══ */}
+      {/* ══ FOOTER — bottom bar only ══ */}
       <footer className="fs-footer">
-        <div className="fs-footer__grid">
-          {[
-            { title: "Support",   links: ["Help Center", "Safety", "Cancellation Options", "Community Guideline"] },
-            { title: "Community", links: ["Bodima Adventures", "New Features", "Tips for Hosts", "Careers"] },
-            { title: "Host",      links: ["Host a home", "Host an experience", "Responsible hosting", "Community forum"] },
-            { title: "About",     links: ["About Bodima", "Newsroom", "Investors", "Bodima Plus"] },
-          ].map(({ title, links }) => (
-            <div key={title}>
-              <h4 className="fs-footer__col-title">{title}</h4>
-              {links.map(l => <a key={l} href="#" className="fs-footer__link">{l}</a>)}
-            </div>
-          ))}
-        </div>
         <div className="fs-footer__bottom">
-          <div>
-            <span>© 2026 Bodima, Inc. · </span>
-            <a href="#" className="fs-footer__legal-link">Privacy · Terms · Sitemap</a>
-          </div>
+          <span>© 2026 Bodima, Inc. · <a href="#" className="fs-footer__legal-link">Privacy · Terms · Sitemap</a></span>
           <div className="fs-footer__socials">
-            {[FaFacebookF, FaTwitter, FaInstagram].map((Icon, i) => (
+            {[FaFacebookF, FaTwitter, FaInstagram].map((Icon,i) => (
               <a key={i} href="#" className="fs-footer__social-icon"><Icon /></a>
             ))}
           </div>
@@ -1146,14 +1097,13 @@ export default function FoodService() {
           onClick={e => e.target === e.currentTarget && closeModal()}>
           <div className="fs-item-modal">
             <div className="fs-item-modal__hero"
-              style={{ background: BG_CYCLE[menuItems.indexOf(modal) % BG_CYCLE.length] }}>
+              style={{ background:BG_CYCLE[menuItems.indexOf(modal) % BG_CYCLE.length] }}>
               <button className="fs-item-modal__close" onClick={closeModal}>✕</button>
               {modal.image
                 ? <img src={photoSrc(modal.image)} alt={modal.name}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    onError={e => { e.currentTarget.style.display = "none"; }}
-                  />
-                : <span style={{ fontSize: 80 }}>{CAT_EMOJI[modal.category] ?? "🍽"}</span>}
+                    style={{ width:"100%", height:"100%", objectFit:"cover" }}
+                    onError={e => { e.currentTarget.style.display="none"; }} />
+                : <span style={{ fontSize:80 }}>{CAT_EMOJI[modal.category] ?? "🍽"}</span>}
             </div>
             <div className="fs-item-modal__body">
               <div className="fs-item-modal__name">{modal.name}</div>
@@ -1165,14 +1115,14 @@ export default function FoodService() {
               <div className="fs-item-modal__desc">{modal.description}</div>
               <div className="fs-item-modal__details-grid">
                 {[
-                  { label: "⏱ Prep Time",       val: `${modal.prepTime ?? 15} min` },
-                  { label: "🏷 Category",        val: modal.category },
-                  { label: "🕐 Available Hours", val: `${modal.AvailableHours?.open ?? "—"} – ${modal.AvailableHours?.close ?? "—"}` },
-                  { label: "✅ Status",
-                    val:   isItemAvailableNow(modal) ? "● Available now" : "○ Not available now",
-                    color: isItemAvailableNow(modal) ? "#038a3a" : "#999" },
+                  { label:"⏱ Prep Time",       val:`${modal.prepTime ?? 15} min` },
+                  { label:"🏷 Category",        val:modal.category },
+                  { label:"🕐 Available Hours", val:`${modal.AvailableHours?.open ?? "—"} – ${modal.AvailableHours?.close ?? "—"}` },
+                  { label:"✅ Status",
+                    val:  isItemAvailableNow(modal) ? "● Available now" : "○ Not available now",
+                    color:isItemAvailableNow(modal) ? "#038a3a" : "#999" },
                 ].map(({ label, val, color }) => (
-                  <div key={label} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <div key={label} style={{ display:"flex", flexDirection:"column", gap:2 }}>
                     <span className="fs-item-modal__detail-label">{label}</span>
                     <span className="fs-item-modal__detail-value" style={color ? { color } : {}}>{val}</span>
                   </div>
@@ -1184,17 +1134,13 @@ export default function FoodService() {
               <div className="fs-item-modal__actions">
                 <div className="fs-item-modal__qty-controls">
                   <button className="fs-item-modal__qty-btn"
-                    onClick={() => setModalQty(q => Math.max(1, q - 1))}>−</button>
+                    onClick={() => setModalQty(q => Math.max(1, q-1))}>−</button>
                   <span className="fs-item-modal__qty-value">{modalQty}</span>
                   <button className="fs-item-modal__qty-btn"
-                    onClick={() => setModalQty(q => q + 1)}>+</button>
+                    onClick={() => setModalQty(q => q+1)}>+</button>
                 </div>
-                <button
-                  disabled={!isItemAvailableNow(modal)}
-                  className="fs-item-modal__add-btn"
-                  onClick={addFromModal}
-                  style={{ fontFamily: FONT }}
-                >
+                <button disabled={!isItemAvailableNow(modal)}
+                  className="fs-item-modal__add-btn" onClick={addFromModal} style={{ fontFamily:FONT }}>
                   <span>Add to order</span>
                   <span>LKR {(modal.price * modalQty).toLocaleString()}</span>
                 </button>
@@ -1213,21 +1159,31 @@ export default function FoodService() {
         />
       )}
 
+      {/* ══ LOGOUT CONFIRM ══ */}
+      {showLogoutModal && (
+        <LogoutModal
+          onConfirm={handleLogoutConfirm}
+          onCancel={() => setShowLogoutModal(false)}
+        />
+      )}
+
+      {/* ══ LOGIN REQUIRED ══ */}
+      {showLoginRequired && (
+        <LoginRequiredModal
+          onClose={() => setShowLoginRequired(false)}
+          onLogin={() => { setShowLoginRequired(false); navigate("/Login"); }}
+        />
+      )}
+
       {/* ══ TOAST ══ */}
-      <div className={`fs-toast${toast.show ? " fs-toast--visible" : ""}`}>
-        {toast.msg}
-      </div>
+      <div className={`fs-toast${toast.show ? " fs-toast--visible" : ""}`}>{toast.msg}</div>
 
       <style>{`
         @keyframes fsSkeleton {
           0%   { background-position:  200% 0; }
           100% { background-position: -200% 0; }
         }
-        @keyframes fadeInScale {
-          from { opacity: 0; transform: scale(0.94) translateY(16px); }
-          to   { opacity: 1; transform: scale(1)    translateY(0); }
-        }
-        .fs-spin { animation: fsSpin 0.8s linear infinite; display: inline-block; }
+        .fs-spin { animation: fsSpin 0.8s linear infinite; display:inline-block; }
         @keyframes fsSpin { to { transform: rotate(360deg); } }
       `}</style>
     </div>

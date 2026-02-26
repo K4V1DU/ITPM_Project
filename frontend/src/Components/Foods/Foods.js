@@ -6,6 +6,11 @@ import {
   FaCog, FaSignOutAlt, FaEnvelope,
   FaMotorcycle, FaShoppingBag,
   FaHeart, FaRegHeart, FaSlidersH, FaTimes,
+  FaUtensils, FaCoffee, FaBreadSlice, FaHome,
+  FaTruck, FaStore,
+  FaSun, FaLeaf, FaFire, FaSeedling,
+  FaEgg, FaDrumstickBite, FaGlassWhiskey, FaIceCream,
+  FaStar, FaExclamationCircle, FaSignInAlt,
 } from "react-icons/fa";
 import "./Foods.css";
 
@@ -14,38 +19,36 @@ const API_BASE = "http://localhost:8000";
 const photoSrc = (id) => id ? `${API_BASE}/Photo/${id}` : null;
 function unwrap(raw) { return raw?.data ?? raw?.result ?? raw; }
 
-// ─── Constants (match schema enums exactly) ───────────────────────────────
-const SERVICE_TYPE_EMOJI = { "Home Kitchen":"🍳", Restaurant:"🍽", Cafe:"☕", Bakery:"🥐" };
-const SERVICE_TYPES = ["Home Kitchen", "Restaurant", "Cafe", "Bakery"];
-
-const ORDER_EMOJI   = { Delivery:"🛵", Pickup:"🛍" };
-const ORDER_OPTIONS = ["Delivery", "Pickup"];
-
-const CAT_EMOJI  = { Breakfast:"🍳", Lunch:"🥗", Dinner:"🍗", Snacks:"🌶", Drinks:"🥤", Dessert:"🍮" };
-const CATEGORIES = ["Breakfast", "Lunch", "Dinner", "Snacks", "Drinks", "Dessert"];
-
-const DIET_EMOJI  = { Vegetarian:"🥦", Vegan:"🌱", Spicy:"🌶", "Gluten-Free":"🌾" };
-const DIET_TAGS   = ["Vegetarian", "Vegan", "Spicy", "Gluten-Free"];
-
+// ─── Constants ────────────────────────────────────────────────────────────
+const SERVICE_TYPE_ICON = {
+  "Home Kitchen": <FaHome />,
+  Restaurant:     <FaUtensils />,
+  Cafe:           <FaCoffee />,
+  Bakery:         <FaBreadSlice />,
+};
+const SERVICE_TYPES  = ["Home Kitchen", "Restaurant", "Cafe", "Bakery"];
+const ORDER_ICON     = { Delivery: <FaTruck />, Pickup: <FaStore /> };
+const ORDER_OPTIONS  = ["Delivery", "Pickup"];
+const CAT_ICON       = {
+  Breakfast: <FaEgg />, Lunch: <FaLeaf />, Dinner: <FaDrumstickBite />,
+  Snacks: <FaFire />, Drinks: <FaGlassWhiskey />, Dessert: <FaIceCream />,
+};
+const CATEGORIES     = ["Breakfast", "Lunch", "Dinner", "Snacks", "Drinks", "Dessert"];
+const DIET_ICON      = {
+  Vegetarian: <FaLeaf />, Vegan: <FaSeedling />,
+  Spicy: <FaFire />, "Gluten-Free": <FaSun />,
+};
+const DIET_TAGS      = ["Vegetarian", "Vegan", "Spicy", "Gluten-Free"];
 const RATING_OPTIONS = [0, 3, 3.5, 4, 4.5];
 
-// ─── Default filter state ─────────────────────────────────────────────────
 const DEFAULT_FILTERS = {
-  serviceTypes: [],
-  orderOptions: [],
-  categories:   [],
-  dietary:      [],
-  minRating:    0,
+  serviceTypes: [], orderOptions: [], categories: [], dietary: [], minRating: 0,
 };
-
 const countActive = (f) =>
-  f.serviceTypes.length + f.orderOptions.length +
-  f.categories.length + f.dietary.length +
-  (f.minRating > 0 ? 1 : 0);
+  f.serviceTypes.length + f.orderOptions.length + f.categories.length +
+  f.dietary.length + (f.minRating > 0 ? 1 : 0);
 
-// ─── Time-based open/closed helper ────────────────────────────────────────
-// Parses "08:00 AM" / "10:00 PM" style strings and checks if current
-// local time falls between open and close.
+// ─── Time helper ──────────────────────────────────────────────────────────
 function isCurrentlyOpen(operatingHours) {
   try {
     const parse = (str) => {
@@ -54,24 +57,69 @@ function isCurrentlyOpen(operatingHours) {
       let [h, m] = time.split(":").map(Number);
       if (period === "PM" && h !== 12) h += 12;
       if (period === "AM" && h === 12) h = 0;
-      return h * 60 + m; // minutes since midnight
+      return h * 60 + m;
     };
-
-    const now   = new Date();
-    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const now      = new Date();
+    const nowMin   = now.getHours() * 60 + now.getMinutes();
     const openMin  = parse(operatingHours?.open);
     const closeMin = parse(operatingHours?.close);
-
     if (openMin === null || closeMin === null) return false;
-
-    // Handle overnight spans (e.g. 10 PM – 02 AM)
-    if (closeMin <= openMin) {
-      return nowMin >= openMin || nowMin < closeMin;
-    }
+    if (closeMin <= openMin) return nowMin >= openMin || nowMin < closeMin;
     return nowMin >= openMin && nowMin < closeMin;
-  } catch {
-    return false;
-  }
+  } catch { return false; }
+}
+
+// ─────────────────────────────────────────
+// LOGOUT CONFIRM MODAL
+// ─────────────────────────────────────────
+function LogoutModal({ onConfirm, onCancel }) {
+  return (
+    <div className="fsl-modal-overlay" onClick={onCancel}>
+      <div className="fsl-modal" onClick={e => e.stopPropagation()}>
+        <div className="fsl-modal__icon fsl-modal__icon--logout">
+          <FaSignOutAlt />
+        </div>
+        <h3 className="fsl-modal__title">Logout</h3>
+        <p className="fsl-modal__msg">Are you sure you want to logout?</p>
+        <div className="fsl-modal__actions">
+          <button className="fsl-modal__btn fsl-modal__btn--cancel" onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="fsl-modal__btn fsl-modal__btn--danger" onClick={onConfirm}>
+            Yes, Logout
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────
+// LOGIN REQUIRED MODAL
+// ─────────────────────────────────────────
+function LoginRequiredModal({ onClose, onLogin }) {
+  return (
+    <div className="fsl-modal-overlay" onClick={onClose}>
+      <div className="fsl-modal" onClick={e => e.stopPropagation()}>
+        <div className="fsl-modal__icon fsl-modal__icon--warn">
+          <FaExclamationCircle />
+        </div>
+        <h3 className="fsl-modal__title">Student Login Required</h3>
+        <p className="fsl-modal__msg">
+          This feature is only available for student accounts.
+          Please login as a student to continue.
+        </p>
+        <div className="fsl-modal__actions">
+          <button className="fsl-modal__btn fsl-modal__btn--cancel" onClick={onClose}>
+            Close
+          </button>
+          <button className="fsl-modal__btn fsl-modal__btn--confirm" onClick={onLogin}>
+            <FaSignInAlt /> Go to Login
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────
@@ -104,10 +152,8 @@ function FoodServiceCard({ service, onNavigate }) {
 
   const rating    = service.ratingAverage ?? 0;
   const rateCount = service.ratingCount   ?? 0;
-  const emoji     = SERVICE_TYPE_EMOJI[service.serviceType] ?? "🍽";
-
-  // Compute open/closed from actual operating hours (real-time)
-  const open = isCurrentlyOpen(service.operatingHours);
+  const icon      = SERVICE_TYPE_ICON[service.serviceType] ?? <FaUtensils />;
+  const open      = isCurrentlyOpen(service.operatingHours);
 
   return (
     <div className="fs-card" onClick={() => onNavigate(service._id)}>
@@ -115,7 +161,7 @@ function FoodServiceCard({ service, onNavigate }) {
         {imgSrc
           ? <img src={imgSrc} alt={service.kitchenName} className="fs-card__image"
               onError={() => setImgSrc(null)} />
-          : <div className="fs-card__image-fallback">{emoji}</div>}
+          : <div className="fs-card__image-fallback">{icon}</div>}
 
         <div className={`fs-card__status ${open ? "fs-card__status--open" : "fs-card__status--closed"}`}>
           <span className="fs-card__status-dot" />
@@ -125,8 +171,8 @@ function FoodServiceCard({ service, onNavigate }) {
         <button className="fs-card__heart"
           onClick={e => { e.stopPropagation(); setFavourited(p => !p); }}>
           {favourited
-            ? <FaHeart    style={{ color:"#FF385C", fontSize:15 }} />
-            : <FaRegHeart style={{ color:"#333",    fontSize:15 }} />}
+            ? <FaHeart    style={{ color:"var(--orange)", fontSize:15 }} />
+            : <FaRegHeart style={{ color:"#333",          fontSize:15 }} />}
         </button>
 
         <div className="fs-card__tags">
@@ -148,7 +194,10 @@ function FoodServiceCard({ service, onNavigate }) {
           <h3 className="fs-card__title">{service.kitchenName}</h3>
           {rating > 0 && <span className="fs-card__rating">★ {rating.toFixed(1)}</span>}
         </div>
-        <p className="fs-card__subtitle">{emoji} {service.serviceType} · {service.address}</p>
+        <p className="fs-card__subtitle">
+          <span className="fs-card__type-icon">{icon}</span>
+          {service.serviceType} · {service.address}
+        </p>
         <div className="fs-card__footer">
           <span className="fs-card__review-count">
             {rateCount > 0 ? `${rateCount} review${rateCount !== 1 ? "s" : ""}` : "No reviews yet"}
@@ -174,7 +223,7 @@ function FilterPopup({ draft, setDraft, onApply, onClear, onClose }) {
         : [...f[field], val],
     }));
 
-  const ChipRow = ({ field, items, emojiMap }) => (
+  const ChipRow = ({ field, items, iconMap }) => (
     <div className="fsl-filter-chips">
       {items.map(item => (
         <button
@@ -182,7 +231,8 @@ function FilterPopup({ draft, setDraft, onApply, onClear, onClose }) {
           className={`fsl-filter-chip${draft[field].includes(item) ? " fsl-filter-chip--on" : ""}`}
           onClick={() => toggle(field, item)}
         >
-          {emojiMap?.[item] ?? ""} {item}
+          <span className="fsl-filter-chip__icon">{iconMap?.[item]}</span>
+          {item}
         </button>
       ))}
     </div>
@@ -200,22 +250,22 @@ function FilterPopup({ draft, setDraft, onApply, onClear, onClose }) {
         <div className="fsl-filter-popup__body">
           <div className="fsl-filter-section">
             <div className="fsl-filter-section__title">Kitchen Type</div>
-            <ChipRow field="serviceTypes" items={SERVICE_TYPES} emojiMap={SERVICE_TYPE_EMOJI} />
+            <ChipRow field="serviceTypes" items={SERVICE_TYPES} iconMap={SERVICE_TYPE_ICON} />
           </div>
           <div className="fsl-filter-divider" />
           <div className="fsl-filter-section">
             <div className="fsl-filter-section__title">Order Options</div>
-            <ChipRow field="orderOptions" items={ORDER_OPTIONS} emojiMap={ORDER_EMOJI} />
+            <ChipRow field="orderOptions" items={ORDER_OPTIONS} iconMap={ORDER_ICON} />
           </div>
           <div className="fsl-filter-divider" />
           <div className="fsl-filter-section">
             <div className="fsl-filter-section__title">Menu Category</div>
-            <ChipRow field="categories" items={CATEGORIES} emojiMap={CAT_EMOJI} />
+            <ChipRow field="categories" items={CATEGORIES} iconMap={CAT_ICON} />
           </div>
           <div className="fsl-filter-divider" />
           <div className="fsl-filter-section">
             <div className="fsl-filter-section__title">Dietary</div>
-            <ChipRow field="dietary" items={DIET_TAGS} emojiMap={DIET_EMOJI} />
+            <ChipRow field="dietary" items={DIET_TAGS} iconMap={DIET_ICON} />
           </div>
           <div className="fsl-filter-divider" />
           <div className="fsl-filter-section">
@@ -227,7 +277,7 @@ function FilterPopup({ draft, setDraft, onApply, onClear, onClose }) {
                   className={`fsl-filter-chip${draft.minRating === r ? " fsl-filter-chip--on" : ""}`}
                   onClick={() => setDraft(f => ({ ...f, minRating: r }))}
                 >
-                  {r === 0 ? "Any" : `★ ${r}+`}
+                  {r === 0 ? "Any" : <><span className="fsl-filter-chip__icon"><FaStar /></span>{r}+</>}
                 </button>
               ))}
             </div>
@@ -262,21 +312,51 @@ export default function Foods() {
   const [showDropdown,   setShowDropdown]   = useState(false);
   const [activeTab,      setActiveTab]      = useState("food");
 
+  // ── Auth state ────────────────────────────────────────────────────────
+  const [currentUser,       setCurrentUser]       = useState(null);
+  const [userAvatarSrc,     setUserAvatarSrc]     = useState(null);
+  const [showLogoutModal,   setShowLogoutModal]   = useState(false);
+  const [showLoginRequired, setShowLoginRequired] = useState(false);
+
   const dropdownRef = useRef(null);
   const activeCount = countActive(appliedFilters);
 
-  // ── Fetch — only services where isAvailable === true ──────────────────
+  // Derived role helpers — read fresh from localStorage each render
+  const userId     = localStorage.getItem("CurrentUserId");
+  const isLoggedIn = !!userId;
+  const userRole   = currentUser?.role ?? null;   // "student" | "host" | "admin" | null
+  const isStudent  = userRole === "student";
+  const isHost     = userRole === "host";
+
+  // ── Fetch current user ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!userId) return;
+    fetch(`${API_BASE}/User/${userId}`)
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(raw => {
+        const user = unwrap(raw);
+        setCurrentUser(user);
+        const photoId = user?.profileImage ?? null;
+        if (photoId) setUserAvatarSrc(`${API_BASE}/Photo/${photoId}`);
+      })
+      .catch(() => { setCurrentUser(null); setUserAvatarSrc(null); });
+  }, []);
+
+  // ── Fetch food services ───────────────────────────────────────────────
   useEffect(() => {
     setLoading(true);
     fetch(`${API_BASE}/Foodservice`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(async raw => {
         const list = unwrap(raw);
-
-        // ✅ Filter out any service where isAvailable is not true
-        const arr = (Array.isArray(list) ? list : []).filter(s => s.isAvailable === true);
-
-        // Enrich with menu metadata (categories + dietary tags)
+        const now  = new Date();
+        const arr  = (Array.isArray(list) ? list : []).filter(s => {
+          if (s.isAvailable !== true) return false;
+          // Must have a valid expireDate that is in the future
+          if (!s.expireDate) return false;
+          if (new Date(s.expireDate) < now) return false;
+          return true;
+        });
         const enriched = await Promise.all(
           arr.map(async s => {
             if (!s.menu?.length) return { ...s, _cats: [], _diet: [] };
@@ -293,12 +373,9 @@ export default function Foods() {
                 _cats: [...new Set(valid.map(i => i.category).filter(Boolean))],
                 _diet: [...new Set(valid.flatMap(i => i.dietaryTags ?? []))],
               };
-            } catch {
-              return { ...s, _cats: [], _diet: [] };
-            }
+            } catch { return { ...s, _cats: [], _diet: [] }; }
           })
         );
-
         setServices(enriched);
         setFiltered(enriched);
       })
@@ -306,21 +383,15 @@ export default function Foods() {
       .finally(() => setLoading(false));
   }, []);
 
-  // ── Core filter + search logic ─────────────────────────────────────────
+  // ── Filter logic ──────────────────────────────────────────────────────
   const runFilter = (f, q, base) => {
     let r = base;
-    if (f.serviceTypes.length)
-      r = r.filter(s => f.serviceTypes.includes(s.serviceType));
-    if (f.orderOptions.includes("Delivery"))
-      r = r.filter(s => s.deliveryAvailable);
-    if (f.orderOptions.includes("Pickup"))
-      r = r.filter(s => s.pickupAvailable);
-    if (f.categories.length)
-      r = r.filter(s => f.categories.some(c => s._cats?.includes(c)));
-    if (f.dietary.length)
-      r = r.filter(s => f.dietary.every(d => s._diet?.includes(d)));
-    if (f.minRating > 0)
-      r = r.filter(s => (s.ratingAverage ?? 0) >= f.minRating);
+    if (f.serviceTypes.length)               r = r.filter(s => f.serviceTypes.includes(s.serviceType));
+    if (f.orderOptions.includes("Delivery")) r = r.filter(s => s.deliveryAvailable);
+    if (f.orderOptions.includes("Pickup"))   r = r.filter(s => s.pickupAvailable);
+    if (f.categories.length)                 r = r.filter(s => f.categories.some(c => s._cats?.includes(c)));
+    if (f.dietary.length)                    r = r.filter(s => f.dietary.every(d => s._diet?.includes(d)));
+    if (f.minRating > 0)                     r = r.filter(s => (s.ratingAverage ?? 0) >= f.minRating);
     if (q.trim()) {
       const lq = q.toLowerCase();
       r = r.filter(s =>
@@ -331,17 +402,13 @@ export default function Foods() {
     }
     return r;
   };
-
   useEffect(() => {
     if (services.length) setFiltered(runFilter(appliedFilters, searchQuery, services));
   }, [services]);
 
-  // ── Handlers ───────────────────────────────────────────────────────────
-  const handleSearch = () => {
-    setSearchQuery(searchInput);
-    setFiltered(runFilter(appliedFilters, searchInput, services));
-  };
-  const handleKeyDown     = (e) => { if (e.key === "Enter") handleSearch(); };
+  // ── Handlers ──────────────────────────────────────────────────────────
+  const handleSearch      = () => { setSearchQuery(searchInput); setFiltered(runFilter(appliedFilters, searchInput, services)); };
+  const handleKeyDown     = e  => { if (e.key === "Enter") handleSearch(); };
   const openFilter        = () => { setDraftFilters(appliedFilters); setShowFilter(true); };
   const handleFilterApply = () => {
     setAppliedFilters(draftFilters);
@@ -356,6 +423,33 @@ export default function Foods() {
     setFiltered(runFilter(DEFAULT_FILTERS, searchQuery, services));
   };
 
+  // ── Logout confirm ────────────────────────────────────────────────────
+  const handleLogoutConfirm = () => {
+    localStorage.removeItem("CurrentUserId");
+    setShowDropdown(false);
+    setShowLogoutModal(false);
+    navigate("/Login");
+  };
+
+  // ── Dropdown item guard — only students can access ────────────────────
+  const handleProtectedClick = (cb) => {
+    if (!isLoggedIn || !isStudent) {
+      setShowDropdown(false);
+      setShowLoginRequired(true);
+      return;
+    }
+    setShowDropdown(false);
+    cb?.();
+  };
+
+  // ── Navbar action button ───────────────────────────────────────────────
+  // No user    → "Login"  → navigate /Login
+  // Student    → hidden
+  // Host/Admin → "Host Page" → navigate /HostPage
+  const hostBtnLabel  = !isLoggedIn ? "Login" : isHost ? "Host Page" : null;
+  const hostBtnAction = () => navigate(!isLoggedIn ? "/Login" : "/Listings");
+
+  // ── Close dropdown on outside click ──────────────────────────────────
   useEffect(() => {
     const h = e => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target))
@@ -375,6 +469,16 @@ export default function Foods() {
     return parts.join(" · ");
   };
 
+  // ── Avatar ────────────────────────────────────────────────────────────
+  const UserAvatar = () => (
+    <div className="fsl-nav__avatar">
+      {userAvatarSrc
+        ? <img src={userAvatarSrc} alt="Profile" className="fsl-nav__avatar-img"
+            onError={() => setUserAvatarSrc(null)} />
+        : <FaUser className="fsl-nav__avatar-icon" />}
+    </div>
+  );
+
   return (
     <div className="fsl-page">
 
@@ -382,37 +486,94 @@ export default function Foods() {
       <nav className="fsl-nav">
         <div className="fsl-nav__left">
           <a href="/" className="fsl-nav__logo"><FaAirbnb /> Bodima</a>
-          <div className="fsl-nav__tabs">
-            {[
-              { key:"boardings",   label:"Boardings",          href:"/Boardings" },
-              { key:"food",        label:"Food Services",      href:"/FoodServices" },
-              { key:"experiences", label:"Online Experiences", href:"#" },
-            ].map(({ key, label, href }) => (
-              <a key={key} href={href}
-                className={`fsl-nav__tab${activeTab === key ? " fsl-nav__tab--active" : ""}`}
-                onClick={() => setActiveTab(key)}>
-                {label}
-                {activeTab === key && <span className="fsl-nav__tab-underline" />}
-              </a>
-            ))}
-          </div>
         </div>
+
+        <div className="fsl-nav__tabs">
+          {[
+            { key:"boardings",   label:"Boardings",          href:"/Boardings"    },
+            { key:"food",        label:"Food Services",      href:"/Foods" },
+            { key:"experiences", label:"Orders", href:"#"             },
+          ].map(({ key, label, href }) => (
+            <a key={key} href={href}
+              className={`fsl-nav__tab${activeTab === key ? " fsl-nav__tab--active" : ""}`}
+              onClick={() => setActiveTab(key)}>
+              {label}
+              {activeTab === key && <span className="fsl-nav__tab-underline" />}
+            </a>
+          ))}
+        </div>
+
         <div className="fsl-nav__right">
-          <button className="fsl-nav__host-btn">Become a Host</button>
-          <div className="fsl-nav__icon-btn"><FaUser /></div>
+          {/* Show "Login" when not logged in, "Host Page" for hosts, hidden for students */}
+          {hostBtnLabel && (
+            <button className="fsl-nav__host-btn" onClick={hostBtnAction}>
+              {hostBtnLabel}
+            </button>
+          )}
+
+          <UserAvatar />
+
           <div ref={dropdownRef} className="fsl-dropdown">
             <div className="fsl-nav__icon-btn" onClick={() => setShowDropdown(p => !p)}>
               <FaBars />
             </div>
+
             {showDropdown && (
               <div className="fsl-dropdown__menu">
-                <div className="fsl-dropdown__item"><FaUser style={{ opacity:0.7 }} /> Profile</div>
-                <div className="fsl-dropdown__item"><FaEnvelope style={{ opacity:0.7 }} /> Messages</div>
-                <div className="fsl-dropdown__divider" />
-                <div className="fsl-dropdown__item"><FaCog style={{ opacity:0.7 }} /> Settings</div>
-                <div className="fsl-dropdown__item fsl-dropdown__item--danger">
-                  <FaSignOutAlt style={{ opacity:0.7 }} /> Logout
-                </div>
+                {/* User info — only when logged in */}
+                {isLoggedIn && currentUser && (
+                  <>
+                    <div className="fsl-dropdown__user">
+                      <span className="fsl-dropdown__username">{currentUser.name ?? "User"}</span>
+                      <span className="fsl-dropdown__email">{currentUser.email ?? ""}</span>
+                      <span className={`fsl-dropdown__role fsl-dropdown__role--${userRole}`}>
+                        {userRole}
+                      </span>
+                    </div>
+                    <div className="fsl-dropdown__divider" />
+                  </>
+                )}
+
+                {/* Profile — accessible by students AND hosts */}
+                {(isStudent || isHost) && (
+                  <div className="fsl-dropdown__item"
+                    onClick={() => { setShowDropdown(false); navigate("/Profile"); }}>
+                    <FaUser style={{ opacity:0.7 }} /> Profile
+                  </div>
+                )}
+
+                {/* Not logged in — show login-required on all items */}
+                {!isLoggedIn && (
+                  <>
+                    <div className="fsl-dropdown__item"
+                      onClick={() => handleProtectedClick()}>
+                      <FaUser style={{ opacity:0.7 }} /> Profile
+                    </div>
+                    <div className="fsl-dropdown__item"
+                      onClick={() => handleProtectedClick()}>
+                      <FaEnvelope style={{ opacity:0.7 }} /> Messages
+                    </div>
+                  </>
+                )}
+
+                {/* Messages — students only */}
+                {isStudent && (
+                  <div className="fsl-dropdown__item"
+                    onClick={() => { setShowDropdown(false); navigate("/Messages"); }}>
+                    <FaEnvelope style={{ opacity:0.7 }} /> Messages
+                  </div>
+                )}
+
+                {/* Logout — students and hosts */}
+                {isLoggedIn && (isStudent || isHost) && (
+                  <>
+                    <div className="fsl-dropdown__divider" />
+                    <div className="fsl-dropdown__item fsl-dropdown__item--danger"
+                      onClick={() => { setShowDropdown(false); setShowLogoutModal(true); }}>
+                      <FaSignOutAlt style={{ opacity:0.7 }} /> Logout
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -478,31 +639,19 @@ export default function Foods() {
             ? Array.from({ length:8 }).map((_,i) => <CardSkeleton key={i} />)
             : filtered.length === 0
               ? <div className="fsl-empty">
-                  <div className="fsl-empty__icon">🍽</div>
+                  <div className="fsl-empty__icon"><FaUtensils /></div>
                   <div className="fsl-empty__title">No food services found</div>
                   <div className="fsl-empty__sub">Try adjusting your search or filters</div>
                 </div>
               : filtered.map(s => (
-                  <FoodServiceCard key={s._id} service={s} onNavigate={id => navigate(`/FoodService/${id}`)} />
+                  <FoodServiceCard key={s._id} service={s}
+                    onNavigate={id => navigate(`/FoodService/${id}`)} />
                 ))}
         </div>
       </section>
 
       {/* ══ FOOTER ══ */}
       <footer className="fsl-footer">
-        <div className="fsl-footer__grid">
-          {[
-            { title:"Support",   links:["Help Center","Safety","Cancellation Options","Community Guideline"] },
-            { title:"Community", links:["Bodima Adventures","New Features","Tips for Hosts","Careers"] },
-            { title:"Host",      links:["Host a home","Host an experience","Responsible hosting","Community forum"] },
-            { title:"About",     links:["About Bodima","Newsroom","Investors","Bodima Plus"] },
-          ].map(({ title, links }) => (
-            <div key={title}>
-              <h4 className="fsl-footer__col-title">{title}</h4>
-              {links.map(l => <a key={l} href="#" className="fsl-footer__link">{l}</a>)}
-            </div>
-          ))}
-        </div>
         <div className="fsl-footer__bottom">
           <span>© 2026 Bodima, Inc. · <a href="#" className="fsl-footer__legal">Privacy · Terms · Sitemap</a></span>
           <div className="fsl-footer__socials">
@@ -516,11 +665,25 @@ export default function Foods() {
       {/* ══ FILTER POPUP ══ */}
       {showFilter && (
         <FilterPopup
-          draft={draftFilters}
-          setDraft={setDraftFilters}
-          onApply={handleFilterApply}
-          onClear={handleFilterClear}
+          draft={draftFilters} setDraft={setDraftFilters}
+          onApply={handleFilterApply} onClear={handleFilterClear}
           onClose={() => setShowFilter(false)}
+        />
+      )}
+
+      {/* ══ LOGOUT CONFIRM ══ */}
+      {showLogoutModal && (
+        <LogoutModal
+          onConfirm={handleLogoutConfirm}
+          onCancel={() => setShowLogoutModal(false)}
+        />
+      )}
+
+      {/* ══ LOGIN REQUIRED ══ */}
+      {showLoginRequired && (
+        <LoginRequiredModal
+          onClose={() => setShowLoginRequired(false)}
+          onLogin={() => { setShowLoginRequired(false); navigate("/Login"); }}
         />
       )}
 

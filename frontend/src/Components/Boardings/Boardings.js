@@ -2,50 +2,88 @@ import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Boardings.css";
 import {
-  FaAirbnb,
-  FaBars,
-  FaUser,
-  FaSearch,
-  FaFacebookF,
-  FaTwitter,
-  FaInstagram,
-  FaCog,
-  FaSignOutAlt,
-  FaEnvelope,
-  FaHeart,
-  FaRegHeart,
-  FaSlidersH,
-  FaTimes,
+  FaAirbnb, FaBars, FaUser, FaSearch,
+  FaFacebookF, FaTwitter, FaInstagram,
+  FaSignOutAlt, FaEnvelope,
+  FaHeart, FaRegHeart, FaSlidersH, FaTimes,
+  FaBed, FaWifi, FaSnowflake, FaParking, FaUtensils,
+  FaShower, FaMale, FaFemale, FaUsers,
+  FaStar, FaExclamationCircle, FaSignInAlt,
 } from "react-icons/fa";
 import axios from "axios";
 
-// ─── Constants ────────────────────────────────────────────────────────────
+// ─── Config ───────────────────────────────────────────────────────────────
 const API_BASE = "http://localhost:8000";
+function unwrap(raw) { return raw?.data ?? raw?.result ?? raw; }
 
-const ROOM_TYPES    = ["Single", "Double", "Triple", "Shared"];
-const AMENITIES     = ["WiFi", "AC", "Attached Bath", "Parking", "Meals Included"];
+// ─── Constants ────────────────────────────────────────────────────────────
+const ROOM_TYPES     = ["Single", "Double", "Triple", "Shared"];
+const AMENITIES      = ["WiFi", "AC", "Attached Bath", "Parking", "Meals Included"];
 const GENDER_OPTIONS = ["Male", "Female", "Mixed"];
 const RATING_OPTIONS = [0, 3, 3.5, 4, 4.5];
 
-const ROOM_EMOJI = { Single: "🛏", Double: "🛏🛏", Triple: "🛏🛏🛏", Shared: "🏠" };
-const AMENITY_EMOJI = {
-  WiFi: "📶", AC: "❄️", "Attached Bath": "🚿", Parking: "🅿️", "Meals Included": "🍽",
+const ROOM_ICON = {
+  Single: <FaBed />, Double: <FaBed />, Triple: <FaBed />, Shared: <FaUsers />,
 };
-const GENDER_EMOJI = { Male: "👨", Female: "👩", Mixed: "👥" };
+const AMENITY_ICON = {
+  WiFi: <FaWifi />, AC: <FaSnowflake />, "Attached Bath": <FaShower />,
+  Parking: <FaParking />, "Meals Included": <FaUtensils />,
+};
+const GENDER_ICON = { Male: <FaMale />, Female: <FaFemale />, Mixed: <FaUsers /> };
 
 const DEFAULT_FILTERS = {
-  roomTypes:   [],
-  amenities:   [],
-  gender:      [],
-  minRating:   0,
-  maxPrice:    0,
+  roomTypes: [], amenities: [], gender: [], minRating: 0, maxPrice: 0,
 };
-
 const countActive = (f) =>
   f.roomTypes.length + f.amenities.length + f.gender.length +
   (f.minRating > 0 ? 1 : 0) + (f.maxPrice > 0 ? 1 : 0);
 
-// ─── Card Skeleton ────────────────────────────────────────────────────────
+// ─────────────────────────────────────────
+// LOGOUT CONFIRM MODAL
+// ─────────────────────────────────────────
+function LogoutModal({ onConfirm, onCancel }) {
+  return (
+    <div className="bd-modal-overlay" onClick={onCancel}>
+      <div className="bd-modal" onClick={e => e.stopPropagation()}>
+        <div className="bd-modal__icon bd-modal__icon--logout"><FaSignOutAlt /></div>
+        <h3 className="bd-modal__title">Logout</h3>
+        <p className="bd-modal__msg">Are you sure you want to logout?</p>
+        <div className="bd-modal__actions">
+          <button className="bd-modal__btn bd-modal__btn--cancel" onClick={onCancel}>Cancel</button>
+          <button className="bd-modal__btn bd-modal__btn--danger" onClick={onConfirm}>Yes, Logout</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────
+// LOGIN REQUIRED MODAL
+// ─────────────────────────────────────────
+function LoginRequiredModal({ onClose, onLogin }) {
+  return (
+    <div className="bd-modal-overlay" onClick={onClose}>
+      <div className="bd-modal" onClick={e => e.stopPropagation()}>
+        <div className="bd-modal__icon bd-modal__icon--warn"><FaExclamationCircle /></div>
+        <h3 className="bd-modal__title">Student Login Required</h3>
+        <p className="bd-modal__msg">
+          This feature is only available for student accounts.
+          Please login as a student to continue.
+        </p>
+        <div className="bd-modal__actions">
+          <button className="bd-modal__btn bd-modal__btn--cancel" onClick={onClose}>Close</button>
+          <button className="bd-modal__btn bd-modal__btn--confirm" onClick={onLogin}>
+            <FaSignInAlt /> Go to Login
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────
+// CARD SKELETON
+// ─────────────────────────────────────────
 function CardSkeleton() {
   return (
     <div className="bd-card bd-card--skeleton">
@@ -59,7 +97,9 @@ function CardSkeleton() {
   );
 }
 
-// ─── Boarding Card ────────────────────────────────────────────────────────
+// ─────────────────────────────────────────
+// BOARDING CARD
+// ─────────────────────────────────────────
 function BoardingCard({ acc, imageUrl, onNavigate }) {
   const [favourited, setFavourited] = useState(false);
 
@@ -77,8 +117,8 @@ function BoardingCard({ acc, imageUrl, onNavigate }) {
           onClick={e => { e.stopPropagation(); setFavourited(p => !p); }}
         >
           {favourited
-            ? <FaHeart style={{ color: "#FF385C", fontSize: 15 }} />
-            : <FaRegHeart style={{ color: "#333", fontSize: 15 }} />}
+            ? <FaHeart    style={{ color: "var(--orange)", fontSize: 15 }} />
+            : <FaRegHeart style={{ color: "#333",          fontSize: 15 }} />}
         </button>
         {acc.bedrooms && (
           <div className="bd-card__badge">{acc.bedrooms} Bed{acc.bedrooms > 1 ? "s" : ""}</div>
@@ -108,7 +148,9 @@ function BoardingCard({ acc, imageUrl, onNavigate }) {
   );
 }
 
-// ─── Filter Popup ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────
+// FILTER POPUP — icons instead of emojis
+// ─────────────────────────────────────────
 function FilterPopup({ draft, setDraft, onApply, onClear, onClose }) {
   const toggle = (field, val) =>
     setDraft(f => ({
@@ -118,7 +160,7 @@ function FilterPopup({ draft, setDraft, onApply, onClear, onClose }) {
         : [...f[field], val],
     }));
 
-  const ChipRow = ({ field, items, emojiMap }) => (
+  const ChipRow = ({ field, items, iconMap }) => (
     <div className="bd-filter-chips">
       {items.map(item => (
         <button
@@ -126,7 +168,8 @@ function FilterPopup({ draft, setDraft, onApply, onClear, onClose }) {
           className={`bd-filter-chip${draft[field].includes(item) ? " bd-filter-chip--on" : ""}`}
           onClick={() => toggle(field, item)}
         >
-          {emojiMap?.[item] ?? ""} {item}
+          <span className="bd-filter-chip__icon">{iconMap?.[item]}</span>
+          {item}
         </button>
       ))}
     </div>
@@ -144,17 +187,17 @@ function FilterPopup({ draft, setDraft, onApply, onClear, onClose }) {
         <div className="bd-filter-popup__body">
           <div className="bd-filter-section">
             <div className="bd-filter-section__title">Room Type</div>
-            <ChipRow field="roomTypes" items={ROOM_TYPES} emojiMap={ROOM_EMOJI} />
+            <ChipRow field="roomTypes" items={ROOM_TYPES} iconMap={ROOM_ICON} />
           </div>
           <div className="bd-filter-divider" />
           <div className="bd-filter-section">
             <div className="bd-filter-section__title">Amenities</div>
-            <ChipRow field="amenities" items={AMENITIES} emojiMap={AMENITY_EMOJI} />
+            <ChipRow field="amenities" items={AMENITIES} iconMap={AMENITY_ICON} />
           </div>
           <div className="bd-filter-divider" />
           <div className="bd-filter-section">
             <div className="bd-filter-section__title">Gender Policy</div>
-            <ChipRow field="gender" items={GENDER_OPTIONS} emojiMap={GENDER_EMOJI} />
+            <ChipRow field="gender" items={GENDER_OPTIONS} iconMap={GENDER_ICON} />
           </div>
           <div className="bd-filter-divider" />
           <div className="bd-filter-section">
@@ -166,7 +209,7 @@ function FilterPopup({ draft, setDraft, onApply, onClear, onClose }) {
                   className={`bd-filter-chip${draft.minRating === r ? " bd-filter-chip--on" : ""}`}
                   onClick={() => setDraft(f => ({ ...f, minRating: r }))}
                 >
-                  {r === 0 ? "Any" : `★ ${r}+`}
+                  {r === 0 ? "Any" : <><span className="bd-filter-chip__icon"><FaStar /></span>{r}+</>}
                 </button>
               ))}
             </div>
@@ -183,9 +226,12 @@ function FilterPopup({ draft, setDraft, onApply, onClear, onClose }) {
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────
+// ─────────────────────────────────────────
+// MAIN COMPONENT
+// ─────────────────────────────────────────
 const Boarding = () => {
   const navigate = useNavigate();
+
   const [accommodations, setAccommodations] = useState([]);
   const [filtered,       setFiltered]       = useState([]);
   const [imageUrls,      setImageUrls]      = useState({});
@@ -199,17 +245,50 @@ const Boarding = () => {
   const [showDropdown,   setShowDropdown]   = useState(false);
   const [activeTab,      setActiveTab]      = useState("boardings");
 
+  // ── Auth state ────────────────────────────────────────────────────────
+  const [currentUser,       setCurrentUser]       = useState(null);
+  const [userAvatarSrc,     setUserAvatarSrc]     = useState(null);
+  const [showLogoutModal,   setShowLogoutModal]   = useState(false);
+  const [showLoginRequired, setShowLoginRequired] = useState(false);
+
   const dropdownRef = useRef(null);
   const activeCount = countActive(appliedFilters);
 
-  // ── Fetch ──────────────────────────────────────────────────────────────
+  // Derived role helpers
+  const userId     = localStorage.getItem("CurrentUserId");
+  const isLoggedIn = !!userId;
+  const userRole   = currentUser?.role ?? null;
+  const isStudent  = userRole === "student";
+  const isHost     = userRole === "host";
+
+  // ── Fetch current user ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!userId) return;
+    fetch(`${API_BASE}/User/${userId}`)
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(raw => {
+        const user = unwrap(raw);
+        setCurrentUser(user);
+        const photoId = user?.profileImage ?? null;
+        if (photoId) setUserAvatarSrc(`${API_BASE}/Photo/${photoId}`);
+      })
+      .catch(() => { setCurrentUser(null); setUserAvatarSrc(null); });
+  }, []);
+
+  // ── Fetch accommodations ──────────────────────────────────────────────
   useEffect(() => {
     const fetchAccommodations = async () => {
       try {
         setLoading(true);
         const res = await axios.get(`${API_BASE}/accommodation`);
         if (res.data.success) {
-          const accData = res.data.data.filter(acc => acc.isAvailable);
+          const now     = new Date();
+          const accData = res.data.data.filter(acc => {
+            if (acc.isAvailable !== true) return false;
+            if (!acc.expireDate) return false;
+            if (new Date(acc.expireDate) < now) return false;
+            return true;
+          });
           setAccommodations(accData);
           setFiltered(accData);
 
@@ -241,17 +320,13 @@ const Boarding = () => {
     fetchAccommodations();
   }, []);
 
-  // ── Filter logic ───────────────────────────────────────────────────────
+  // ── Filter logic ──────────────────────────────────────────────────────
   const runFilter = (f, q, base) => {
     let r = base;
-    if (f.roomTypes.length)
-      r = r.filter(a => f.roomTypes.includes(a.roomType));
-    if (f.amenities.length)
-      r = r.filter(a => f.amenities.every(am => a.amenities?.includes(am)));
-    if (f.gender.length)
-      r = r.filter(a => f.gender.includes(a.genderPolicy));
-    if (f.minRating > 0)
-      r = r.filter(a => (a.ratingAverage ?? 0) >= f.minRating);
+    if (f.roomTypes.length)  r = r.filter(a => f.roomTypes.includes(a.roomType));
+    if (f.amenities.length)  r = r.filter(a => f.amenities.every(am => a.amenities?.includes(am)));
+    if (f.gender.length)     r = r.filter(a => f.gender.includes(a.genderPolicy));
+    if (f.minRating > 0)     r = r.filter(a => (a.ratingAverage ?? 0) >= f.minRating);
     if (q.trim()) {
       const lq = q.toLowerCase();
       r = r.filter(a =>
@@ -263,13 +338,9 @@ const Boarding = () => {
     return r;
   };
 
-  // ── Handlers ───────────────────────────────────────────────────────────
-  const handleSearch = () => {
-    setSearchQuery(searchInput);
-    setFiltered(runFilter(appliedFilters, searchInput, accommodations));
-  };
-  const handleKeyDown = e => { if (e.key === "Enter") handleSearch(); };
-
+  // ── Handlers ──────────────────────────────────────────────────────────
+  const handleSearch      = () => { setSearchQuery(searchInput); setFiltered(runFilter(appliedFilters, searchInput, accommodations)); };
+  const handleKeyDown     = e  => { if (e.key === "Enter") handleSearch(); };
   const openFilter        = () => { setDraftFilters(appliedFilters); setShowFilter(true); };
   const handleFilterApply = () => {
     setAppliedFilters(draftFilters);
@@ -284,15 +355,31 @@ const Boarding = () => {
     setFiltered(runFilter(DEFAULT_FILTERS, searchQuery, accommodations));
   };
 
-  const filterSummary = () => {
-    const parts = [];
-    if (appliedFilters.roomTypes.length)  parts.push(appliedFilters.roomTypes.join(", "));
-    if (appliedFilters.amenities.length)  parts.push(appliedFilters.amenities.join(", "));
-    if (appliedFilters.gender.length)     parts.push(appliedFilters.gender.join(", "));
-    if (appliedFilters.minRating)         parts.push(`★ ${appliedFilters.minRating}+`);
-    return parts.join(" · ");
+  // ── Logout ────────────────────────────────────────────────────────────
+  const handleLogoutConfirm = () => {
+    localStorage.removeItem("CurrentUserId");
+    setShowDropdown(false);
+    setShowLogoutModal(false);
+    navigate("/Login");
   };
 
+  // ── Dropdown guard — non-students see login-required modal ────────────
+  const handleProtectedClick = (cb) => {
+    if (!isLoggedIn || !isStudent) {
+      setShowDropdown(false);
+      setShowLoginRequired(true);
+      return;
+    }
+    setShowDropdown(false);
+    cb?.();
+  };
+
+  // ── Navbar action button ──────────────────────────────────────────────
+  // No user → "Login", Student → hidden, Host → "Host Page" → /Listings
+  const hostBtnLabel  = !isLoggedIn ? "Login" : isHost ? "Host Page" : null;
+  const hostBtnAction = () => navigate(!isLoggedIn ? "/Login" : "/Listings");
+
+  // ── Close dropdown on outside click ──────────────────────────────────
   useEffect(() => {
     const h = e => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target))
@@ -302,6 +389,25 @@ const Boarding = () => {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
+  const filterSummary = () => {
+    const parts = [];
+    if (appliedFilters.roomTypes.length)  parts.push(appliedFilters.roomTypes.join(", "));
+    if (appliedFilters.amenities.length)  parts.push(appliedFilters.amenities.join(", "));
+    if (appliedFilters.gender.length)     parts.push(appliedFilters.gender.join(", "));
+    if (appliedFilters.minRating)         parts.push(`★ ${appliedFilters.minRating}+`);
+    return parts.join(" · ");
+  };
+
+  // ── Avatar ────────────────────────────────────────────────────────────
+  const UserAvatar = () => (
+    <div className="bd-nav__avatar">
+      {userAvatarSrc
+        ? <img src={userAvatarSrc} alt="Profile" className="bd-nav__avatar-img"
+            onError={() => setUserAvatarSrc(null)} />
+        : <FaUser className="bd-nav__avatar-icon" />}
+    </div>
+  );
+
   return (
     <div className="bd-page">
 
@@ -309,37 +415,93 @@ const Boarding = () => {
       <nav className="bd-nav">
         <div className="bd-nav__left">
           <a href="/" className="bd-nav__logo"><FaAirbnb /> Bodima</a>
-          <div className="bd-nav__tabs">
-            {[
-              { key: "boardings",   label: "Boardings",          href: "/Boardings" },
-              { key: "food",        label: "Food Services",       href: "/Foods" },
-              { key: "experiences", label: "Online Experiences",  href: "#" },
-            ].map(({ key, label, href }) => (
-              <a key={key} href={href}
-                className={`bd-nav__tab${activeTab === key ? " bd-nav__tab--active" : ""}`}
-                onClick={() => setActiveTab(key)}>
-                {label}
-                {activeTab === key && <span className="bd-nav__tab-underline" />}
-              </a>
-            ))}
-          </div>
         </div>
+
+        {/* Centered tabs */}
+        <div className="bd-nav__tabs">
+          {[
+            { key: "boardings",   label: "Boardings",          href: "/Boardings"    },
+            { key: "food",        label: "Food Services",       href: "/Foods" },
+            { key: "experiences", label: "Orders",  href: "#"             },
+          ].map(({ key, label, href }) => (
+            <a key={key} href={href}
+              className={`bd-nav__tab${activeTab === key ? " bd-nav__tab--active" : ""}`}
+              onClick={() => setActiveTab(key)}>
+              {label}
+              {activeTab === key && <span className="bd-nav__tab-underline" />}
+            </a>
+          ))}
+        </div>
+
         <div className="bd-nav__right">
-          <button className="bd-nav__host-btn" onClick={() => window.location.href = "/host"}>Become a Host</button>
-          <div className="bd-nav__icon-btn"><FaUser /></div>
+          {/* Login / Host Page — hidden for students */}
+          {hostBtnLabel && (
+            <button className="bd-nav__host-btn" onClick={hostBtnAction}>
+              {hostBtnLabel}
+            </button>
+          )}
+
+          <UserAvatar />
+
           <div ref={dropdownRef} className="bd-dropdown">
             <div className="bd-nav__icon-btn" onClick={() => setShowDropdown(p => !p)}>
               <FaBars />
             </div>
+
             {showDropdown && (
               <div className="bd-dropdown__menu">
-                <div className="bd-dropdown__item"><FaUser style={{ opacity: 0.7 }} /> Profile</div>
-                <div className="bd-dropdown__item"><FaEnvelope style={{ opacity: 0.7 }} /> Messages</div>
-                <div className="bd-dropdown__divider" />
-                <div className="bd-dropdown__item"><FaCog style={{ opacity: 0.7 }} /> Settings</div>
-                <div className="bd-dropdown__item bd-dropdown__item--danger">
-                  <FaSignOutAlt style={{ opacity: 0.7 }} /> Logout
-                </div>
+                {/* User info — only when logged in */}
+                {isLoggedIn && currentUser && (
+                  <>
+                    <div className="bd-dropdown__user">
+                      <span className="bd-dropdown__username">{currentUser.name ?? "User"}</span>
+                      <span className="bd-dropdown__email">{currentUser.email ?? ""}</span>
+                      <span className={`bd-dropdown__role bd-dropdown__role--${userRole}`}>
+                        {userRole}
+                      </span>
+                    </div>
+                    <div className="bd-dropdown__divider" />
+                  </>
+                )}
+
+                {/* Profile — students and hosts */}
+                {(isStudent || isHost) && (
+                  <div className="bd-dropdown__item"
+                    onClick={() => { setShowDropdown(false); navigate("/Profile"); }}>
+                    <FaUser style={{ opacity: 0.7 }} /> Profile
+                  </div>
+                )}
+
+                {/* Not logged in — show login-required modal */}
+                {!isLoggedIn && (
+                  <>
+                    <div className="bd-dropdown__item" onClick={() => handleProtectedClick()}>
+                      <FaUser style={{ opacity: 0.7 }} /> Profile
+                    </div>
+                    <div className="bd-dropdown__item" onClick={() => handleProtectedClick()}>
+                      <FaEnvelope style={{ opacity: 0.7 }} /> Messages
+                    </div>
+                  </>
+                )}
+
+                {/* Messages — students only */}
+                {isStudent && (
+                  <div className="bd-dropdown__item"
+                    onClick={() => { setShowDropdown(false); navigate("/Messages"); }}>
+                    <FaEnvelope style={{ opacity: 0.7 }} /> Messages
+                  </div>
+                )}
+
+                {/* Logout — students and hosts */}
+                {isLoggedIn && (isStudent || isHost) && (
+                  <>
+                    <div className="bd-dropdown__divider" />
+                    <div className="bd-dropdown__item bd-dropdown__item--danger"
+                      onClick={() => { setShowDropdown(false); setShowLogoutModal(true); }}>
+                      <FaSignOutAlt style={{ opacity: 0.7 }} /> Logout
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -412,26 +574,16 @@ const Boarding = () => {
                 </div>
               )
               : filtered.map(acc => (
-                  <BoardingCard key={acc._id} acc={acc} imageUrl={imageUrls[acc._id]} onNavigate={id => navigate(`/details-Accommodation/${id}`)} />
+                  <BoardingCard
+                    key={acc._id} acc={acc} imageUrl={imageUrls[acc._id]}
+                    onNavigate={id => navigate(`/details-Accommodation/${id}`)}
+                  />
                 ))}
         </div>
       </section>
 
       {/* ══ FOOTER ══ */}
       <footer className="bd-footer">
-        <div className="bd-footer__grid">
-          {[
-            { title: "Support",   links: ["Help Center", "Safety", "Cancellation Options", "Community Guideline"] },
-            { title: "Community", links: ["Bodima Adventures", "New Features", "Tips for Hosts", "Careers"] },
-            { title: "Host",      links: ["Host a home", "Host an experience", "Responsible hosting", "Community forum"] },
-            { title: "About",     links: ["About Bodima", "Newsroom", "Investors", "Bodima Plus"] },
-          ].map(({ title, links }) => (
-            <div key={title}>
-              <h4 className="bd-footer__col-title">{title}</h4>
-              {links.map(l => <a key={l} href="#" className="bd-footer__link">{l}</a>)}
-            </div>
-          ))}
-        </div>
         <div className="bd-footer__bottom">
           <span>© 2026 Bodima, Inc. · <a href="#" className="bd-footer__legal">Privacy · Terms · Sitemap</a></span>
           <div className="bd-footer__socials">
@@ -445,11 +597,25 @@ const Boarding = () => {
       {/* ══ FILTER POPUP ══ */}
       {showFilter && (
         <FilterPopup
-          draft={draftFilters}
-          setDraft={setDraftFilters}
-          onApply={handleFilterApply}
-          onClear={handleFilterClear}
+          draft={draftFilters} setDraft={setDraftFilters}
+          onApply={handleFilterApply} onClear={handleFilterClear}
           onClose={() => setShowFilter(false)}
+        />
+      )}
+
+      {/* ══ LOGOUT CONFIRM ══ */}
+      {showLogoutModal && (
+        <LogoutModal
+          onConfirm={handleLogoutConfirm}
+          onCancel={() => setShowLogoutModal(false)}
+        />
+      )}
+
+      {/* ══ LOGIN REQUIRED ══ */}
+      {showLoginRequired && (
+        <LoginRequiredModal
+          onClose={() => setShowLoginRequired(false)}
+          onLogin={() => { setShowLoginRequired(false); navigate("/Login"); }}
         />
       )}
 
