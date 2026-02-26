@@ -1166,9 +1166,10 @@ export default function HostListings() {
 
         <div className="hl-nav__center">
           {[
-            { key: "today",    label: "Today",    href: "/host" },
+            { key: "today",    label: "Today",    href: "#" },
+            { key: "Calendar",    label: "Calendar",    href: "#" },
             { key: "listings", label: "Listings", href: "/Listings" },
-            { key: "food",     label: "Foods",    href: "/Foods" },
+            { key: "Messages",     label: "Messages",    href: "#" },
           ].map(({ key, label, href }) => (
             <a key={key} href={href}
               className={`hl-nav__tab${activeNav === key ? " hl-nav__tab--active" : ""}`}
@@ -1233,9 +1234,11 @@ export default function HostListings() {
               </span>
             )}
           </div>
-          <button className="btn-create"
-            onClick={() => navigate(activeTab === "food" ? "/AddFoodService" : "/add-accommodation")}>
-            <FaPlus style={{ marginRight: 6 }} /> Create listing
+          <button
+            className="btn-create"
+            onClick={() => navigate("/host")}
+          >
+            + Create listing
           </button>
         </div>
 
