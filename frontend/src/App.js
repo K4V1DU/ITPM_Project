@@ -10,6 +10,7 @@ import AddFoodService from "./Components/FoodService_Add/AddFoodService";
 import Login from "./Components/Login/Login";
 import EditFoodService from "./Components/FoodService_Edit/EditFoodService";
 import HostListings from "./Components/Host_Listing/HostListings";
+import HostProfile from "./Components/Host_Profile/HostProfile";
 
 
 
@@ -31,6 +32,8 @@ function App() {
       <Route path="/details-Accommodation/:id" element={<AccommodationDetails />} />
       <Route path="/Foods" element={<Foods />} />
       <Route path="/Listings" element={<HostListings />} />
+      <Route path="/Host-Profile" element={<HostProfile />} />
+
 
     </Routes>
   );

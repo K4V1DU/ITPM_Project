@@ -1,19 +1,699 @@
+// import { useState, useEffect, useRef } from "react";
+// import { useNavigate } from "react-router-dom";
+// import axios from "axios";
+// import {
+//   FaAirbnb, FaBars, FaUser, FaTimes, // FaUser kept for dropdown menu item icon
+//   FaFacebookF, FaTwitter, FaInstagram,
+//   FaSignOutAlt,
+//   FaMapMarkerAlt, FaClock, FaMotorcycle,
+//   FaShoppingBag, FaStar, FaCreditCard,
+//   FaEdit, FaTrash,
+// } from "react-icons/fa";
+// import "./HostListings.css";
+
+// const BASE_URL        = "http://localhost:8000";
+// const CURRENT_USER_ID = localStorage.getItem("CurrentUserId") ?? "";
+// const photoUrl        = (id) => `${BASE_URL}/photo/${id}`;
+// const DEFAULT_AVATAR  = "/default-avatar.png";
+
+// // ─── Listing Card ─────────────────────────────────────────────────────────────
+// function ListingCard({ item, type, onClick }) {
+//   const coverImg = type === "food"
+//     ? (item.BackgroundImage ? photoUrl(item.BackgroundImage) : null)
+//     : (item.images?.[0]     ? photoUrl(item.images[0])       : null);
+
+//   const isAvailable = item.isAvailable;
+//   const title       = type === "food" ? item.kitchenName : item.title;
+//   const subtitle    = type === "food" ? item.serviceType : (item.accommodationType || "Accommodation");
+
+//   return (
+//     <div className="listing-card" onClick={() => onClick(item, type)}>
+//       <div className="card-cover">
+//         {coverImg
+//           ? <img src={coverImg} alt={title} className="cover-img" />
+//           : <div className="cover-placeholder">
+//               <span>{type === "food" ? "🍽️" : "🏠"}</span>
+//             </div>
+//         }
+//         <div className={`availability-pill ${isAvailable ? "on" : "off"}`}>
+//           <span className="pill-dot" />
+//           {isAvailable ? "Listed" : "Unlisted"}
+//         </div>
+//       </div>
+
+//       <div className="card-body">
+//         <div className="card-top">
+//           <div className="card-top-text">
+//             <p className="card-subtitle">{subtitle}</p>
+//             <h3 className="card-title">{title || "Untitled listing"}</h3>
+//           </div>
+//         </div>
+
+//         <p className="card-address">
+//           <FaMapMarkerAlt className="card-addr-icon" />
+//           {item.address || <span className="no-address">No address set</span>}
+//         </p>
+
+//         {type === "food" && item.operatingHours && (
+//           <p className="card-hours">
+//             <FaClock className="card-addr-icon" />
+//             {item.operatingHours.open} – {item.operatingHours.close}
+//           </p>
+//         )}
+
+//         <div className="card-chips">
+//           {type === "food" && item.deliveryAvailable && <span className="chip chip-blue"><FaMotorcycle /> Delivery</span>}
+//           {type === "food" && item.pickupAvailable   && <span className="chip chip-orange"><FaShoppingBag /> Pickup</span>}
+//           {type === "food" && item.menu?.length > 0  && <span className="chip chip-gray">{item.menu.length} menu items</span>}
+//           {type === "accommodation" && item.pricePerMonth && (
+//             <span className="chip chip-green">LKR {Number(item.pricePerMonth).toLocaleString()} / month</span>
+//           )}
+//         </div>
+
+
+//       </div>
+//     </div>
+//   );
+// }
+
+// // ─── Menu Item Row ────────────────────────────────────────────────────────────
+// // ✅ Fix: accepts pre-fetched cachedData + onUpdate callback so the parent
+// //    cache stays in sync when the toggle changes isAvailable.
+// function MenuItemRow({ menuItemId, cachedData, onUpdate }) {
+//   const [menuItem, setMenuItem] = useState(cachedData || null);
+//   const [toggling, setToggling] = useState(false);
+
+//   useEffect(() => {
+//     // ✅ Fix: only fetch from network if we don't already have cached data
+//     if (cachedData) {
+//       setMenuItem(cachedData);
+//       return;
+//     }
+//     axios.get(`${BASE_URL}/menuitem/${menuItemId}`)
+//       .then(r => {
+//         const data = r.data?.data || r.data;
+//         setMenuItem(data);
+//         onUpdate?.(menuItemId, data); // store in parent cache
+//       })
+//       .catch(() => {});
+//   }, [menuItemId, cachedData]);
+
+//   const handleToggle = async () => {
+//     if (!menuItem) return;
+//     setToggling(true);
+//     try {
+//       const newVal = !menuItem.isAvailable;
+//       await axios.put(`${BASE_URL}/menuitem/${menuItemId}`, { isAvailable: newVal });
+//       const updated = { ...menuItem, isAvailable: newVal };
+//       setMenuItem(updated);
+//       onUpdate?.(menuItemId, updated); // keep parent cache in sync
+//     } catch { alert("Failed to update menu item."); }
+//     finally { setToggling(false); }
+//   };
+
+//   if (!menuItem) return (
+//     <div className="menu-item-row menu-item-row--loading">
+//       <div className="mi-skeleton-img" />
+//       <div className="mi-skeleton-text">
+//         <div className="mi-skeleton-line" style={{ width: "60%" }} />
+//         <div className="mi-skeleton-line" style={{ width: "40%" }} />
+//       </div>
+//     </div>
+//   );
+
+//   const imgId = menuItem.image || menuItem.imageId || menuItem.photo;
+//   return (
+//     <div className="menu-item-row">
+//       <div className="mi-img-wrap">
+//         {imgId
+//           ? <img src={photoUrl(imgId)} alt={menuItem.name} className="mi-img" />
+//           : <div className="mi-img-fallback">🍽</div>
+//         }
+//       </div>
+//       <div className="mi-info">
+//         <span className="mi-name">{menuItem.name}</span>
+//         <span className="mi-meta">
+//           {menuItem.category && <span className="mi-cat">{menuItem.category}</span>}
+//           {menuItem.price    && <span className="mi-price">LKR {Number(menuItem.price).toLocaleString()}</span>}
+//         </span>
+//       </div>
+//       <div
+//         className={`toggle-switch ${menuItem.isAvailable ? "on" : "off"} ${toggling ? "loading" : ""}`}
+//         onClick={!toggling ? handleToggle : undefined}
+//         title={menuItem.isAvailable ? "Click to hide" : "Click to show"}
+//       >
+//         <span className="toggle-thumb" />
+//       </div>
+//     </div>
+//   );
+// }
+
+// // ─── Listing Detail Popup ─────────────────────────────────────────────────────
+// // ✅ Fix: receives menuItemCache + onMenuItemCacheUpdate so images persist
+// //    across close/reopen cycles without re-fetching.
+// function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPayment, menuItemCache, onMenuItemCacheUpdate }) {
+//   const [toggling, setToggling] = useState(false);
+
+//   const coverImg = type === "food"
+//     ? (item.BackgroundImage ? photoUrl(item.BackgroundImage) : null)
+//     : (item.images?.[0]     ? photoUrl(item.images[0])       : null);
+
+//   // ✅ Fix: iconImg derived directly from item — no async fetch, always stable
+//   const iconImg     = type === "food" && item.iconImage ? photoUrl(item.iconImage) : null;
+//   const isAvailable = item.isAvailable;
+//   const title       = type === "food" ? item.kitchenName : item.title;
+//   const subtitle    = type === "food" ? item.serviceType : (item.accommodationType || "Accommodation");
+
+//   const handleToggle = async () => {
+//     setToggling(true);
+//     await onToggle(item._id, !isAvailable, type);
+//     setToggling(false);
+//   };
+
+//   const fmtDate = (d) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+//   const isExpired = item.expireDate && new Date(item.expireDate) < new Date();
+
+//   return (
+//     <div className="popup-overlay" onClick={onClose}>
+//       <div className="popup" onClick={e => e.stopPropagation()}>
+
+//         {/* ── Fixed cover */}
+//         <div className="popup-cover">
+//           {coverImg
+//             ? <img src={coverImg} alt={title} className="popup-cover-img" />
+//             : <div className="popup-cover-placeholder">{type === "food" ? "🍽️" : "🏠"}</div>
+//           }
+//           <button className="popup-close" onClick={onClose}><FaTimes /></button>
+//           <div className={`popup-status-badge ${isAvailable ? "on" : "off"}`}>
+//             <span className="pill-dot" />{isAvailable ? "Listed" : "Unlisted"}
+//           </div>
+//           {/* ✅ Fix: iconImg is a stable URL — no flicker. onError hides if broken. */}
+//           {iconImg && (
+//             <div className="popup-icon-wrap">
+//               <img
+//                 src={iconImg}
+//                 alt="icon"
+//                 className="popup-icon"
+//                 onError={e => { e.currentTarget.style.display = "none"; }}
+//               />
+//             </div>
+//           )}
+//         </div>
+
+//         {/* ── Scrollable body */}
+//         <div className="popup-scroll">
+
+//           {/* Title + rating */}
+//           <div className="popup-body-top">
+//             <div>
+//               <p className="popup-subtitle">{subtitle}</p>
+//               <h2 className="popup-title">{title || "Untitled listing"}</h2>
+//             </div>
+//             {item.ratingAverage > 0 && (
+//               <div className="popup-rating">
+//                 <FaStar className="popup-star" />
+//                 <span>{item.ratingAverage.toFixed(1)}</span>
+//                 {item.ratingCount > 0 && <span className="popup-review-count">({item.ratingCount})</span>}
+//               </div>
+//             )}
+//           </div>
+
+//           {/* Detail rows */}
+//           <div className="popup-details">
+//             {item.address && (
+//               <div className="popup-detail-row">
+//                 <FaMapMarkerAlt className="popup-detail-icon" />
+//                 <span>{item.address}</span>
+//               </div>
+//             )}
+//             {type === "food" && item.operatingHours && (
+//               <div className="popup-detail-row">
+//                 <FaClock className="popup-detail-icon" />
+//                 <span>{item.operatingHours.open} – {item.operatingHours.close}</span>
+//               </div>
+//             )}
+//             {type === "food" && (item.deliveryAvailable || item.pickupAvailable) && (
+//               <div className="popup-detail-row">
+//                 <FaMotorcycle className="popup-detail-icon" />
+//                 <span>{[item.deliveryAvailable && "Delivery", item.pickupAvailable && "Pickup"].filter(Boolean).join(" · ")}</span>
+//               </div>
+//             )}
+//             {type === "food" && item.menu?.length > 0 && (
+//               <div className="popup-detail-row">
+//                 <span className="popup-detail-icon" style={{ fontSize: 13 }}>🍴</span>
+//                 <span>{item.menu.length} menu item{item.menu.length !== 1 ? "s" : ""}</span>
+//               </div>
+//             )}
+//             {type === "accommodation" && item.pricePerMonth && (
+//               <div className="popup-detail-row">
+//                 <FaCreditCard className="popup-detail-icon" />
+//                 <span>LKR {Number(item.pricePerMonth).toLocaleString()} / month</span>
+//               </div>
+//             )}
+//             {type === "accommodation" && (item.bedrooms || item.bathrooms) && (
+//               <div className="popup-detail-row">
+//                 <span className="popup-detail-icon" style={{ fontSize: 13 }}>🛏</span>
+//                 <span>
+//                   {[
+//                     item.bedrooms  && `${item.bedrooms} bedroom${item.bedrooms  !== 1 ? "s" : ""}`,
+//                     item.bathrooms && `${item.bathrooms} bathroom${item.bathrooms !== 1 ? "s" : ""}`,
+//                   ].filter(Boolean).join(" · ")}
+//                 </span>
+//               </div>
+//             )}
+//             {type === "accommodation" && item.genderPreference && (
+//               <div className="popup-detail-row">
+//                 <span className="popup-detail-icon" style={{ fontSize: 13 }}>👥</span>
+//                 <span style={{ textTransform: "capitalize" }}>{item.genderPreference}</span>
+//               </div>
+//             )}
+//             {item.expireDate && (
+//               <div className="popup-detail-row">
+//                 <FaClock className={`popup-detail-icon ${isExpired ? "icon-red" : "icon-green"}`} />
+//                 <span className={isExpired ? "text-red" : "text-green"}>
+//                   {isExpired ? `Expired ${fmtDate(item.expireDate)}` : `Expires ${fmtDate(item.expireDate)}`}
+//                 </span>
+//               </div>
+//             )}
+//           </div>
+
+//           {/* ✅ Fix: pass cachedData + onUpdate to each MenuItemRow */}
+//           {type === "food" && item.menu?.length > 0 && (
+//             <div className="popup-menu-section">
+//               <h4 className="popup-section-title">Menu Items</h4>
+//               <div className="popup-menu-list">
+//                 {item.menu.map(id => (
+//                   <MenuItemRow
+//                     key={id}
+//                     menuItemId={id}
+//                     cachedData={menuItemCache[id] || null}
+//                     onUpdate={onMenuItemCacheUpdate}
+//                   />
+//                 ))}
+//               </div>
+//             </div>
+//           )}
+
+//           {/* Listing Status Toggle */}
+//           <div className="popup-status-toggle-section">
+//             <div className="popup-status-toggle-label">
+//               <span className="toggle-label-text">Listing Status</span>
+//               <span className={`toggle-label-status ${isAvailable ? "active" : "inactive"}`}>
+//                 {isAvailable ? "Active" : "Unlisted"}
+//               </span>
+//             </div>
+//             <div
+//               className={`toggle-switch-large ${isAvailable ? "on" : "off"} ${toggling ? "loading" : ""}`}
+//               onClick={!toggling ? handleToggle : undefined}
+//               title={isAvailable ? "Click to unlist" : "Click to activate"}
+//             >
+//               <span className="toggle-thumb-large" />
+//             </div>
+//           </div>
+
+//           {/* Action buttons */}
+//           <div className="popup-actions">
+//             <button className="popup-btn popup-btn--payment" onClick={() => onAddPayment(item._id, type)}>
+//               <FaCreditCard />
+//               Add Payment
+//             </button>
+//             <button className="popup-btn popup-btn--edit" onClick={() => onEdit(item._id, type)}>
+//               <FaEdit />
+//               Edit Listing
+//             </button>
+//             <button className="popup-btn popup-btn--delete" onClick={() => onDelete(item._id, type)}>
+//               <FaTrash />
+//               Delete
+//             </button>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
+
+// // ─── Empty State ──────────────────────────────────────────────────────────────
+// function EmptyState({ type, onAdd }) {
+//   return (
+//     <div className="empty-state">
+//       <div className="empty-illustration">{type === "food" ? "🍳" : "🏡"}</div>
+//       <h3>No {type === "food" ? "food services" : "accommodations"} yet</h3>
+//       <p>
+//         {type === "food"
+//           ? "List your kitchen, restaurant, or café to start receiving orders."
+//           : "List your property to start hosting guests."}
+//       </p>
+//       <button className="btn-add-empty" onClick={onAdd}>+ Create a listing</button>
+//     </div>
+//   );
+// }
+
+// // ─── Delete Confirm Modal ─────────────────────────────────────────────────────
+// function DeleteModal({ onConfirm, onCancel }) {
+//   return (
+//     <div className="modal-overlay" onClick={onCancel}>
+//       <div className="modal" onClick={e => e.stopPropagation()}>
+//         <h3>Remove listing?</h3>
+//         <p>This listing will be permanently deleted. This action can't be undone.</p>
+//         <div className="modal-actions">
+//           <button className="modal-cancel"  onClick={onCancel}>Keep listing</button>
+//           <button className="modal-confirm" onClick={onConfirm}>Remove</button>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
+
+// // ─── Main Page ────────────────────────────────────────────────────────────────
+// export default function HostListings() {
+//   const navigate = useNavigate();
+
+//   const [activeTab,      setActiveTab]      = useState("food");
+//   const [foodServices,   setFoodServices]   = useState([]);
+//   const [accommodations, setAccommodations] = useState([]);
+//   const [loading,        setLoading]        = useState(true);
+//   const [deleteTarget,   setDeleteTarget]   = useState(null);
+//   const [selectedItem,   setSelectedItem]   = useState(null);
+//   const [showDropdown,   setShowDropdown]   = useState(false);
+//   const [activeNav,      setActiveNav]      = useState("listings");
+
+//   // ✅ Profile image — default shown immediately, replaced once fetch resolves
+//   const [profileImageUrl, setProfileImageUrl] = useState(DEFAULT_AVATAR);
+
+//   // ✅ Fix: persistent cache for menu item data — survives popup close/reopen
+//   // menuItemCacheRef holds the data synchronously; menuItemCache is the state
+//   // copy so MenuItemRow re-renders instantly with cached data on reopen.
+//   const menuItemCacheRef = useRef({});
+//   const [menuItemCache, setMenuItemCache] = useState({});
+
+//   const dropdownRef = useRef(null);
+
+//   // ✅ Callback passed into MenuItemRow / ListingPopup to update both ref + state
+//   const handleMenuItemCacheUpdate = (id, data) => {
+//     menuItemCacheRef.current[id] = data;
+//     setMenuItemCache(prev => ({ ...prev, [id]: data }));
+//   };
+
+//   // Close dropdown on outside click
+//   useEffect(() => {
+//     const h = e => {
+//       if (dropdownRef.current && !dropdownRef.current.contains(e.target))
+//         setShowDropdown(false);
+//     };
+//     document.addEventListener("mousedown", h);
+//     return () => document.removeEventListener("mousedown", h);
+//   }, []);
+
+//   // ✅ Fetch profile image from user table on mount
+//   useEffect(() => {
+//     if (!CURRENT_USER_ID) return;
+//     axios.get(`${BASE_URL}/user/${CURRENT_USER_ID}`)
+//       .then(r => {
+//         const user = r.data?.data || r.data;
+//         if (user?.profileImage) {
+//           setProfileImageUrl(photoUrl(user.profileImage));
+//         }
+//         // else: keep DEFAULT_AVATAR already set in state
+//       })
+//       .catch(() => {}); // silently fail — default avatar already showing
+//   }, []);
+
+//   // ── Fetch listings belonging to this host ──────────────────────────────────
+//   useEffect(() => {
+//     if (!CURRENT_USER_ID) { setLoading(false); return; }
+//     const fetchAll = async () => {
+//       setLoading(true);
+//       const [fsRes, acRes] = await Promise.allSettled([
+//         axios.get(`${BASE_URL}/Foodservice`),
+//         axios.get(`${BASE_URL}/accommodation`),
+//       ]);
+//       if (fsRes.status === "fulfilled") {
+//         const all = fsRes.value.data?.data || [];
+//         setFoodServices(all.filter(f => String(f.owner) === String(CURRENT_USER_ID)));
+//       }
+//       if (acRes.status === "fulfilled") {
+//         const all = acRes.value.data?.data || [];
+//         setAccommodations(all.filter(a => String(a.owner) === String(CURRENT_USER_ID)));
+//       }
+//       setLoading(false);
+//     };
+//     fetchAll();
+//   }, []);
+
+//   // ── Actions ────────────────────────────────────────────────────────────────
+//   const handleEdit = (id, type) => {
+//     setSelectedItem(null);
+//     navigate(type === "food" ? `/EditFoodService/${id}` : `/edit-Accommodation/${id}`);
+//   };
+
+//   const handleToggle = async (id, val, type) => {
+//     try {
+//       if (type === "food") {
+//         await axios.put(`${BASE_URL}/Foodservice/${id}`, { isAvailable: val });
+//         setFoodServices(p => p.map(f => f._id === id ? { ...f, isAvailable: val } : f));
+//         setSelectedItem(s => s && s.item._id === id
+//           ? { ...s, item: { ...s.item, isAvailable: val } } : s);
+//       } else {
+//         await axios.put(`${BASE_URL}/accommodation/${id}`, { isAvailable: val });
+//         setAccommodations(p => p.map(a => a._id === id ? { ...a, isAvailable: val } : a));
+//         setSelectedItem(s => s && s.item._id === id
+//           ? { ...s, item: { ...s.item, isAvailable: val } } : s);
+//       }
+//     } catch { alert("Failed to update status."); }
+//   };
+
+//   const handleAddPayment = (id, type) => {
+//     setSelectedItem(null);
+//     navigate(type === "food" ? `/EditFoodService/${id}` : `/edit-Accommodation/${id}`);
+//   };
+
+//   const handleDeleteRequest = (id, type) => {
+//     setSelectedItem(null);
+//     setDeleteTarget({ id, type });
+//   };
+
+//   const confirmDelete = async () => {
+//     if (!deleteTarget) return;
+//     const { id, type } = deleteTarget;
+//     try {
+//       if (type === "food") {
+//         await axios.delete(`${BASE_URL}/Foodservice/${id}`);
+//         setFoodServices(p => p.filter(f => f._id !== id));
+//       } else {
+//         await axios.delete(`${BASE_URL}/accommodation/${id}`);
+//         setAccommodations(p => p.filter(a => a._id !== id));
+//       }
+//     } catch { alert("Failed to delete."); }
+//     finally  { setDeleteTarget(null); }
+//   };
+
+//   const currentList = activeTab === "food" ? foodServices : accommodations;
+
+//   return (
+//     <div className="page">
+
+//       {/* ══ NAVBAR ══ */}
+//       <nav className="hl-nav">
+//         <div className="hl-nav__logo-wrap">
+//           <a href="/Boardings" className="hl-nav__logo"><FaAirbnb /> Bodima</a>
+//         </div>
+
+//         <div className="hl-nav__center">
+//           {[
+//             { key: "today",    label: "Today",    href: "/host" },
+//             { key: "listings", label: "Listings", href: "/Listings" },
+//             { key: "food",     label: "Foods",    href: "/Foods" },
+//           ].map(({ key, label, href }) => (
+//             <a
+//               key={key} href={href}
+//               className={`hl-nav__tab${activeNav === key ? " hl-nav__tab--active" : ""}`}
+//               onClick={() => setActiveNav(key)}
+//             >
+//               {label}
+//               {activeNav === key && <span className="hl-nav__tab-underline" />}
+//             </a>
+//           ))}
+//         </div>
+
+//         <div className="hl-nav__right">
+//           <button className="hl-nav__switch-btn" onClick={() => navigate("/Boardings")}>
+//             Switch to exploring
+//           </button>
+//           <div ref={dropdownRef} className="hl-dropdown">
+//             <button
+//               className="hl-nav__menu-btn"
+//               onClick={() => setShowDropdown(p => !p)}
+//             >
+//               <FaBars className="hl-menu-icon" />
+//               {/* ✅ Show profile photo, fallback to default avatar on error or no image */}
+//               <img
+//                 src={profileImageUrl}
+//                 alt="profile"
+//                 className="hl-user-avatar"
+//                 onError={e => {
+//                   // Guard against infinite loop if default-avatar.png itself is missing
+//                   if (e.currentTarget.src !== window.location.origin + DEFAULT_AVATAR) {
+//                     e.currentTarget.src = DEFAULT_AVATAR;
+//                   }
+//                 }}
+//               />
+//             </button>
+//             {showDropdown && (
+//               <div className="hl-dropdown__menu">
+//                 <div className="hl-dropdown__item" onClick={() => navigate("/host")}>
+//                   <FaUser style={{ opacity: 0.6 }} /> Host Dashboard
+//                 </div>
+//                 <div className="hl-dropdown__divider" />
+//                 <div
+//                   className="hl-dropdown__item hl-dropdown__item--danger"
+//                   onClick={() => { localStorage.clear(); navigate("/Login"); }}
+//                 >
+//                   <FaSignOutAlt style={{ opacity: 0.6 }} /> Logout
+//                 </div>
+//               </div>
+//             )}
+//           </div>
+//         </div>
+//       </nav>
+
+//       {/* ══ PAGE HEADER ══ */}
+//       <div className="page-header">
+//         <div className="page-header-inner">
+//           <div className="page-header-left">
+//             <h1 className="page-title">Your listings</h1>
+//             {!loading && (
+//               <span className="listings-count">
+//                 {foodServices.length + accommodations.length} listing{foodServices.length + accommodations.length !== 1 ? "s" : ""}
+//               </span>
+//             )}
+//           </div>
+//           <button
+//             className="btn-create"
+//             onClick={() => navigate(activeTab === "food" ? "/AddFoodService" : "/add-accommodation")}
+//           >
+//             + Create listing
+//           </button>
+//         </div>
+
+//         <div className="tabs">
+//           <button className={`tab ${activeTab === "food" ? "active" : ""}`} onClick={() => setActiveTab("food")}>
+//             Food Services
+//             {foodServices.length > 0 && <span className="tab-badge">{foodServices.length}</span>}
+//           </button>
+//           <button className={`tab ${activeTab === "accommodation" ? "active" : ""}`} onClick={() => setActiveTab("accommodation")}>
+//             Accommodations
+//             {accommodations.length > 0 && <span className="tab-badge">{accommodations.length}</span>}
+//           </button>
+//         </div>
+//       </div>
+
+//       {/* ══ CONTENT ══ */}
+//       <div className="page-content">
+//         {loading ? (
+//           <div className="grid">
+//             {[1,2,3,4].map(i => (
+//               <div key={i} className="skeleton-card">
+//                 <div className="skeleton-cover" />
+//                 <div className="skeleton-body">
+//                   <div className="skeleton-line short" />
+//                   <div className="skeleton-line" />
+//                   <div className="skeleton-line medium" />
+//                 </div>
+//               </div>
+//             ))}
+//           </div>
+//         ) : currentList.length === 0 ? (
+//           <EmptyState
+//             type={activeTab}
+//             onAdd={() => navigate(activeTab === "food" ? "/AddFoodService" : "/add-accommodation")}
+//           />
+//         ) : (
+//           <div className="grid">
+//             {currentList.map(item => (
+//               <ListingCard
+//                 key={item._id}
+//                 item={item}
+//                 type={activeTab}
+//                 onClick={(item, type) => setSelectedItem({ item, type })}
+//               />
+//             ))}
+//           </div>
+//         )}
+//       </div>
+
+//       {/* ══ FOOTER ══ */}
+//       <footer className="hl-footer">
+//         <div className="hl-footer__grid">
+//           {[
+//             { title: "Support",   links: ["Help Center", "Safety info", "Cancellation options", "Community guidelines"] },
+//             { title: "Community", links: ["Bodima Adventures", "New features", "Tips for hosts", "Careers"] },
+//             { title: "Hosting",   links: ["Host a home", "Host an experience", "Responsible hosting", "Community forum"] },
+//             { title: "About",     links: ["About Bodima", "Newsroom", "Investors", "Bodima Plus"] },
+//           ].map(({ title, links }) => (
+//             <div key={title}>
+//               <h4 className="hl-footer__col-title">{title}</h4>
+//               {links.map(l => <a key={l} href="#" className="hl-footer__link">{l}</a>)}
+//             </div>
+//           ))}
+//         </div>
+//         <div className="hl-footer__bottom">
+//           <span>© 2026 Bodima, Inc. · <a href="#" className="hl-footer__legal">Privacy · Terms · Sitemap</a></span>
+//           <div className="hl-footer__socials">
+//             {[FaFacebookF, FaTwitter, FaInstagram].map((Icon, i) => (
+//               <a key={i} href="#" className="hl-footer__social-icon"><Icon /></a>
+//             ))}
+//           </div>
+//         </div>
+//       </footer>
+
+//       {/* ══ LISTING DETAIL POPUP ══ */}
+//       {selectedItem && (
+//         <ListingPopup
+//           item={selectedItem.item}
+//           type={selectedItem.type}
+//           onClose={() => setSelectedItem(null)}
+//           onEdit={handleEdit}
+//           onDelete={handleDeleteRequest}
+//           onToggle={handleToggle}
+//           onAddPayment={handleAddPayment}
+//           // ✅ Pass cache down so images don't disappear on reopen
+//           menuItemCache={menuItemCache}
+//           onMenuItemCacheUpdate={handleMenuItemCacheUpdate}
+//         />
+//       )}
+
+//       {/* ══ DELETE CONFIRM MODAL ══ */}
+//       {deleteTarget && (
+//         <DeleteModal onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} />
+//       )}
+//     </div>
+//   );
+// }
+
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
-  FaAirbnb, FaBars, FaUser, FaTimes, // FaUser kept for dropdown menu item icon
+  FaAirbnb, FaBars, FaUser, FaTimes,
   FaFacebookF, FaTwitter, FaInstagram,
   FaSignOutAlt,
   FaMapMarkerAlt, FaClock, FaMotorcycle,
   FaShoppingBag, FaStar, FaCreditCard,
-  FaEdit, FaTrash,
+  FaEdit, FaTrash, FaUtensils, FaHome,
+  FaBed, FaBath, FaUsers, FaCheckCircle,
+  FaBoxOpen, FaPlus,
 } from "react-icons/fa";
+import {
+  MdOutdoorGrill, MdKitchen,
+} from "react-icons/md";
+import {
+  IoBed, IoRestaurant, IoHome,
+} from "react-icons/io5";
 import "./HostListings.css";
 
 const BASE_URL        = "http://localhost:8000";
 const CURRENT_USER_ID = localStorage.getItem("CurrentUserId") ?? "";
-const photoUrl        = (id) => `${BASE_URL}/photo/${id}`;
+const photoUrl        = (id) => `${BASE_URL}/Photo/${id}`;
 const DEFAULT_AVATAR  = "/default-avatar.png";
 
 // ─── Listing Card ─────────────────────────────────────────────────────────────
@@ -32,7 +712,9 @@ function ListingCard({ item, type, onClick }) {
         {coverImg
           ? <img src={coverImg} alt={title} className="cover-img" />
           : <div className="cover-placeholder">
-              <span>{type === "food" ? "🍽️" : "🏠"}</span>
+              {type === "food"
+                ? <IoRestaurant className="cover-placeholder-icon" />
+                : <IoHome className="cover-placeholder-icon" />}
             </div>
         }
         <div className={`availability-pill ${isAvailable ? "on" : "off"}`}>
@@ -64,36 +746,28 @@ function ListingCard({ item, type, onClick }) {
         <div className="card-chips">
           {type === "food" && item.deliveryAvailable && <span className="chip chip-blue"><FaMotorcycle /> Delivery</span>}
           {type === "food" && item.pickupAvailable   && <span className="chip chip-orange"><FaShoppingBag /> Pickup</span>}
-          {type === "food" && item.menu?.length > 0  && <span className="chip chip-gray">{item.menu.length} menu items</span>}
+          {type === "food" && item.menu?.length > 0  && <span className="chip chip-gray"><FaUtensils /> {item.menu.length} items</span>}
           {type === "accommodation" && item.pricePerMonth && (
             <span className="chip chip-green">LKR {Number(item.pricePerMonth).toLocaleString()} / month</span>
           )}
         </div>
-
-
       </div>
     </div>
   );
 }
 
 // ─── Menu Item Row ────────────────────────────────────────────────────────────
-// ✅ Fix: accepts pre-fetched cachedData + onUpdate callback so the parent
-//    cache stays in sync when the toggle changes isAvailable.
 function MenuItemRow({ menuItemId, cachedData, onUpdate }) {
   const [menuItem, setMenuItem] = useState(cachedData || null);
   const [toggling, setToggling] = useState(false);
 
   useEffect(() => {
-    // ✅ Fix: only fetch from network if we don't already have cached data
-    if (cachedData) {
-      setMenuItem(cachedData);
-      return;
-    }
-    axios.get(`${BASE_URL}/menuitem/${menuItemId}`)
+    if (cachedData) { setMenuItem(cachedData); return; }
+    axios.get(`${BASE_URL}/MenuItem/${menuItemId}`)
       .then(r => {
         const data = r.data?.data || r.data;
         setMenuItem(data);
-        onUpdate?.(menuItemId, data); // store in parent cache
+        onUpdate?.(menuItemId, data);
       })
       .catch(() => {});
   }, [menuItemId, cachedData]);
@@ -103,10 +777,10 @@ function MenuItemRow({ menuItemId, cachedData, onUpdate }) {
     setToggling(true);
     try {
       const newVal = !menuItem.isAvailable;
-      await axios.put(`${BASE_URL}/menuitem/${menuItemId}`, { isAvailable: newVal });
+      await axios.put(`${BASE_URL}/MenuItem/${menuItemId}`, { isAvailable: newVal });
       const updated = { ...menuItem, isAvailable: newVal };
       setMenuItem(updated);
-      onUpdate?.(menuItemId, updated); // keep parent cache in sync
+      onUpdate?.(menuItemId, updated);
     } catch { alert("Failed to update menu item."); }
     finally { setToggling(false); }
   };
@@ -127,7 +801,7 @@ function MenuItemRow({ menuItemId, cachedData, onUpdate }) {
       <div className="mi-img-wrap">
         {imgId
           ? <img src={photoUrl(imgId)} alt={menuItem.name} className="mi-img" />
-          : <div className="mi-img-fallback">🍽</div>
+          : <div className="mi-img-fallback"><FaUtensils className="mi-fallback-icon" /></div>
         }
       </div>
       <div className="mi-info">
@@ -149,8 +823,6 @@ function MenuItemRow({ menuItemId, cachedData, onUpdate }) {
 }
 
 // ─── Listing Detail Popup ─────────────────────────────────────────────────────
-// ✅ Fix: receives menuItemCache + onMenuItemCacheUpdate so images persist
-//    across close/reopen cycles without re-fetching.
 function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPayment, menuItemCache, onMenuItemCacheUpdate }) {
   const [toggling, setToggling] = useState(false);
 
@@ -158,7 +830,6 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
     ? (item.BackgroundImage ? photoUrl(item.BackgroundImage) : null)
     : (item.images?.[0]     ? photoUrl(item.images[0])       : null);
 
-  // ✅ Fix: iconImg derived directly from item — no async fetch, always stable
   const iconImg     = type === "food" && item.iconImage ? photoUrl(item.iconImage) : null;
   const isAvailable = item.isAvailable;
   const title       = type === "food" ? item.kitchenName : item.title;
@@ -170,40 +841,38 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
     setToggling(false);
   };
 
-  const fmtDate = (d) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const fmtDate  = (d) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   const isExpired = item.expireDate && new Date(item.expireDate) < new Date();
 
   return (
     <div className="popup-overlay" onClick={onClose}>
       <div className="popup" onClick={e => e.stopPropagation()}>
 
-        {/* ── Fixed cover */}
+        {/* Cover */}
         <div className="popup-cover">
           {coverImg
             ? <img src={coverImg} alt={title} className="popup-cover-img" />
-            : <div className="popup-cover-placeholder">{type === "food" ? "🍽️" : "🏠"}</div>
+            : <div className="popup-cover-placeholder">
+                {type === "food"
+                  ? <IoRestaurant className="popup-cover-icon" />
+                  : <IoHome       className="popup-cover-icon" />}
+              </div>
           }
           <button className="popup-close" onClick={onClose}><FaTimes /></button>
           <div className={`popup-status-badge ${isAvailable ? "on" : "off"}`}>
             <span className="pill-dot" />{isAvailable ? "Listed" : "Unlisted"}
           </div>
-          {/* ✅ Fix: iconImg is a stable URL — no flicker. onError hides if broken. */}
           {iconImg && (
             <div className="popup-icon-wrap">
-              <img
-                src={iconImg}
-                alt="icon"
-                className="popup-icon"
-                onError={e => { e.currentTarget.style.display = "none"; }}
-              />
+              <img src={iconImg} alt="icon" className="popup-icon"
+                onError={e => { e.currentTarget.style.display = "none"; }} />
             </div>
           )}
         </div>
 
-        {/* ── Scrollable body */}
+        {/* Scrollable body */}
         <div className="popup-scroll">
 
-          {/* Title + rating */}
           <div className="popup-body-top">
             <div>
               <p className="popup-subtitle">{subtitle}</p>
@@ -218,7 +887,6 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
             )}
           </div>
 
-          {/* Detail rows */}
           <div className="popup-details">
             {item.address && (
               <div className="popup-detail-row">
@@ -240,7 +908,7 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
             )}
             {type === "food" && item.menu?.length > 0 && (
               <div className="popup-detail-row">
-                <span className="popup-detail-icon" style={{ fontSize: 13 }}>🍴</span>
+                <FaUtensils className="popup-detail-icon" />
                 <span>{item.menu.length} menu item{item.menu.length !== 1 ? "s" : ""}</span>
               </div>
             )}
@@ -252,7 +920,7 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
             )}
             {type === "accommodation" && (item.bedrooms || item.bathrooms) && (
               <div className="popup-detail-row">
-                <span className="popup-detail-icon" style={{ fontSize: 13 }}>🛏</span>
+                <FaBed className="popup-detail-icon" />
                 <span>
                   {[
                     item.bedrooms  && `${item.bedrooms} bedroom${item.bedrooms  !== 1 ? "s" : ""}`,
@@ -263,7 +931,7 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
             )}
             {type === "accommodation" && item.genderPreference && (
               <div className="popup-detail-row">
-                <span className="popup-detail-icon" style={{ fontSize: 13 }}>👥</span>
+                <FaUsers className="popup-detail-icon" />
                 <span style={{ textTransform: "capitalize" }}>{item.genderPreference}</span>
               </div>
             )}
@@ -277,7 +945,6 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
             )}
           </div>
 
-          {/* ✅ Fix: pass cachedData + onUpdate to each MenuItemRow */}
           {type === "food" && item.menu?.length > 0 && (
             <div className="popup-menu-section">
               <h4 className="popup-section-title">Menu Items</h4>
@@ -314,16 +981,13 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
           {/* Action buttons */}
           <div className="popup-actions">
             <button className="popup-btn popup-btn--payment" onClick={() => onAddPayment(item._id, type)}>
-              <FaCreditCard />
-              Add Payment
+              <FaCreditCard /> Add Payment
             </button>
             <button className="popup-btn popup-btn--edit" onClick={() => onEdit(item._id, type)}>
-              <FaEdit />
-              Edit Listing
+              <FaEdit /> Edit Listing
             </button>
             <button className="popup-btn popup-btn--delete" onClick={() => onDelete(item._id, type)}>
-              <FaTrash />
-              Delete
+              <FaTrash /> Delete
             </button>
           </div>
         </div>
@@ -336,14 +1000,20 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
 function EmptyState({ type, onAdd }) {
   return (
     <div className="empty-state">
-      <div className="empty-illustration">{type === "food" ? "🍳" : "🏡"}</div>
+      <div className="empty-illustration">
+        {type === "food"
+          ? <MdOutdoorGrill className="empty-icon" />
+          : <FaHome         className="empty-icon" />}
+      </div>
       <h3>No {type === "food" ? "food services" : "accommodations"} yet</h3>
       <p>
         {type === "food"
           ? "List your kitchen, restaurant, or café to start receiving orders."
           : "List your property to start hosting guests."}
       </p>
-      <button className="btn-add-empty" onClick={onAdd}>+ Create a listing</button>
+      <button className="btn-add-empty" onClick={onAdd}>
+        <FaPlus style={{ marginRight: 6 }} /> Create a listing
+      </button>
     </div>
   );
 }
@@ -377,18 +1047,14 @@ export default function HostListings() {
   const [showDropdown,   setShowDropdown]   = useState(false);
   const [activeNav,      setActiveNav]      = useState("listings");
 
-  // ✅ Profile image — default shown immediately, replaced once fetch resolves
+  // ── User profile ──────────────────────────────────────────────────────
   const [profileImageUrl, setProfileImageUrl] = useState(DEFAULT_AVATAR);
+  const [userName,        setUserName]        = useState("");   // ← NEW
 
-  // ✅ Fix: persistent cache for menu item data — survives popup close/reopen
-  // menuItemCacheRef holds the data synchronously; menuItemCache is the state
-  // copy so MenuItemRow re-renders instantly with cached data on reopen.
   const menuItemCacheRef = useRef({});
   const [menuItemCache, setMenuItemCache] = useState({});
-
   const dropdownRef = useRef(null);
 
-  // ✅ Callback passed into MenuItemRow / ListingPopup to update both ref + state
   const handleMenuItemCacheUpdate = (id, data) => {
     menuItemCacheRef.current[id] = data;
     setMenuItemCache(prev => ({ ...prev, [id]: data }));
@@ -404,28 +1070,27 @@ export default function HostListings() {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  // ✅ Fetch profile image from user table on mount
+  // ── Fetch user profile (name + photo) ────────────────────────────────
   useEffect(() => {
     if (!CURRENT_USER_ID) return;
-    axios.get(`${BASE_URL}/user/${CURRENT_USER_ID}`)
+    axios.get(`${BASE_URL}/User/${CURRENT_USER_ID}`)
       .then(r => {
         const user = r.data?.data || r.data;
-        if (user?.profileImage) {
-          setProfileImageUrl(photoUrl(user.profileImage));
-        }
-        // else: keep DEFAULT_AVATAR already set in state
+        // FIX: read user.name from the User model
+        if (user?.name) setUserName(user.name);
+        if (user?.profileImage) setProfileImageUrl(photoUrl(user.profileImage));
       })
-      .catch(() => {}); // silently fail — default avatar already showing
+      .catch(() => {}); // silently fail — defaults already set
   }, []);
 
-  // ── Fetch listings belonging to this host ──────────────────────────────────
+  // ── Fetch listings ────────────────────────────────────────────────────
   useEffect(() => {
     if (!CURRENT_USER_ID) { setLoading(false); return; }
     const fetchAll = async () => {
       setLoading(true);
       const [fsRes, acRes] = await Promise.allSettled([
-        axios.get(`${BASE_URL}/Foodservice`),
-        axios.get(`${BASE_URL}/accommodation`),
+        axios.get(`${BASE_URL}/FoodService`),
+        axios.get(`${BASE_URL}/Accommodation`),
       ]);
       if (fsRes.status === "fulfilled") {
         const all = fsRes.value.data?.data || [];
@@ -440,7 +1105,7 @@ export default function HostListings() {
     fetchAll();
   }, []);
 
-  // ── Actions ────────────────────────────────────────────────────────────────
+  // ── Actions ───────────────────────────────────────────────────────────
   const handleEdit = (id, type) => {
     setSelectedItem(null);
     navigate(type === "food" ? `/EditFoodService/${id}` : `/edit-Accommodation/${id}`);
@@ -449,15 +1114,13 @@ export default function HostListings() {
   const handleToggle = async (id, val, type) => {
     try {
       if (type === "food") {
-        await axios.put(`${BASE_URL}/Foodservice/${id}`, { isAvailable: val });
+        await axios.put(`${BASE_URL}/FoodService/${id}`, { isAvailable: val });
         setFoodServices(p => p.map(f => f._id === id ? { ...f, isAvailable: val } : f));
-        setSelectedItem(s => s && s.item._id === id
-          ? { ...s, item: { ...s.item, isAvailable: val } } : s);
+        setSelectedItem(s => s && s.item._id === id ? { ...s, item: { ...s.item, isAvailable: val } } : s);
       } else {
-        await axios.put(`${BASE_URL}/accommodation/${id}`, { isAvailable: val });
+        await axios.put(`${BASE_URL}/Accommodation/${id}`, { isAvailable: val });
         setAccommodations(p => p.map(a => a._id === id ? { ...a, isAvailable: val } : a));
-        setSelectedItem(s => s && s.item._id === id
-          ? { ...s, item: { ...s.item, isAvailable: val } } : s);
+        setSelectedItem(s => s && s.item._id === id ? { ...s, item: { ...s.item, isAvailable: val } } : s);
       }
     } catch { alert("Failed to update status."); }
   };
@@ -477,10 +1140,10 @@ export default function HostListings() {
     const { id, type } = deleteTarget;
     try {
       if (type === "food") {
-        await axios.delete(`${BASE_URL}/Foodservice/${id}`);
+        await axios.delete(`${BASE_URL}/FoodService/${id}`);
         setFoodServices(p => p.filter(f => f._id !== id));
       } else {
-        await axios.delete(`${BASE_URL}/accommodation/${id}`);
+        await axios.delete(`${BASE_URL}/Accommodation/${id}`);
         setAccommodations(p => p.filter(a => a._id !== id));
       }
     } catch { alert("Failed to delete."); }
@@ -488,6 +1151,9 @@ export default function HostListings() {
   };
 
   const currentList = activeTab === "food" ? foodServices : accommodations;
+
+  // ── First name only for display ───────────────────────────────────────
+  const displayName = userName ? userName.split(" ")[0] : "";
 
   return (
     <div className="page">
@@ -505,8 +1171,7 @@ export default function HostListings() {
             { key: "listings", label: "Listings", href: "/Listings" },
             { key: "Messages",     label: "Messages",    href: "#" },
           ].map(({ key, label, href }) => (
-            <a
-              key={key} href={href}
+            <a key={key} href={href}
               className={`hl-nav__tab${activeNav === key ? " hl-nav__tab--active" : ""}`}
               onClick={() => setActiveNav(key)}
             >
@@ -521,27 +1186,28 @@ export default function HostListings() {
             Switch to exploring
           </button>
           <div ref={dropdownRef} className="hl-dropdown">
-            <button
-              className="hl-nav__menu-btn"
-              onClick={() => setShowDropdown(p => !p)}
-            >
+            <button className="hl-nav__menu-btn" onClick={() => setShowDropdown(p => !p)}>
               <FaBars className="hl-menu-icon" />
-              {/* ✅ Show profile photo, fallback to default avatar on error or no image */}
+
+              {/* ── Username left of photo ── */}
+              {displayName && (
+                <span className="hl-user-name">{displayName}</span>
+              )}
+
               <img
                 src={profileImageUrl}
                 alt="profile"
                 className="hl-user-avatar"
                 onError={e => {
-                  // Guard against infinite loop if default-avatar.png itself is missing
-                  if (e.currentTarget.src !== window.location.origin + DEFAULT_AVATAR) {
+                  if (e.currentTarget.src !== window.location.origin + DEFAULT_AVATAR)
                     e.currentTarget.src = DEFAULT_AVATAR;
-                  }
                 }}
               />
             </button>
+
             {showDropdown && (
               <div className="hl-dropdown__menu">
-                <div className="hl-dropdown__item" onClick={() => navigate("/host")}>
+                <div className="hl-dropdown__item" onClick={() => navigate("/Host-Profile")}>
                   <FaUser style={{ opacity: 0.6 }} /> Host Dashboard
                 </div>
                 <div className="hl-dropdown__divider" />
@@ -578,11 +1244,11 @@ export default function HostListings() {
 
         <div className="tabs">
           <button className={`tab ${activeTab === "food" ? "active" : ""}`} onClick={() => setActiveTab("food")}>
-            Food Services
+            <FaUtensils style={{ marginRight: 6 }} /> Food Services
             {foodServices.length > 0 && <span className="tab-badge">{foodServices.length}</span>}
           </button>
           <button className={`tab ${activeTab === "accommodation" ? "active" : ""}`} onClick={() => setActiveTab("accommodation")}>
-            Accommodations
+            <FaHome style={{ marginRight: 6 }} /> Accommodations
             {accommodations.length > 0 && <span className="tab-badge">{accommodations.length}</span>}
           </button>
         </div>
@@ -647,7 +1313,7 @@ export default function HostListings() {
         </div>
       </footer>
 
-      {/* ══ LISTING DETAIL POPUP ══ */}
+      {/* ══ POPUP ══ */}
       {selectedItem && (
         <ListingPopup
           item={selectedItem.item}
@@ -657,13 +1323,12 @@ export default function HostListings() {
           onDelete={handleDeleteRequest}
           onToggle={handleToggle}
           onAddPayment={handleAddPayment}
-          // ✅ Pass cache down so images don't disappear on reopen
           menuItemCache={menuItemCache}
           onMenuItemCacheUpdate={handleMenuItemCacheUpdate}
         />
       )}
 
-      {/* ══ DELETE CONFIRM MODAL ══ */}
+      {/* ══ DELETE MODAL ══ */}
       {deleteTarget && (
         <DeleteModal onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} />
       )}

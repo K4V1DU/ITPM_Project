@@ -14,6 +14,9 @@ import axios from "axios";
 // Google Maps API configuration
 const GOOGLE_MAPS_API_KEY = "AIzaSyDKKnxSMEUkZyZiLT83DXCJhR4eplblzKA";
 
+const CURRENT_USER_ID = localStorage.getItem("CurrentUserId") ?? "";
+
+
 // SLIIT University coordinates
 const SLIIT_LOCATION = {
   lat: 6.9147,
@@ -166,7 +169,7 @@ const AddAccommodation = () => {
     setIsSaving(true);
 
     const payload = {
-      owner: "699174a3a19b70085fffefc8",
+      owner: CURRENT_USER_ID,
       title: title,
       description: description,
       address: address,
