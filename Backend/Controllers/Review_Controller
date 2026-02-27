@@ -56,7 +56,7 @@ const addReview = async (req, res) => {
     const review = new Review({ reviewer, accommodation, foodService, host, comment, rating, images });
     await review.save();
 
-    // ✅ Update foodService (Sync review ID and Recalculate Stats)
+    // Update foodService
     if (foodService) {
       await FoodService.findByIdAndUpdate(foodService, { $push: { reviews: review._id } });
       await updateFoodServiceRating(foodService);
@@ -82,6 +82,43 @@ const addReview = async (req, res) => {
 };
 
 // ==============================
+// Get review by ID
+// ==============================
+const getReviewById = async (req, res) => {
+  try {
+    const review = await Review.findById(req.params.id)
+      .populate("reviewer", "name profileImage createdAt");
+
+    if (!review) {
+      return res.status(404).json({ success: false, message: "Review not found" });
+    }
+
+    res.json({ success: true, data: review });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ==============================
+// Get all reviews
+// ==============================
+const getReviews = async (req, res) => {
+  try {
+    const reviews = await Review.find()
+      .populate("reviewer", "name profileImage")
+      .populate("accommodation", "title address")
+      .populate("foodService", "kitchenName address")
+      .populate("host", "name profileImage");
+
+    res.json({ success: true, data: reviews });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// ==============================
 // Update review
 // ==============================
 const updateReview = async (req, res) => {
@@ -91,17 +128,15 @@ const updateReview = async (req, res) => {
 
     if (!review) return res.status(404).json({ success: false, message: "Review not found" });
 
-    // Update fields
     if (comment) review.comment = comment;
-    if (rating) review.rating = rating;
-    if (images) review.images = images;
+    if (rating)  review.rating  = rating;
+    if (images)  review.images  = images;
 
     await review.save();
 
-    // Recalculate ratings for all relevant entities
-    if (review.foodService) await updateFoodServiceRating(review.foodService);
+    if (review.foodService)   await updateFoodServiceRating(review.foodService);
     if (review.accommodation) await updateAccommodationRating(review.accommodation);
-    if (review.host) await updateHostRating(review.host);
+    if (review.host)          await updateHostRating(review.host);
 
     res.json({ success: true, message: "Review updated", data: review });
   } catch (err) {
@@ -118,19 +153,16 @@ const deleteReview = async (req, res) => {
     const review = await Review.findByIdAndDelete(req.params.id);
     if (!review) return res.status(404).json({ success: false, message: "Review not found" });
 
-    // ✅ Remove from foodService
     if (review.foodService) {
       await FoodService.findByIdAndUpdate(review.foodService, { $pull: { reviews: review._id } });
       await updateFoodServiceRating(review.foodService);
     }
 
-    // Remove from accommodation
     if (review.accommodation) {
       await Accommodation.findByIdAndUpdate(review.accommodation, { $pull: { reviews: review._id } });
       await updateAccommodationRating(review.accommodation);
     }
 
-    // Remove from host
     if (review.host) {
       await User.findByIdAndUpdate(review.host, { $pull: { reviews: review._id } });
       await updateHostRating(review.host);
@@ -143,27 +175,10 @@ const deleteReview = async (req, res) => {
   }
 };
 
-// ==============================
-// Get reviews
-// ==============================
-const getReviews = async (req, res) => {
-  try {
-    const reviews = await Review.find()
-      .populate("reviewer", "name profileImage")
-      .populate("accommodation", "title address")
-      .populate("foodService", "kitchenName address") // Added population for FoodService
-      .populate("host", "name profileImage");
-
-    res.json({ success: true, data: reviews });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-};
-
 module.exports = {
   addReview,
+  getReviewById,
+  getReviews,
   updateReview,
   deleteReview,
-  getReviews,
 };
