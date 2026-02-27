@@ -5,9 +5,14 @@ import {
   FaFacebookF, FaTwitter, FaInstagram,
   FaSignOutAlt, FaEnvelope,
   FaMotorcycle, FaShoppingBag, FaPen,
-  FaSpinner, FaExclamationTriangle, FaTimes,
+  FaSpinner, FaExclamationTriangle,
   FaHeart, FaRegHeart, FaEllipsisH, FaCommentAlt, FaUserCircle, FaShare, FaFlag,
   FaExclamationCircle, FaSignInAlt,
+  FaEgg, FaLeaf, FaDrumstickBite, FaFire, FaGlassWhiskey, FaIceCream,
+  FaAppleAlt, FaBreadSlice,
+  FaSeedling, FaSun, FaMapMarkerAlt, FaShoppingCart,
+  FaTag, FaClock, FaCheckCircle, FaUtensils,
+  FaTrash, FaEdit,
 } from "react-icons/fa";
 import "./FoodService.css";
 
@@ -31,7 +36,14 @@ const BG_CYCLE = [
   "linear-gradient(135deg,#fff7ed,#fed7aa)",
 ];
 
-const CAT_EMOJI  = { Breakfast:"🍳", Lunch:"🥗", Dinner:"🍗", Snacks:"🌶", Drinks:"🥤", Dessert:"🍮" };
+const CAT_ICON = {
+  Breakfast: <FaEgg />,
+  Lunch:     <FaAppleAlt />,
+  Dinner:    <FaDrumstickBite />,
+  Snacks:    <FaBreadSlice />,
+  Drinks:    <FaGlassWhiskey />,
+  Dessert:   <FaIceCream />,
+};
 const CATEGORIES = ["Breakfast","Lunch","Dinner","Snacks","Drinks","Dessert"];
 
 const TAG_STYLE = {
@@ -40,7 +52,12 @@ const TAG_STYLE = {
   Vegan:         { color:"#166534", background:"#dcfce7", border:"1px solid #86efac" },
   "Gluten-Free": { color:"#92400e", background:"#fffbeb", border:"1px solid #fde68a" },
 };
-const TAG_ICON      = { Spicy:"🌶", Vegetarian:"🥦", Vegan:"🌱", "Gluten-Free":"🌾" };
+const TAG_ICON = {
+  Spicy:         <FaFire />,
+  Vegetarian:    <FaLeaf />,
+  Vegan:         <FaSeedling />,
+  "Gluten-Free": <FaSun />,
+};
 const STAR_HINTS    = ["","Poor","Fair","Good","Very Good","Excellent"];
 const AVATAR_COLORS = ["#1a1a2e","#6a3093","#11998e","#c94b4b","#f7971e","#1d4350","#0f3460","#e94560","#533483","#2b5876"];
 const SHOW_MORE_THRESHOLD = 120;
@@ -56,6 +73,22 @@ async function apiPost(path, body) {
     headers:{ "Content-Type":"application/json" },
     body: JSON.stringify(body),
   });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function apiPut(path, body) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method:"PUT",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function apiDelete(path) {
+  const res = await fetch(`${API_BASE}${path}`, { method:"DELETE" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -80,6 +113,32 @@ function isItemAvailableNow(item) {
   const closeMin = parseTime(close);
   if (openMin <= closeMin) return nowMin >= openMin && nowMin < closeMin;
   return nowMin >= openMin || nowMin < closeMin;
+}
+
+function isServiceOpenNow(operatingHours) {
+  const open  = operatingHours?.open;
+  const close = operatingHours?.close;
+  if (!open || !close) return false;
+  const parseTime = (str) => {
+    const [time, period] = str.trim().split(" ");
+    let [h, m] = time.split(":").map(Number);
+    if (period === "PM" && h !== 12) h += 12;
+    if (period === "AM" && h === 12) h = 0;
+    return h * 60 + m;
+  };
+  const now      = new Date();
+  const nowMin   = now.getHours() * 60 + now.getMinutes();
+  const openMin  = parseTime(open);
+  const closeMin = parseTime(close);
+  if (openMin <= closeMin) return nowMin >= openMin && nowMin < closeMin;
+  return nowMin >= openMin || nowMin < closeMin;
+}
+
+// Recalculate average rating from a list of reviews
+function calcRatingStats(reviewList) {
+  if (!reviewList.length) return { avg: 0, count: 0 };
+  const sum = reviewList.reduce((s, r) => s + (r.rating ?? 0), 0);
+  return { avg: parseFloat((sum / reviewList.length).toFixed(1)), count: reviewList.length };
 }
 
 // ─────────────────────────────────────────
@@ -126,6 +185,27 @@ function LoginRequiredModal({ onClose, onLogin }) {
 }
 
 // ─────────────────────────────────────────
+// DELETE CONFIRM MODAL
+// ─────────────────────────────────────────
+function DeleteReviewModal({ onConfirm, onCancel, deleting }) {
+  return (
+    <div className="fs-gen-modal-overlay" onClick={onCancel}>
+      <div className="fs-gen-modal" onClick={e => e.stopPropagation()}>
+        <div className="fs-gen-modal__icon fs-gen-modal__icon--logout"><FaTrash /></div>
+        <h3 className="fs-gen-modal__title">Delete Review</h3>
+        <p className="fs-gen-modal__msg">Are you sure you want to delete your review? This cannot be undone.</p>
+        <div className="fs-gen-modal__actions">
+          <button className="fs-gen-modal__btn fs-gen-modal__btn--cancel" onClick={onCancel} disabled={deleting}>Cancel</button>
+          <button className="fs-gen-modal__btn fs-gen-modal__btn--danger" onClick={onConfirm} disabled={deleting}>
+            {deleting ? <><FaSpinner className="fs-spin" style={{ fontSize:13 }} /> Deleting…</> : "Yes, Delete"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────
 // SKELETON
 // ─────────────────────────────────────────
 function Skeleton({ w="100%", h=18, radius=8, mb=0 }) {
@@ -142,7 +222,11 @@ function Skeleton({ w="100%", h=18, radius=8, mb=0 }) {
 // DIETARY TAG
 // ─────────────────────────────────────────
 function DietTag({ tag }) {
-  return <span className="fs-diet-tag" style={TAG_STYLE[tag]}>{TAG_ICON[tag]} {tag}</span>;
+  return (
+    <span className="fs-diet-tag" style={TAG_STYLE[tag]}>
+      <span className="fs-diet-tag__icon">{TAG_ICON[tag]}</span> {tag}
+    </span>
+  );
 }
 
 // ─────────────────────────────────────────
@@ -168,11 +252,11 @@ function StarRater({ value, onChange }) {
 }
 
 // ─────────────────────────────────────────
-// REVIEW MODAL
+// REVIEW MODAL (write / edit)
 // ─────────────────────────────────────────
-function ReviewModal({ onClose, onSubmit, submitting }) {
-  const [stars, setStars] = useState(0);
-  const [text,  setText]  = useState("");
+function ReviewModal({ onClose, onSubmit, submitting, initialStars = 0, initialText = "", isEdit = false }) {
+  const [stars, setStars] = useState(initialStars);
+  const [text,  setText]  = useState(initialText);
   const MAX = 400;
   const canSubmit = stars > 0 && text.trim().length >= 10 && !submitting;
   return (
@@ -180,8 +264,10 @@ function ReviewModal({ onClose, onSubmit, submitting }) {
       <div className="fs-review-modal">
         <div className="fs-review-modal__header">
           <div>
-            <div className="fs-review-modal__title">Leave a Review</div>
-            <div className="fs-review-modal__subtitle">Share your experience with others</div>
+            <div className="fs-review-modal__title">{isEdit ? "Edit Your Review" : "Leave a Review"}</div>
+            <div className="fs-review-modal__subtitle">
+              {isEdit ? "Update your experience below" : "Share your experience with others"}
+            </div>
           </div>
           <button className="fs-review-modal__close" onClick={onClose}>✕</button>
         </div>
@@ -198,8 +284,8 @@ function ReviewModal({ onClose, onSubmit, submitting }) {
           <button className="fs-review-submit-btn" disabled={!canSubmit}
             onClick={() => onSubmit({ stars, text:text.trim() })} style={{ fontFamily:FONT }}>
             {submitting
-              ? <><FaSpinner className="fs-spin" style={{ fontSize:14 }} /> Submitting…</>
-              : <><FaPen style={{ fontSize:13 }} /> Submit Review</>}
+              ? <><FaSpinner className="fs-spin" style={{ fontSize:14 }} /> {isEdit ? "Saving…" : "Submitting…"}</>
+              : <><FaPen style={{ fontSize:13 }} /> {isEdit ? "Save Changes" : "Submit Review"}</>}
           </button>
         </div>
       </div>
@@ -210,7 +296,7 @@ function ReviewModal({ onClose, onSubmit, submitting }) {
 // ─────────────────────────────────────────
 // REVIEW CARD
 // ─────────────────────────────────────────
-function ReviewCard({ review, index, total, expanded, onToggle }) {
+function ReviewCard({ review, index, total, expanded, onToggle, isOwn, onEdit, onDelete }) {
   const reviewer   = review.reviewer;
   const name       = reviewer?.name ?? "Guest";
   const joined     = reviewer?.createdAt ? new Date(reviewer.createdAt).getFullYear() : null;
@@ -234,7 +320,7 @@ function ReviewCard({ review, index, total, expanded, onToggle }) {
                   onError={e => { e.currentTarget.style.display="none"; }} />
               : name[0].toUpperCase()}
           </div>
-          <div>
+          <div style={{ flex:1 }}>
             <div className="fs-reviews__author-name">
               {name}
               {review.isNew && (
@@ -242,11 +328,27 @@ function ReviewCard({ review, index, total, expanded, onToggle }) {
                   background:"#dcfce7", color:"#166534",
                   border:"1px solid #86efac", padding:"2px 8px", borderRadius:20 }}>New</span>
               )}
+              {isOwn && (
+                <span style={{ marginLeft:8, fontSize:11, fontWeight:700,
+                  background:"#dbeafe", color:"#1d4ed8",
+                  border:"1px solid #bfdbfe", padding:"2px 8px", borderRadius:20 }}>You</span>
+              )}
             </div>
             <div className="fs-reviews__author-years">
               {yearsOn > 0 ? `${yearsOn} year${yearsOn !== 1 ? "s" : ""} on Bodima` : "New member"}
             </div>
           </div>
+          {/* Edit / Delete buttons for own reviews */}
+          {isOwn && (
+            <div style={{ display:"flex", gap:6, marginLeft:"auto", flexShrink:0 }}>
+              <button className="fs-review-action-btn fs-review-action-btn--edit" onClick={onEdit} title="Edit review">
+                <FaEdit style={{ fontSize:13 }} />
+              </button>
+              <button className="fs-review-action-btn fs-review-action-btn--delete" onClick={onDelete} title="Delete review">
+                <FaTrash style={{ fontSize:12 }} />
+              </button>
+            </div>
+          )}
         </div>
         <div className="fs-reviews__stars-row">
           <span>{"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}</span>
@@ -294,8 +396,8 @@ function MenuItemRow({ item, onOpen, onAdd, isLast, bgIndex }) {
         )}
         <div className="fs-menu-item__description">{item.description}</div>
         <div className="fs-menu-item__meta">
-          <span className="fs-menu-item__meta-text">⏱ {item.prepTime ?? 15} min prep</span>
-          <span className="fs-menu-item__meta-text">🕐 {openTime} – {closeTime}</span>
+          <span className="fs-menu-item__meta-text"><FaClock style={{ fontSize:11 }} /> {item.prepTime ?? 15} min prep</span>
+          <span className="fs-menu-item__meta-text"><FaClock style={{ fontSize:11 }} /> {openTime} – {closeTime}</span>
         </div>
         <div className="fs-menu-item__price-row">
           <span className="fs-menu-item__price">LKR {item.price?.toLocaleString()}.00</span>
@@ -306,7 +408,7 @@ function MenuItemRow({ item, onOpen, onAdd, isLast, bgIndex }) {
           ? <img src={photoSrc(item.image)} alt={item.name}
               style={{ width:"100%", height:"100%", objectFit:"cover", borderRadius:10 }}
               onError={e => { e.currentTarget.style.display="none"; }} />
-          : <span style={{ fontSize:40 }}>{CAT_EMOJI[item.category] ?? "🍽"}</span>}
+          : <span className="fs-menu-item__cat-icon">{CAT_ICON[item.category] ?? <FaUtensils />}</span>}
         {availableNow && (
           <button className="fs-menu-item__add-btn"
             onClick={e => { e.stopPropagation(); onAdd(item); }}>+</button>
@@ -346,6 +448,10 @@ export default function FoodService() {
   const [menuItems, setMenuItems] = useState([]);
   const [reviews,   setReviews]   = useState([]);
 
+  // ── Derived rating state (updates live) ──
+  const [liveRatingAvg,   setLiveRatingAvg]   = useState(0);
+  const [liveRatingCount, setLiveRatingCount] = useState(0);
+
   // ── Auth state ────────────────────────
   const [currentUser,       setCurrentUser]       = useState(null);
   const [userAvatarSrc,     setUserAvatarSrc]     = useState(null);
@@ -374,10 +480,19 @@ export default function FoodService() {
   const [isFavourited,     setIsFavourited]     = useState(false);
   const [showActionMenu,   setShowActionMenu]   = useState(false);
 
-  const sectionRefs   = useRef({});
-  const toastTimer    = useRef(null);
-  const dropdownRef   = useRef(null);
-  const actionMenuRef = useRef(null);
+  // ── Edit / Delete review state ────────
+  const [editingReview,       setEditingReview]       = useState(null);
+  const [deletingReviewId,    setDeletingReviewId]    = useState(null);
+  const [reviewActionLoading, setReviewActionLoading] = useState(false);
+
+  // ── Owner state ───────────────────────
+  const [ownerUser, setOwnerUser] = useState(null);
+
+  const sectionRefs          = useRef({});
+  const toastTimer           = useRef(null);
+  const dropdownRef          = useRef(null);
+  const actionMenuRef        = useRef(null);
+  const activeCategoriesRef  = useRef([]);
 
   // Derived role helpers
   const userId     = localStorage.getItem("CurrentUserId");
@@ -396,6 +511,24 @@ export default function FoodService() {
         setCurrentUser(user);
         const photoId = user?.profileImage ?? null;
         if (photoId) setUserAvatarSrc(`${API_BASE}/Photo/${photoId}`);
+
+        // Patch already-loaded reviews that belong to this user —
+        // they may have been enriched as "Guest" before user data arrived
+        setReviews(prev => prev.map(r => {
+          const reviewerId = r.reviewer?._id ?? r.reviewer;
+          if (String(reviewerId) !== String(userId)) return r;
+          let photoUrl = photoId ? `${API_BASE}/Photo/${photoId}` : r.reviewer?._profilePhotoUrl ?? null;
+          return {
+            ...r,
+            reviewer: {
+              ...(typeof r.reviewer === 'object' ? r.reviewer : {}),
+              _id: userId,
+              name: user?.name ?? r.reviewer?.name ?? 'Guest',
+              createdAt: user?.createdAt ?? r.reviewer?.createdAt,
+              _profilePhotoUrl: photoUrl,
+            },
+          };
+        }));
       })
       .catch(() => { setCurrentUser(null); setUserAvatarSrc(null); });
   }, []);
@@ -410,7 +543,18 @@ export default function FoodService() {
       .then(raw => {
         const data = unwrap(raw);
         setService(data);
+        setLiveRatingAvg(data.ratingAverage ?? 0);
+        setLiveRatingCount(data.ratingCount ?? 0);
         if (!data.deliveryAvailable && data.pickupAvailable) setOrderType("pickup");
+
+        // Fetch the food service owner's profile
+        const ownerId = data.owner?._id ?? data.owner;
+        if (ownerId) {
+          fetch(`${API_BASE}/User/${ownerId}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(raw2 => { if (raw2) setOwnerUser(unwrap(raw2)); })
+            .catch(() => {});
+        }
       })
       .catch(err => setErrorService(err.message))
       .finally(() => setLoadingService(false));
@@ -435,25 +579,22 @@ export default function FoodService() {
     if (!service) return;
     setLoadingReviews(true);
     const loadReviews = async () => {
+      const reviewIds = service.reviews ?? [];
+      if (!reviewIds.length) { setReviews([]); setLoadingReviews(false); return; }
+
       let list = [];
       try {
-        const r   = await fetch(`${API_BASE}/review?foodService=${FOOD_SERVICE_ID}`);
-        const raw = await r.json();
-        const docs = unwrap(raw);
-        list = Array.isArray(docs) ? docs : [];
-      } catch (_) {
-        try {
-          const r   = await fetch(`${API_BASE}/review/foodservice/${FOOD_SERVICE_ID}`);
-          const raw = await r.json();
-          const docs = unwrap(raw);
-          list = Array.isArray(docs) ? docs : [];
-        } catch (__) { list = []; }
-      }
-      list = list.filter(rv =>
-        !rv.foodService ||
-        rv.foodService === FOOD_SERVICE_ID ||
-        rv.foodService?._id === FOOD_SERVICE_ID
-      );
+        const results = await Promise.all(
+          reviewIds.map(id =>
+            fetch(`${API_BASE}/review/${id}`)
+              .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+              .then(raw => unwrap(raw))
+              .catch(() => null)
+          )
+        );
+        list = results.filter(Boolean);
+      } catch (_) { list = []; }
+
       const enriched = await Promise.all(
         list.map(async (rv) => {
           const reviewerId = rv.reviewer?._id ?? rv.reviewer;
@@ -478,7 +619,12 @@ export default function FoodService() {
           } catch (_) { return rv; }
         })
       );
-      setReviews(enriched);
+      const sorted = [...enriched].sort((a, b) => new Date(b.createdAt ?? 0) - new Date(a.createdAt ?? 0));
+      setReviews(sorted);
+      // Sync live rating from fetched reviews
+      const { avg, count } = calcRatingStats(sorted);
+      setLiveRatingAvg(avg);
+      setLiveRatingCount(count);
     };
     loadReviews().finally(() => setLoadingReviews(false));
   }, [service]);
@@ -514,8 +660,10 @@ export default function FoodService() {
   // ── Scroll spy ────────────────────────────────────────────────────────
   useEffect(() => {
     const onScroll = () => {
-      let cur = activeCategories[0] ?? CATEGORIES[0];
-      activeCategories.forEach(cat => {
+      const cats = activeCategoriesRef.current;
+      if (!cats.length) return;
+      let cur = cats[0];
+      cats.forEach(cat => {
         const el = sectionRefs.current[`cat-${cat}`];
         if (el && el.getBoundingClientRect().top < 140) cur = cat;
       });
@@ -525,8 +673,10 @@ export default function FoodService() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const scrollTo = (id) =>
-    sectionRefs.current[id]?.scrollIntoView({ behavior:"smooth", block:"start" });
+  const scrollTo = (cat) => {
+    setActiveNav(cat);
+    sectionRefs.current[`cat-${cat}`]?.scrollIntoView({ behavior:"smooth", block:"start" });
+  };
 
   // ── Outside click ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -558,9 +708,17 @@ export default function FoodService() {
   };
 
   // ── Navbar action button ──────────────────────────────────────────────
-  // Not logged in → "Login", Student → hidden, Host → "Host Page" → /Listings
   const hostBtnLabel  = !isLoggedIn ? "Login" : isHost ? "Host Page" : null;
   const hostBtnAction = () => navigate(!isLoggedIn ? "/Login" : "/Listings");
+
+  // ── Write Review guard ────────────────────────────────────────────────
+  const handleWriteReviewClick = () => {
+    if (!isLoggedIn || !isStudent) {
+      setShowLoginRequired(true);
+      return;
+    }
+    setShowReviewModal(true);
+  };
 
   // ── Submit review ─────────────────────────────────────────────────────
   const handleReviewSubmit = async ({ stars, text }) => {
@@ -578,18 +736,32 @@ export default function FoodService() {
         photoUrl = /^[a-f\d]{24}$/i.test(currentUser.profileImage)
           ? photoSrc(currentUser.profileImage) : currentUser.profileImage;
       }
-      setReviews(prev => [{
+      const newReview = {
         ...saved,
         _id:      saved._id ?? Date.now().toString(),
+        // Always build reviewer from currentUser — never fall back to API response
+        // which may only contain an ID string
         reviewer: {
-          _id:userId, name:currentUser?.name ?? "You",
-          createdAt:currentUser?.createdAt, _profilePhotoUrl:photoUrl,
+          _id:             userId,
+          name:            currentUser?.name ?? "You",
+          createdAt:       currentUser?.createdAt,
+          _profilePhotoUrl: photoUrl,
         },
+        // Preserve rating/comment explicitly in case backend response omits them
+        rating:    stars,
+        comment:   text,
         createdAt: saved.createdAt ?? new Date().toISOString(),
         isNew:     true,
-      }, ...prev]);
+      };
+      setReviews(prev => {
+        const updated = [newReview, ...prev];
+        const { avg, count } = calcRatingStats(updated);
+        setLiveRatingAvg(avg);
+        setLiveRatingCount(count);
+        return updated;
+      });
       setShowReviewModal(false);
-      showToast("Thanks for your review! 🎉");
+      showToast("Thanks for your review!");
     } catch (err) {
       showToast("Failed to submit — please try again.");
     } finally {
@@ -597,13 +769,63 @@ export default function FoodService() {
     }
   };
 
+  // ── Edit review ───────────────────────────────────────────────────────
+  const handleEditReviewSubmit = async ({ stars, text }) => {
+    if (!editingReview) return;
+    setReviewActionLoading(true);
+    try {
+      const raw    = await apiPut(`/review/${editingReview._id}`, { rating: stars, comment: text });
+      const saved  = unwrap(raw);
+      setReviews(prev => {
+        const updated = prev.map(r =>
+          r._id === editingReview._id
+            // Explicitly only update rating + comment — never overwrite
+            // the enriched reviewer object with the raw API response
+            ? { ...r, rating: stars, comment: text }
+            : r
+        );
+        const { avg, count } = calcRatingStats(updated);
+        setLiveRatingAvg(avg);
+        setLiveRatingCount(count);
+        return updated;
+      });
+      setEditingReview(null);
+      showToast("Review updated.");
+    } catch {
+      showToast("Failed to update — please try again.");
+    } finally {
+      setReviewActionLoading(false);
+    }
+  };
+
+  // ── Delete review ─────────────────────────────────────────────────────
+  const handleDeleteReviewConfirm = async () => {
+    if (!deletingReviewId) return;
+    setReviewActionLoading(true);
+    try {
+      await apiDelete(`/review/${deletingReviewId}`);
+      setReviews(prev => {
+        const updated = prev.filter(r => r._id !== deletingReviewId);
+        const { avg, count } = calcRatingStats(updated);
+        setLiveRatingAvg(avg);
+        setLiveRatingCount(count);
+        return updated;
+      });
+      setDeletingReviewId(null);
+      showToast("Review deleted.");
+    } catch {
+      showToast("Failed to delete — please try again.");
+    } finally {
+      setReviewActionLoading(false);
+    }
+  };
+
   // ── Derived ───────────────────────────────────────────────────────────
   const kitchenName      = service?.kitchenName        ?? "Loading…";
   const address          = service?.address            ?? "";
-  const isOpen           = service?.isAvailable        ?? false;
+  const openTime         = service?.operatingHours?.open  ?? "08:00 AM";
   const closeTime        = service?.operatingHours?.close ?? "10:00 PM";
-  const ratingAvg        = service?.ratingAverage      ?? 0;
-  const ratingCount      = service?.ratingCount        ?? 0;
+  const isOpen           = service ? isServiceOpenNow(service.operatingHours) : false;
   const canDeliver       = service?.deliveryAvailable  ?? true;
   const canPickup        = service?.pickupAvailable    ?? true;
   const coords           = service?.location?.coordinates;
@@ -613,6 +835,7 @@ export default function FoodService() {
   const deliveryFee      = orderType === "delivery" ? 150 : 0;
   const orderTotal       = cartTotal + deliveryFee;
   const activeCategories = CATEGORIES.filter(cat => menuItems.some(i => i.category === cat));
+  activeCategoriesRef.current = activeCategories;
   const previewReviews   = reviews.slice(0, 4);
 
   // ── Guards ────────────────────────────────────────────────────────────
@@ -653,12 +876,11 @@ export default function FoodService() {
           <a href="/" className="fs-nav__logo"><FaAirbnb /> Bodima</a>
         </div>
 
-        {/* Centered tabs */}
         <div className="fs-nav__tabs">
           {[
             { key:"boardings",   label:"Boardings",          href:"/Boardings"    },
             { key:"food",        label:"Food Services",      href:"/FoodServices" },
-            { key:"experiences", label:"Online Experiences", href:"#"             },
+            { key:"experiences", label:"Orders", href:"/Orders"             },
           ].map(({ key, label, href }) => (
             <a key={key} href={href}
               className={`fs-nav__tab${activeTab === key ? " fs-nav__tab--active" : ""}`}
@@ -670,14 +892,12 @@ export default function FoodService() {
         </div>
 
         <div className="fs-nav__right">
-          {/* Login / Host Page — hidden for students */}
           {hostBtnLabel && (
             <button className="fs-nav__host-btn" style={{ fontFamily:FONT }} onClick={hostBtnAction}>
               {hostBtnLabel}
             </button>
           )}
 
-          {/* Avatar — neutral border, no orange */}
           <div className="fs-nav__avatar">
             {userAvatarSrc
               ? <img src={userAvatarSrc} alt="Profile" className="fs-nav__avatar-img"
@@ -692,7 +912,6 @@ export default function FoodService() {
 
             {showDropdown && (
               <div className="fs-dropdown__menu">
-                {/* User info — only when logged in */}
                 {isLoggedIn && currentUser && (
                   <>
                     <div className="fs-dropdown__user">
@@ -704,7 +923,6 @@ export default function FoodService() {
                   </>
                 )}
 
-                {/* Profile — students and hosts */}
                 {(isStudent || isHost) && (
                   <div className="fs-dropdown__item"
                     onClick={() => { setShowDropdown(false); navigate("/Profile"); }}>
@@ -712,7 +930,6 @@ export default function FoodService() {
                   </div>
                 )}
 
-                {/* Not logged in — trigger login-required modal */}
                 {!isLoggedIn && (
                   <>
                     <div className="fs-dropdown__item" onClick={() => handleProtectedClick()}>
@@ -724,7 +941,6 @@ export default function FoodService() {
                   </>
                 )}
 
-                {/* Messages — students only */}
                 {isStudent && (
                   <div className="fs-dropdown__item"
                     onClick={() => { setShowDropdown(false); navigate("/Messages"); }}>
@@ -732,7 +948,6 @@ export default function FoodService() {
                   </div>
                 )}
 
-                {/* Logout — students and hosts */}
                 {isLoggedIn && (isStudent || isHost) && (
                   <>
                     <div className="fs-dropdown__divider" />
@@ -777,8 +992,8 @@ export default function FoodService() {
               : <>
                   <h1 className="fs-restaurant-header__title">{kitchenName}</h1>
                   <div className="fs-restaurant-header__meta">
-                    <span style={{ fontWeight:600, color:"#1b1b1b" }}>⭐ {ratingAvg.toFixed(1)}</span>
-                    {[`(${ratingCount} ratings)`, service?.serviceType, "$"].filter(Boolean).map(t => (
+                    <span style={{ fontWeight:600, color:"#1b1b1b" }}>⭐ {liveRatingAvg.toFixed(1)}</span>
+                    {[`(${liveRatingCount} ratings)`, service?.serviceType].filter(Boolean).map(t => (
                       <span key={t} style={{ display:"contents" }}>
                         <span style={{ color:"#ccc" }}>•</span><span>{t}</span>
                       </span>
@@ -791,7 +1006,7 @@ export default function FoodService() {
                       <span style={{ color:isOpen ? "#038a3a" : "#dc2626", fontWeight:600 }}>
                         {isOpen ? "Open" : "Closed"}
                       </span>
-                      <span style={{ color:"#545454" }}>· Closes {closeTime}</span>
+                      <span style={{ color:"#545454" }}>· {openTime} – {closeTime}</span>
                     </span>
                     {canDeliver && (
                       <span style={{ fontSize:12, color:"#038a3a", fontWeight:600,
@@ -806,7 +1021,7 @@ export default function FoodService() {
                       </span>
                     )}
                   </div>
-                  {address && <div className="fs-restaurant-header__address">📍 {address}</div>}
+                  {address && <div className="fs-restaurant-header__address"><FaMapMarkerAlt style={{ fontSize:12 }} /> {address}</div>}
                   {service?.description && (
                     <div style={{ fontSize:13, color:"#757575", marginTop:6 }}>{service.description}</div>
                   )}
@@ -816,7 +1031,7 @@ export default function FoodService() {
           <div className="fs-restaurant-header__actions">
             <button
               className={`fs-action-btn${isFavourited ? " fs-action-btn--favourited" : ""}`}
-              onClick={() => { setIsFavourited(p => !p); showToast(isFavourited ? "Removed from favourites" : "Added to favourites ❤️"); }}>
+              onClick={() => { setIsFavourited(p => !p); showToast(isFavourited ? "Removed from favourites" : "Added to favourites."); }}>
               {isFavourited
                 ? <FaHeart    style={{ color:ORANGE, fontSize:16 }} />
                 : <FaRegHeart style={{ color:"#444",  fontSize:16 }} />}
@@ -830,9 +1045,9 @@ export default function FoodService() {
                 <div className="fs-action-dropdown">
                   <div className="fs-action-dropdown__host">
                     <div className="fs-action-dropdown__host-avatar">
-                      {currentUser?.profileImage
-                        ? <img src={/^[a-f\d]{24}$/i.test(currentUser.profileImage)
-                              ? photoSrc(currentUser.profileImage) : currentUser.profileImage}
+                      {ownerUser?.profileImage
+                        ? <img src={/^[a-f\d]{24}$/i.test(ownerUser.profileImage)
+                              ? photoSrc(ownerUser.profileImage) : ownerUser.profileImage}
                             alt="host"
                             style={{ width:"100%", height:"100%", borderRadius:"50%", objectFit:"cover" }}
                             onError={e => { e.currentTarget.style.display="none"; }} />
@@ -841,18 +1056,22 @@ export default function FoodService() {
                     <div>
                       <div className="fs-action-dropdown__host-label">Hosted by</div>
                       <div className="fs-action-dropdown__host-name">
-                        {service?.owner ? (currentUser?.name ?? "Host") : "Host"}
+                        {ownerUser?.name ?? "Host"}
                       </div>
                       <div className="fs-action-dropdown__host-since">
-                        {currentUser?.createdAt
-                          ? `Member since ${new Date(currentUser.createdAt).getFullYear()}`
+                        {ownerUser?.createdAt
+                          ? `Member since ${new Date(ownerUser.createdAt).getFullYear()}`
                           : "Bodima Host"}
                       </div>
                     </div>
                   </div>
                   <div className="fs-action-dropdown__divider" />
                   <button className="fs-action-dropdown__item fs-action-dropdown__item--primary"
-                    onClick={() => { setShowActionMenu(false); showToast("Opening messages…"); }}>
+                    onClick={() => {
+                      setShowActionMenu(false);
+                      if (!isLoggedIn || !isStudent) { setShowLoginRequired(true); return; }
+                      showToast("Opening messages…");
+                    }}>
                     <FaCommentAlt style={{ fontSize:13 }} /> Message Host
                   </button>
                   <button className="fs-action-dropdown__item"
@@ -865,7 +1084,11 @@ export default function FoodService() {
                     <FaShare style={{ fontSize:13 }} /> Share this kitchen
                   </button>
                   <button className="fs-action-dropdown__item fs-action-dropdown__item--danger"
-                    onClick={() => { setShowActionMenu(false); showToast("Report submitted. Thank you."); }}>
+                    onClick={() => {
+                      setShowActionMenu(false);
+                      if (!isLoggedIn) { setShowLoginRequired(true); return; }
+                      showToast("Report submitted. Thank you.");
+                    }}>
                     <FaFlag style={{ fontSize:13 }} /> Report
                   </button>
                 </div>
@@ -882,10 +1105,10 @@ export default function FoodService() {
           {/* Sidebar */}
           <nav className="fs-sidebar">
             {activeCategories.map(cat => (
-              <button key={cat} onClick={() => scrollTo(`cat-${cat}`)}
+              <button key={cat} onClick={() => scrollTo(cat)}
                 className={`fs-sidebar__btn${activeNav === cat ? " fs-sidebar__btn--active" : ""}`}
                 style={{ fontFamily:FONT }}>
-                {CAT_EMOJI[cat]} {cat}
+                <span className="fs-sidebar__btn-icon">{CAT_ICON[cat]}</span> {cat}
               </button>
             ))}
           </nav>
@@ -912,7 +1135,9 @@ export default function FoodService() {
                     return (
                       <section key={cat} className="fs-cat-section"
                         ref={el => sectionRefs.current[`cat-${cat}`] = el}>
-                        <div className="fs-cat-section__title">{CAT_EMOJI[cat]} {cat}</div>
+                        <div className="fs-cat-section__title">
+                          <span className="fs-cat-section__title-icon">{CAT_ICON[cat]}</span> {cat}
+                        </div>
                         {items.map((item, idx) => (
                           <MenuItemRow key={item._id} item={item}
                             isLast={idx === items.length - 1} bgIndex={idx}
@@ -935,7 +1160,9 @@ export default function FoodService() {
                 {canDeliver && canPickup
                   ? <OrderTypeToggle value={orderType} onChange={setOrderType} />
                   : <div style={{ fontSize:13, color:"#757575", marginBottom:12 }}>
-                      {canDeliver ? "🛵 Delivery only" : "🛍 Pickup only"}
+                      {canDeliver
+                        ? <><FaMotorcycle style={{ marginRight:4 }} /> Delivery only</>
+                        : <><FaShoppingBag style={{ marginRight:4 }} /> Pickup only</>}
                     </div>}
                 <div className="fs-cart__hint">
                   {orderType === "delivery"
@@ -946,7 +1173,7 @@ export default function FoodService() {
 
               {cartItems.length === 0
                 ? <div className="fs-cart__empty">
-                    <div className="fs-cart__empty-icon">🛒</div>
+                    <div className="fs-cart__empty-icon"><FaShoppingCart /></div>
                     <div className="fs-cart__empty-title">No items in your cart</div>
                     <div className="fs-cart__empty-text">Add items from the menu to get started</div>
                   </div>
@@ -974,7 +1201,7 @@ export default function FoodService() {
                       )}
                       {orderType === "pickup" && (
                         <div className="fs-cart__summary-row fs-cart__summary-row--pickup">
-                          <span>🛍 Pickup discount</span><span>Free delivery</span>
+                          <span><FaShoppingBag style={{ marginRight:4, fontSize:11 }} /> Pickup discount</span><span>Free delivery</span>
                         </div>
                       )}
                       <div className="fs-cart__total-row">
@@ -984,13 +1211,32 @@ export default function FoodService() {
                   </>}
 
               <div className="fs-cart__footer">
-                <button disabled={cartItems.length === 0}
-                  className="fs-cart__checkout-btn" style={{ fontFamily:FONT }}>
-                  <span>{orderType === "delivery" ? "Go to checkout" : "Place pickup order"}</span>
-                  {cartItems.length > 0 && (
-                    <span style={{ fontSize:14, opacity:0.9 }}>LKR {orderTotal.toLocaleString()}</span>
-                  )}
+                <button
+                  disabled={cartItems.length === 0 || !isOpen}
+                  className="fs-cart__checkout-btn"
+                  style={{ fontFamily:FONT }}
+                  onClick={() => {
+                    if (!isLoggedIn || !isStudent) {
+                      setShowLoginRequired(true);
+                    } else {
+                      // proceed to checkout
+                    }
+                  }}
+                >
+                  {!isOpen
+                    ? <span style={{ margin:"0 auto" }}>Kitchen is Closed</span>
+                    : <>
+                        <span>{orderType === "delivery" ? "Go to checkout" : "Place pickup order"}</span>
+                        {cartItems.length > 0 && (
+                          <span style={{ fontSize:14, opacity:0.9 }}>LKR {orderTotal.toLocaleString()}</span>
+                        )}
+                      </>}
                 </button>
+                {!isOpen && (
+                  <p style={{ textAlign:"center", fontSize:12, color:"#dc2626", marginTop:8 }}>
+                    Opens at {openTime}
+                  </p>
+                )}
               </div>
             </div>
           </aside>
@@ -1005,20 +1251,23 @@ export default function FoodService() {
             {loadingService
               ? <Skeleton h={48} w={80} radius={8} />
               : <>
-                  <span className="fs-reviews__score">{ratingAvg.toFixed(1)}</span>
+                  <span className="fs-reviews__score">{liveRatingAvg.toFixed(1)}</span>
                   <div>
                     <div style={{ fontSize:18 }}>
-                      {"★".repeat(Math.round(ratingAvg))}{"☆".repeat(5 - Math.round(ratingAvg))}
+                      {"★".repeat(Math.round(liveRatingAvg))}{"☆".repeat(5 - Math.round(liveRatingAvg))}
                     </div>
-                    <div style={{ fontSize:14, color:"#757575" }}>{ratingCount} ratings</div>
+                    <div style={{ fontSize:14, color:"#757575" }}>{liveRatingCount} ratings</div>
                   </div>
                 </>}
           </div>
 
+          {/* Write review button — guards non-logged-in / non-student */}
           <button className="fs-write-review-btn" style={{ fontFamily:FONT }}
-            onClick={() => setShowReviewModal(true)}>
+            onClick={handleWriteReviewClick}>
             <FaPen style={{ fontSize:13 }} /> Write a Review
           </button>
+
+
 
           {loadingReviews
             ? <div className="fs-reviews__grid">
@@ -1042,12 +1291,20 @@ export default function FoodService() {
                   No reviews yet — be the first to share your experience!
                 </div>
               : <div className="fs-reviews__grid">
-                  {(showAllReviews ? reviews : previewReviews).map((r,i) => (
-                    <ReviewCard key={r._id ?? i} review={r} index={i}
-                      total={showAllReviews ? reviews.length : previewReviews.length}
-                      expanded={!!expanded[r._id ?? i]}
-                      onToggle={() => setExpanded(e => ({ ...e, [r._id ?? i]:!e[r._id ?? i] }))} />
-                  ))}
+                  {(showAllReviews ? reviews : previewReviews).map((r,i) => {
+                    const reviewerId = r.reviewer?._id ?? r.reviewer;
+                    const isOwn = isLoggedIn && userId === reviewerId;
+                    return (
+                      <ReviewCard key={r._id ?? i} review={r} index={i}
+                        total={showAllReviews ? reviews.length : previewReviews.length}
+                        expanded={!!expanded[r._id ?? i]}
+                        onToggle={() => setExpanded(e => ({ ...e, [r._id ?? i]:!e[r._id ?? i] }))}
+                        isOwn={isOwn}
+                        onEdit={() => setEditingReview(r)}
+                        onDelete={() => setDeletingReviewId(r._id)}
+                      />
+                    );
+                  })}
                 </div>}
 
           {reviews.length > 4 && (
@@ -1062,14 +1319,14 @@ export default function FoodService() {
       {/* ══ MAP ══ */}
       <section className="fs-map">
         <div className="fs-wrapper">
-          <div className="fs-map__title">📍 Where you'll find us</div>
+          <div className="fs-map__title"><FaMapMarkerAlt style={{ color:ORANGE, marginRight:6 }} /> Where you'll find us</div>
           <div className="fs-map__address">{address}</div>
           <div className="fs-map__container">
             <iframe className="fs-map__iframe" src={mapSrc}
               allowFullScreen loading="lazy"
               referrerPolicy="no-referrer-when-downgrade" title={kitchenName} />
             <div className="fs-map__card">
-              <span style={{ fontSize:24 }}>🍗</span>
+              <FaUtensils style={{ fontSize:22, color:ORANGE }} />
               <div>
                 <div style={{ fontSize:14, fontWeight:700, color:"#000" }}>{kitchenName}</div>
                 <div style={{ fontSize:12, color:"#757575", marginTop:2 }}>{address}</div>
@@ -1079,10 +1336,18 @@ export default function FoodService() {
         </div>
       </section>
 
-      {/* ══ FOOTER — bottom bar only ══ */}
+      {/* ══ FOOTER ══ */}
       <footer className="fs-footer">
         <div className="fs-footer__bottom">
-          <span>© 2026 Bodima, Inc. · <a href="#" className="fs-footer__legal-link">Privacy · Terms · Sitemap</a></span>
+          <div className="fs-footer__left">
+            <span>© 2026 Bodima, Inc.</span>
+            <span className="fs-footer__dot">·</span>
+            <a href="#" className="fs-footer__legal-link">Privacy</a>
+            <span className="fs-footer__dot">·</span>
+            <a href="#" className="fs-footer__legal-link">Terms</a>
+            <span className="fs-footer__dot">·</span>
+            <a href="#" className="fs-footer__legal-link">Sitemap</a>
+          </div>
           <div className="fs-footer__socials">
             {[FaFacebookF, FaTwitter, FaInstagram].map((Icon,i) => (
               <a key={i} href="#" className="fs-footer__social-icon"><Icon /></a>
@@ -1103,7 +1368,7 @@ export default function FoodService() {
                 ? <img src={photoSrc(modal.image)} alt={modal.name}
                     style={{ width:"100%", height:"100%", objectFit:"cover" }}
                     onError={e => { e.currentTarget.style.display="none"; }} />
-                : <span style={{ fontSize:80 }}>{CAT_EMOJI[modal.category] ?? "🍽"}</span>}
+                : <span className="fs-item-modal__cat-icon">{CAT_ICON[modal.category] ?? <FaUtensils />}</span>}
             </div>
             <div className="fs-item-modal__body">
               <div className="fs-item-modal__name">{modal.name}</div>
@@ -1115,15 +1380,17 @@ export default function FoodService() {
               <div className="fs-item-modal__desc">{modal.description}</div>
               <div className="fs-item-modal__details-grid">
                 {[
-                  { label:"⏱ Prep Time",       val:`${modal.prepTime ?? 15} min` },
-                  { label:"🏷 Category",        val:modal.category },
-                  { label:"🕐 Available Hours", val:`${modal.AvailableHours?.open ?? "—"} – ${modal.AvailableHours?.close ?? "—"}` },
-                  { label:"✅ Status",
-                    val:  isItemAvailableNow(modal) ? "● Available now" : "○ Not available now",
+                  { icon:<FaClock />,       label:"Prep Time",       val:`${modal.prepTime ?? 15} min` },
+                  { icon:<FaTag />,         label:"Category",        val:modal.category },
+                  { icon:<FaClock />,       label:"Available Hours", val:`${modal.AvailableHours?.open ?? "—"} – ${modal.AvailableHours?.close ?? "—"}` },
+                  { icon:<FaCheckCircle />, label:"Status",
+                    val:  isItemAvailableNow(modal) ? "Available now" : "Not available",
                     color:isItemAvailableNow(modal) ? "#038a3a" : "#999" },
-                ].map(({ label, val, color }) => (
+                ].map(({ icon, label, val, color }) => (
                   <div key={label} style={{ display:"flex", flexDirection:"column", gap:2 }}>
-                    <span className="fs-item-modal__detail-label">{label}</span>
+                    <span className="fs-item-modal__detail-label">
+                      <span className="fs-item-modal__detail-icon">{icon}</span> {label}
+                    </span>
                     <span className="fs-item-modal__detail-value" style={color ? { color } : {}}>{val}</span>
                   </div>
                 ))}
@@ -1150,12 +1417,33 @@ export default function FoodService() {
         </div>
       )}
 
-      {/* ══ REVIEW WRITE MODAL ══ */}
+      {/* ══ WRITE REVIEW MODAL ══ */}
       {showReviewModal && (
         <ReviewModal
           onClose={() => setShowReviewModal(false)}
           onSubmit={handleReviewSubmit}
           submitting={reviewSubmitting}
+        />
+      )}
+
+      {/* ══ EDIT REVIEW MODAL ══ */}
+      {editingReview && (
+        <ReviewModal
+          isEdit
+          initialStars={editingReview.rating ?? 0}
+          initialText={editingReview.comment ?? ""}
+          onClose={() => setEditingReview(null)}
+          onSubmit={handleEditReviewSubmit}
+          submitting={reviewActionLoading}
+        />
+      )}
+
+      {/* ══ DELETE REVIEW CONFIRM ══ */}
+      {deletingReviewId && (
+        <DeleteReviewModal
+          onConfirm={handleDeleteReviewConfirm}
+          onCancel={() => setDeletingReviewId(null)}
+          deleting={reviewActionLoading}
         />
       )}
 
