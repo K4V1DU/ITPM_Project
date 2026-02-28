@@ -1219,7 +1219,17 @@ export default function FoodService() {
                     if (!isLoggedIn || !isStudent) {
                       setShowLoginRequired(true);
                     } else {
-                      // proceed to checkout
+                      navigate(`/FoodCheckout/${FOOD_SERVICE_ID}`, {
+                        state: {
+                          cartItems,
+                          cartTotal,
+                          orderType,
+                          deliveryFee,
+                          orderTotal,
+                          service,
+                          foodServiceId: FOOD_SERVICE_ID,
+                        },
+                      });
                     }
                   }}
                 >
