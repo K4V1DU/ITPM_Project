@@ -478,8 +478,8 @@ export default function HostListings() {
             </button>
             {showDropdown && (
               <div className="hl-dropdown__menu">
-                <div className="hl-dropdown__item" onClick={() => navigate("/host")}>
-                  <FaUser style={{ opacity: 0.6 }} /> Host Dashboard
+                <div className="hl-dropdown__item" onClick={() => navigate("/Host-Profile")}>
+                  <FaUser style={{ opacity: 0.6 }} /> Profile
                 </div>
                 <div className="hl-dropdown__divider" />
                 <div className="hl-dropdown__item hl-dropdown__item--danger"
