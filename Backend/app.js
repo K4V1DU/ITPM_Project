@@ -21,7 +21,7 @@ const ReviewRouter = require("../Backend/Routes/Review_Route");
 const UserRouter = require("../Backend/Routes/User_Route"); 
 const MenuItemRouter = require("../Backend/Routes/MenuItem_Route"); 
 const FoodServiceRouter = require("../Backend/Routes/FoodService_Route"); 
-
+const PaymentRouter = require("../Backend/Routes/Payment_Route");
 // Mount Routes
 app.use("/Accommodation", AccommodationRouter);
 app.use("/Photo", PhotoRouter); 
@@ -29,7 +29,7 @@ app.use("/Review", ReviewRouter);
 app.use("/User", UserRouter);
 app.use("/MenuItem", MenuItemRouter);
 app.use("/FoodService", FoodServiceRouter);
-
+app.use("/Payment", PaymentRouter);
 
 const MONGO_URI = "mongodb+srv://K4V1DU:ekwpjA9nDZid3iqR@cluster0.23nczaf.mongodb.net/testing2?retryWrites=true&w=majority";
 
