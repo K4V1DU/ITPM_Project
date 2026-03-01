@@ -2,7 +2,7 @@
 
 const { MongoClient } = require("mongodb");
 
-const MONGODB_URI  = process.env.MONGODB_URI;
+const MONGODB_URI = "mongodb+srv://K4V1DU:ekwpjA9nDZid3iqR@cluster0.23nczaf.mongodb.net/testing2?retryWrites=true&w=majority";
 const DATABASE     = process.env.DB_NAME    || "testing2";
 const COLLECTION   = process.env.COLLECTION || "banksms";
 const EXPECTED_KEY = process.env.SMS_API_KEY || "unisewana_sms_key_2026";
