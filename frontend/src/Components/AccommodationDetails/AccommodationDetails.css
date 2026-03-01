@@ -419,7 +419,7 @@
 .acd-host-section__title { font-size: 20px; font-weight: 800; color: #000; margin-bottom: 16px; }
 
 .acd-host-card {
-  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap;
 }
 .acd-host-card__avatar-wrap  { position: relative; flex-shrink: 0; }
 .acd-host-card__avatar {
@@ -435,7 +435,7 @@
 .acd-host-card__badge {
   position: absolute; bottom: -2px; right: -4px; font-size: 17px; line-height: 1;
 }
-.acd-host-card__info        { flex: 1; }
+.acd-host-card__info        { flex: 1; min-width: 0; }
 .acd-host-card__name        { font-size: 16px; font-weight: 700; color: #000; margin-bottom: 3px; }
 .acd-host-card__sub         { font-size: 13px; color: #757575; }
 .acd-host-card__superhost   { color: #FF6B2B; font-weight: 600; }
@@ -446,7 +446,7 @@
   border-radius: 24px; background: #fff;
   font-size: 13px; font-weight: 600;
   cursor: pointer; transition: background 0.16s, color 0.16s;
-  white-space: nowrap;
+  white-space: nowrap; flex-shrink: 0;
 }
 .acd-host-card__btn:hover { background: #1b1b1b; color: #fff; }
 
@@ -521,6 +521,10 @@
   font-size: 15px; font-weight: 700; cursor: pointer;
   display: flex; align-items: center; justify-content: space-between;
   transition: opacity 0.18s;
+    display: flex;
+  justify-content: center;   /* Horizontal center */
+  align-items: center;       /* Vertical center */
+  text-align: center;
 }
 .acd-booking-card__btn:hover:not(:disabled) { opacity: 0.92; }
 .acd-booking-card__btn:disabled { background: #e2e2e2; color: #999; cursor: not-allowed; }
@@ -760,4 +764,6 @@ body { padding-bottom: 60px; }
   .acd-reviews__card-inner-left     { padding-right: 0; border-right: none; }
   .acd-reviews__card-inner-right    { padding-left: 0; }
   .acd-gallery__main                { height: 260px; }
+  .acd-listing-header               { flex-direction: column; }
+  .acd-listing-header__actions      { align-self: flex-end; }
 }
