@@ -3,22 +3,28 @@ import { useParams, useNavigate } from 'react-router-dom';
 import './AccommodationDetails.css';
 import {
   FaHeart, FaRegHeart, FaShare,
-  FaUsers, FaBed, FaBath, FaChevronDown,
-  FaAirbnb, FaPlane, FaComments, FaUser,
-  FaCog, FaGlobe, FaQuestionCircle, FaSignOutAlt,
-  FaUserFriends, FaUsers as FaCoHost, FaGift,
+  FaUsers, FaBed, FaBath,
+  FaAirbnb, FaUser,
+  FaSignOutAlt, FaEnvelope,
   FaFacebookF, FaTwitter, FaInstagram,
   FaWifi, FaSnowflake, FaFire, FaUtensils,
   FaTools, FaTv, FaTint, FaParking,
-  FaBars, FaEnvelope, FaMapMarkerAlt, FaCheck,
+  FaBars, FaMapMarkerAlt, FaCheck,
+  FaSpinner, FaExclamationTriangle,
+  FaCommentAlt, FaUserCircle, FaFlag, FaEllipsisH, FaSignInAlt,
+  FaExclamationCircle, FaCalendarAlt, FaChevronLeft, FaChevronRight,
+  FaStar, FaRegStar, FaPen, FaTrash, FaEdit,
 } from 'react-icons/fa';
 
 // ─── Config ───────────────────────────────────────────────────────────────
 const API_BASE = 'http://localhost:8000';
-const photoSrc = (id) => id ? `${API_BASE}/Photo/${id}` : null;
-function unwrap(raw) { return raw?.data ?? raw?.result ?? raw; }
+const ORANGE   = '#FF6B2B';
+const FONT     = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
-// ─── Amenity icon map ─────────────────────────────────────────────────────
+const AVATAR_COLORS     = ['#1a1a2e','#6a3093','#11998e','#c94b4b','#f7971e','#1d4350','#0f3460','#e94560','#533483','#2b5876'];
+const STAR_HINTS        = ['','Poor','Fair','Good','Very Good','Excellent'];
+const SHOW_MORE_THRESHOLD = 120;
+
 const AMENITY_ICONS = {
   wifi:               FaWifi,
   'air conditioning': FaSnowflake,
@@ -39,147 +45,266 @@ function amenityIcon(name = '') {
   return FaCheck;
 }
 
-// ─── Stars ────────────────────────────────────────────────────────────────
-function Stars({ rating = 0, size = 13 }) {
-  return (
-    <span className="acd-stars" style={{ fontSize: size }}>
-      {[1,2,3,4,5].map(n => (
-        <span key={n} style={{ color: n <= Math.round(rating) ? '#FF385C' : '#ddd' }}>★</span>
-      ))}
-    </span>
-  );
+const photoSrc = (id) => id ? `${API_BASE}/Photo/${id}` : null;
+function unwrap(raw) { return raw?.data ?? raw?.result ?? raw; }
+
+function calcRatingStats(reviewList) {
+  if (!reviewList.length) return { avg: 0, count: 0 };
+  const sum = reviewList.reduce((s, r) => s + (r.rating ?? 0), 0);
+  return { avg: parseFloat((sum / reviewList.length).toFixed(1)), count: reviewList.length };
 }
 
-// ─── Page skeleton ────────────────────────────────────────────────────────
-function PageSkeleton() {
+async function apiPost(path, body) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+async function apiPut(path, body) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+async function apiDelete(path) {
+  const res = await fetch(`${API_BASE}${path}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// ─── Populate host + reviews ──────────────────────────────────────────────
+async function populateAccommodation(acc) {
+  if (acc.host && typeof acc.host === 'string') {
+    try {
+      const res = await fetch(`${API_BASE}/User/${acc.host}`);
+      if (res.ok) acc.host = unwrap(await res.json());
+    } catch { acc.host = null; }
+  }
+  if (Array.isArray(acc.reviews) && acc.reviews.length > 0) {
+    const settled = await Promise.allSettled(
+      acc.reviews.map(async (item) => {
+        if (item && typeof item === 'object' && item.comment) {
+          if (typeof item.reviewer === 'string') {
+            try {
+              const rRes = await fetch(`${API_BASE}/User/${item.reviewer}`);
+              if (rRes.ok) item.reviewer = unwrap(await rRes.json());
+            } catch {}
+          }
+          return item;
+        }
+        const reviewId = typeof item === 'string' ? item : item?._id;
+        if (!reviewId) return null;
+        const revRes = await fetch(`${API_BASE}/Review/${reviewId}`);
+        if (!revRes.ok) return null;
+        const rev = unwrap(await revRes.json());
+        if (rev && typeof rev.reviewer === 'string') {
+          try {
+            const rRes = await fetch(`${API_BASE}/User/${rev.reviewer}`);
+            if (rRes.ok) rev.reviewer = unwrap(await rRes.json());
+          } catch {}
+        }
+        return rev;
+      })
+    );
+    acc.reviews = settled.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
+  }
+  return acc;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// MODALS
+// ─────────────────────────────────────────────────────────────────────────
+function LogoutModal({ onConfirm, onCancel }) {
   return (
-    <div className="acd-skeleton-page">
-      <div className="acd-skeleton-hero" />
-      <div className="acd-skeleton-body">
-        <div className="acd-skeleton-line" style={{ width: '60%', height: 28, marginBottom: 12 }} />
-        <div className="acd-skeleton-line" style={{ width: '40%', height: 16, marginBottom: 24 }} />
-        <div className="acd-skeleton-line" style={{ width: '100%', height: 14, marginBottom: 8 }} />
-        <div className="acd-skeleton-line" style={{ width: '90%', height: 14, marginBottom: 8 }} />
-        <div className="acd-skeleton-line" style={{ width: '80%', height: 14 }} />
+    <div className="acd-gen-modal-overlay" onClick={onCancel}>
+      <div className="acd-gen-modal" onClick={e => e.stopPropagation()}>
+        <div className="acd-gen-modal__icon acd-gen-modal__icon--logout"><FaSignOutAlt /></div>
+        <h3 className="acd-gen-modal__title">Logout</h3>
+        <p className="acd-gen-modal__msg">Are you sure you want to logout?</p>
+        <div className="acd-gen-modal__actions">
+          <button className="acd-gen-modal__btn acd-gen-modal__btn--cancel" onClick={onCancel}>Cancel</button>
+          <button className="acd-gen-modal__btn acd-gen-modal__btn--danger" onClick={onConfirm}>Yes, Logout</button>
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── Navbar ───────────────────────────────────────────────────────────────
-function NavBar({ navigate, showDropdown, setShowDropdown, dropdownRef }) {
+function LoginRequiredModal({ onClose, onLogin }) {
   return (
-    <nav className="acd-nav">
-      <div className="acd-nav__left">
-        <a href="/" className="acd-nav__logo"><FaAirbnb /> Bodima</a>
-        <div className="acd-nav__tabs">
-          <a href="/Boardings"    className="acd-nav__tab">Boardings</a>
-          <a href="/FoodServices" className="acd-nav__tab">Food Services</a>
-          <a href="#"             className="acd-nav__tab">Online Experiences</a>
-        </div>
-      </div>
-
-      <div className="acd-nav__right">
-        <button className="acd-nav__host-btn">Become a Host</button>
-
-        <div ref={dropdownRef} className="acd-dropdown">
-          <button
-            className="acd-nav__menu-btn"
-            onClick={() => setShowDropdown(p => !p)}
-            aria-label="Menu"
-          >
-            <FaBars />
+    <div className="acd-gen-modal-overlay" onClick={onClose}>
+      <div className="acd-gen-modal" onClick={e => e.stopPropagation()}>
+        <div className="acd-gen-modal__icon acd-gen-modal__icon--warn"><FaExclamationCircle /></div>
+        <h3 className="acd-gen-modal__title">Student Login Required</h3>
+        <p className="acd-gen-modal__msg">This feature is only available for student accounts. Please login as a student to continue.</p>
+        <div className="acd-gen-modal__actions">
+          <button className="acd-gen-modal__btn acd-gen-modal__btn--cancel" onClick={onClose}>Close</button>
+          <button className="acd-gen-modal__btn acd-gen-modal__btn--confirm" onClick={onLogin}>
+            <FaSignInAlt /> Go to Login
           </button>
-
-          {showDropdown && (
-            <div className="acd-dropdown__menu">
-              <div className="acd-dropdown__section">
-                <a href="#" className="acd-dropdown__item"><FaPlane className="acd-dropdown__icon" /><span>Trips</span></a>
-                <a href="#" className="acd-dropdown__item"><FaComments className="acd-dropdown__icon" /><span>Messages</span></a>
-                <a href="#" className="acd-dropdown__item"><FaUser className="acd-dropdown__icon" /><span>Profile</span></a>
-              </div>
-              <div className="acd-dropdown__section">
-                <a href="#" className="acd-dropdown__item"><FaCog className="acd-dropdown__icon" /><span>Account settings</span></a>
-                <a href="#" className="acd-dropdown__item"><FaGlobe className="acd-dropdown__icon" /><span>Languages &amp; currency</span></a>
-                <a href="#" className="acd-dropdown__item"><FaQuestionCircle className="acd-dropdown__icon" /><span>Help Center</span></a>
-              </div>
-              <div className="acd-dropdown__section">
-                <a href="#" className="acd-dropdown__item"><FaUserFriends className="acd-dropdown__icon" /><span>Refer a Host</span></a>
-                <a href="#" className="acd-dropdown__item"><FaCoHost className="acd-dropdown__icon" /><span>Find a co-host</span></a>
-                <a href="#" className="acd-dropdown__item"><FaGift className="acd-dropdown__icon" /><span>Gift cards</span></a>
-              </div>
-              <div className="acd-dropdown__section acd-dropdown__section--last">
-                <a href="#" className="acd-dropdown__item acd-dropdown__item--logout">
-                  <FaSignOutAlt className="acd-dropdown__icon" /><span>Log out</span>
-                </a>
-              </div>
-            </div>
-          )}
         </div>
-
-        <div className="acd-nav__icon-btn"><FaUser /></div>
       </div>
-    </nav>
+    </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// FIX: Populate host + reviews from separate API calls
-// ─────────────────────────────────────────────────────────────────────────
-async function populateAccommodation(acc) {
-  // ── Populate host ──────────────────────────────────────────────────────
-  // acc.host is a raw ObjectId string — fetch the full User document
-  if (acc.host && typeof acc.host === 'string') {
-    try {
-      const res = await fetch(`${API_BASE}/User/${acc.host}`);
-      if (res.ok) acc.host = unwrap(await res.json());
-    } catch {
-      acc.host = null;
-    }
-  }
+function DeleteReviewModal({ onConfirm, onCancel, deleting }) {
+  return (
+    <div className="acd-gen-modal-overlay" onClick={onCancel}>
+      <div className="acd-gen-modal" onClick={e => e.stopPropagation()}>
+        <div className="acd-gen-modal__icon acd-gen-modal__icon--logout"><FaTrash /></div>
+        <h3 className="acd-gen-modal__title">Delete Review</h3>
+        <p className="acd-gen-modal__msg">Are you sure you want to delete your review? This cannot be undone.</p>
+        <div className="acd-gen-modal__actions">
+          <button className="acd-gen-modal__btn acd-gen-modal__btn--cancel" onClick={onCancel} disabled={deleting}>Cancel</button>
+          <button className="acd-gen-modal__btn acd-gen-modal__btn--danger" onClick={onConfirm} disabled={deleting}>
+            {deleting ? <><FaSpinner className="acd-spin" /> Deleting…</> : 'Yes, Delete'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  // ── Populate reviews ───────────────────────────────────────────────────
-  // acc.reviews is an array of raw ObjectId strings — fetch each Review,
-  // then fetch the reviewer User nested inside each review.
-  if (Array.isArray(acc.reviews) && acc.reviews.length > 0) {
-    const settled = await Promise.allSettled(
-      acc.reviews.map(async (item) => {
-        // Already a full object (backend pre-populated it)
-        if (item && typeof item === 'object' && item.comment) {
-          // Still need to populate reviewer if it's an ID
-          if (typeof item.reviewer === 'string') {
-            try {
-              const rRes = await fetch(`${API_BASE}/User/${item.reviewer}`);
-              if (rRes.ok) item.reviewer = unwrap(await rRes.json());
-            } catch { /* leave as-is */ }
-          }
-          return item;
-        }
+// ─── Skeleton ─────────────────────────────────────────────────────────────
+function Skeleton({ w = '100%', h = 18, radius = 8, mb = 0 }) {
+  return (
+    <div style={{
+      width: w, height: h, borderRadius: radius, marginBottom: mb,
+      background: 'linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%)',
+      backgroundSize: '200% 100%', animation: 'acdSkeleton 1.4s ease infinite',
+    }} />
+  );
+}
 
-        // It's a plain ID — fetch the full Review document
-        const reviewId = typeof item === 'string' ? item : item?._id;
-        if (!reviewId) return null;
+// ─── Star Rater ───────────────────────────────────────────────────────────
+function StarRater({ value, onChange }) {
+  const [hovered, setHovered] = useState(0);
+  const display = hovered || value;
+  return (
+    <div className="acd-star-rater">
+      <div className="acd-star-rater__label">Your Rating</div>
+      <div className="acd-star-rater__stars">
+        {[1,2,3,4,5].map(n => (
+          <button key={n} type="button"
+            className={`acd-star-rater__star${display >= n ? ' acd-star-rater__star--active' : ''}`}
+            onMouseEnter={() => setHovered(n)} onMouseLeave={() => setHovered(0)}
+            onClick={() => onChange(n)} aria-label={`${n} star`}>⭐</button>
+        ))}
+      </div>
+      <div className="acd-star-rater__hint">{display ? STAR_HINTS[display] : 'Tap a star to rate'}</div>
+    </div>
+  );
+}
 
-        const revRes = await fetch(`${API_BASE}/Review/${reviewId}`);
-        if (!revRes.ok) return null;
-        const rev = unwrap(await revRes.json());
+// ─── Review Modal ─────────────────────────────────────────────────────────
+function ReviewModal({ onClose, onSubmit, submitting, initialStars = 0, initialText = '', isEdit = false }) {
+  const [stars, setStars] = useState(initialStars);
+  const [text, setText]   = useState(initialText);
+  const MAX = 400;
+  const canSubmit = stars > 0 && text.trim().length >= 10 && !submitting;
+  return (
+    <div className="acd-review-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="acd-review-modal">
+        <div className="acd-review-modal__header">
+          <div>
+            <div className="acd-review-modal__title">{isEdit ? 'Edit Your Review' : 'Leave a Review'}</div>
+            <div className="acd-review-modal__subtitle">{isEdit ? 'Update your experience below' : 'Share your experience with others'}</div>
+          </div>
+          <button className="acd-review-modal__close" onClick={onClose}>✕</button>
+        </div>
+        <div className="acd-review-modal__body">
+          <StarRater value={stars} onChange={setStars} />
+          <div className="acd-review-field">
+            <div className="acd-review-field__label">Your Review</div>
+            <textarea className="acd-review-field__textarea"
+              placeholder="Tell others about your experience — the room, host, facilities… (min 10 characters)"
+              value={text} maxLength={MAX}
+              onChange={e => setText(e.target.value)} style={{ fontFamily: FONT }} />
+            <div className="acd-review-field__char-count">{text.length} / {MAX}</div>
+          </div>
+          <button className="acd-review-submit-btn" disabled={!canSubmit}
+            onClick={() => onSubmit({ stars, text: text.trim() })} style={{ fontFamily: FONT }}>
+            {submitting
+              ? <><FaSpinner className="acd-spin" style={{ fontSize: 14 }} /> {isEdit ? 'Saving…' : 'Submitting…'}</>
+              : <><FaPen style={{ fontSize: 13 }} /> {isEdit ? 'Save Changes' : 'Submit Review'}</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-        // Populate reviewer inside the review
-        if (rev && typeof rev.reviewer === 'string') {
-          try {
-            const rRes = await fetch(`${API_BASE}/User/${rev.reviewer}`);
-            if (rRes.ok) rev.reviewer = unwrap(await rRes.json());
-          } catch { /* leave as-is */ }
-        }
-        return rev;
-      })
-    );
-    acc.reviews = settled
-      .filter(r => r.status === 'fulfilled' && r.value)
-      .map(r => r.value);
-  }
+// ─── Review Card ──────────────────────────────────────────────────────────
+function ReviewCard({ review, index, total, expanded, onToggle, isOwn, onEdit, onDelete }) {
+  const reviewer = review.reviewer;
+  const name     = (typeof reviewer === 'object' ? reviewer?.name : null) ?? 'Guest';
+  const joined   = (typeof reviewer === 'object' && reviewer?.createdAt) ? new Date(reviewer.createdAt).getFullYear() : null;
+  const yearsOn  = joined ? new Date().getFullYear() - joined : 0;
+  const color    = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
+  const date     = review.createdAt
+    ? new Date(review.createdAt).toLocaleString('en-US', { month: 'long', year: 'numeric' })
+    : 'Recent';
+  const isLeft       = index % 2 === 0;
+  const hasBorderBtm = index < total - 2;
+  const isLong       = (review.comment?.length ?? 0) > SHOW_MORE_THRESHOLD;
+  const revImgRaw    = typeof reviewer === 'object' ? (reviewer?.profileImage ?? reviewer?.avatar) : null;
+  const avatarSrc    = revImgRaw
+    ? (revImgRaw.startsWith('http') ? revImgRaw : photoSrc(revImgRaw))
+    : null;
 
-  return acc;
+  return (
+    <div className={`acd-reviews__card${hasBorderBtm ? ' acd-reviews__card--border-bottom' : ''}`}>
+      <div className={isLeft ? 'acd-reviews__card-inner-left' : 'acd-reviews__card-inner-right'}>
+        <div className="acd-reviews__author">
+          <div className="acd-reviews__avatar" style={{ background: color }}>
+            {avatarSrc
+              ? <img src={avatarSrc} alt={name}
+                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                  onError={e => { e.currentTarget.style.display = 'none'; }} />
+              : name[0].toUpperCase()}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div className="acd-reviews__author-name">
+              {name}
+              {review.isNew && (
+                <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, background: '#dcfce7', color: '#166534', border: '1px solid #86efac', padding: '2px 8px', borderRadius: 20 }}>New</span>
+              )}
+              {isOwn && (
+                <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, background: '#dbeafe', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '2px 8px', borderRadius: 20 }}>You</span>
+              )}
+            </div>
+            <div className="acd-reviews__author-years">
+              {yearsOn > 0 ? `${yearsOn} year${yearsOn !== 1 ? 's' : ''} on Bodima` : 'New member'}
+            </div>
+          </div>
+          {isOwn && (
+            <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', flexShrink: 0 }}>
+              <button className="acd-review-action-btn acd-review-action-btn--edit" onClick={onEdit} title="Edit review"><FaEdit style={{ fontSize: 13 }} /></button>
+              <button className="acd-review-action-btn acd-review-action-btn--delete" onClick={onDelete} title="Delete review"><FaTrash style={{ fontSize: 12 }} /></button>
+            </div>
+          )}
+        </div>
+        <div className="acd-reviews__stars-row">
+          <span>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</span>
+          <span style={{ color: '#ccc' }}>·</span>
+          <span className="acd-reviews__date">{date}</span>
+        </div>
+        <div className={`acd-reviews__text${(!expanded && isLong) ? ' acd-reviews__text--clamped' : ''}`}>
+          {review.comment}
+        </div>
+        {isLong && (
+          <button className="acd-reviews__toggle-btn" style={{ fontFamily: FONT }} onClick={onToggle}>
+            {expanded ? 'Show less' : 'Show more'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -189,35 +314,120 @@ const AccommodationDetails = () => {
   const { id }   = useParams();
   const navigate = useNavigate();
 
+  // ── API state ─────────────────────────────────────────────────────────
   const [acc,          setAcc]          = useState(null);
   const [images,       setImages]       = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState(null);
-  const [isSaved,      setIsSaved]      = useState(false);
-  const [activeImg,    setActiveImg]    = useState(0);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [checkIn,      setCheckIn]      = useState('');
-  const [checkOut,     setCheckOut]     = useState('');
-  const [guests,       setGuests]       = useState(1);
-  const [expandedRev,  setExpandedRev]  = useState({});
 
-  const dropdownRef = useRef(null);
+  // ── Derived rating (live) ─────────────────────────────────────────────
+  const [liveRatingAvg,   setLiveRatingAvg]   = useState(0);
+  const [liveRatingCount, setLiveRatingCount] = useState(0);
+  const [reviews,         setReviews]         = useState([]);
 
-  // ── Fetch + populate ──────────────────────────────────────────────────
+  // ── Auth state ────────────────────────────────────────────────────────
+  const [currentUser,       setCurrentUser]       = useState(null);
+  const [userAvatarSrc,     setUserAvatarSrc]     = useState(null);
+  const [showLogoutModal,   setShowLogoutModal]   = useState(false);
+  const [showLoginRequired, setShowLoginRequired] = useState(false);
+
+  // ── UI state ──────────────────────────────────────────────────────────
+  const [isSaved,          setIsSaved]          = useState(false);
+  const [activeImg,        setActiveImg]        = useState(0);
+  const [showDropdown,     setShowDropdown]     = useState(false);
+  const [showActionMenu,   setShowActionMenu]   = useState(false);
+  const [checkIn,          setCheckIn]          = useState('');
+  const [checkOut,         setCheckOut]         = useState('');
+  const [guests,           setGuests]           = useState(1);
+  const [expanded,         setExpanded]         = useState({});
+  const [toast,            setToast]            = useState({ show: false, msg: '' });
+  const [activeTab,        setActiveTab]        = useState('boardings');
+  const [showReviewModal,  setShowReviewModal]  = useState(false);
+  const [showAllReviews,   setShowAllReviews]   = useState(false);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [ownerUser,        setOwnerUser]        = useState(null);
+
+  // ── Edit / Delete review ──────────────────────────────────────────────
+  const [editingReview,       setEditingReview]       = useState(null);
+  const [deletingReviewId,    setDeletingReviewId]    = useState(null);
+  const [reviewActionLoading, setReviewActionLoading] = useState(false);
+
+  const dropdownRef   = useRef(null);
+  const actionMenuRef = useRef(null);
+  const toastTimer    = useRef(null);
+
+  const userId     = localStorage.getItem('CurrentUserId');
+  const isLoggedIn = !!userId;
+  const userRole   = currentUser?.role ?? null;
+  const isStudent  = userRole === 'student';
+  const isHost     = userRole === 'host';
+
+  // ── Fetch current user ────────────────────────────────────────────────
   useEffect(() => {
-    if (!id) return;
+    if (!userId) return;
+    fetch(`${API_BASE}/User/${userId}`)
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(raw => {
+        const user = unwrap(raw);
+        setCurrentUser(user);
+        const photoId = user?.profileImage ?? null;
+        if (photoId) setUserAvatarSrc(`${API_BASE}/Photo/${photoId}`);
+        setReviews(prev => prev.map(r => {
+          const reviewerId = r.reviewer?._id ?? r.reviewer;
+          if (String(reviewerId) !== String(userId)) return r;
+          let photoUrl = photoId ? `${API_BASE}/Photo/${photoId}` : r.reviewer?._profilePhotoUrl ?? null;
+          return {
+            ...r,
+            reviewer: {
+              ...(typeof r.reviewer === 'object' ? r.reviewer : {}),
+              _id: userId, name: user?.name ?? 'Guest',
+              createdAt: user?.createdAt, _profilePhotoUrl: photoUrl,
+            },
+          };
+        }));
+      })
+      .catch(() => { setCurrentUser(null); setUserAvatarSrc(null); });
+  }, []);
+
+  // ── Fetch accommodation ───────────────────────────────────────────────
+  useEffect(() => {
+    if (!id) { setLoading(false); return; }
     setLoading(true);
     fetch(`${API_BASE}/Accommodation/${id}`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(async raw => {
         const data = unwrap(raw);
-
-        // FIX: populate host + reviews before setting state
         await populateAccommodation(data);
-
         setAcc(data);
+        setLiveRatingAvg(data.ratingAverage ?? 0);
+        setLiveRatingCount(data.ratingCount ?? 0);
 
-        // Load image blobs
+        const reviewList = (data.reviews ?? []).map(r => ({
+          ...r,
+          reviewer: {
+            ...(typeof r.reviewer === 'object' ? r.reviewer : {}),
+            _id: typeof r.reviewer === 'object' ? r.reviewer?._id : r.reviewer,
+            name: typeof r.reviewer === 'object' ? r.reviewer?.name : 'Guest',
+            createdAt: typeof r.reviewer === 'object' ? r.reviewer?.createdAt : null,
+          },
+        }));
+        const sorted = [...reviewList].sort((a, b) => new Date(b.createdAt ?? 0) - new Date(a.createdAt ?? 0));
+        setReviews(sorted);
+        if (sorted.length) {
+          const { avg, count } = calcRatingStats(sorted);
+          setLiveRatingAvg(avg);
+          setLiveRatingCount(count);
+        }
+
+        const ownerId = data.host?._id ?? data.host;
+        if (ownerId) {
+          fetch(`${API_BASE}/User/${ownerId}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(raw2 => { if (raw2) setOwnerUser(unwrap(raw2)); })
+            .catch(() => {});
+        }
+
+        // Load images
         const imgIds = data.images ?? [];
         const loaded = await Promise.all(
           imgIds.map(async imgId => {
@@ -234,186 +444,397 @@ const AccommodationDetails = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
-  // ── Close dropdown on outside click ───────────────────────────────────
+  // ── Outside click ─────────────────────────────────────────────────────
   useEffect(() => {
     const h = e => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target))
-        setShowDropdown(false);
+      if (dropdownRef.current   && !dropdownRef.current.contains(e.target))   setShowDropdown(false);
+      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target)) setShowActionMenu(false);
     };
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  // ── Gallery helpers ───────────────────────────────────────────────────
+  // ── Toast ─────────────────────────────────────────────────────────────
+  const showToast = msg => {
+    setToast({ show: true, msg });
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast({ show: false, msg: '' }), 2400);
+  };
+
+  // ── Logout ────────────────────────────────────────────────────────────
+  const handleLogoutConfirm = () => {
+    localStorage.removeItem('CurrentUserId');
+    setShowDropdown(false);
+    setShowLogoutModal(false);
+    navigate('/Login');
+  };
+
+  const handleProtectedClick = cb => {
+    if (!isLoggedIn || !isStudent) {
+      setShowDropdown(false);
+      setShowLoginRequired(true);
+      return;
+    }
+    setShowDropdown(false);
+    cb?.();
+  };
+
+  // ── Gallery ───────────────────────────────────────────────────────────
   const displayImages = images.length > 0
     ? images
     : ['https://via.placeholder.com/800x500?text=No+Image'];
-
   const prevImg = () => setActiveImg(p => (p - 1 + displayImages.length) % displayImages.length);
   const nextImg = () => setActiveImg(p => (p + 1) % displayImages.length);
 
-  // ── Host avatar src ───────────────────────────────────────────────────
-  // FIX: User model uses `profileImage`, not `avatar`
-  const hostAvatar = (host) => {
-    if (!host) return null;
-    const img = host.profileImage ?? host.avatar; // profileImage is the correct field
-    if (img) return img.startsWith('http') ? img : photoSrc(img);
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(host.name ?? 'Host')}&background=FF385C&color=fff&size=128`;
+  // ── Reviews ───────────────────────────────────────────────────────────
+  const handleWriteReviewClick = () => {
+    if (!isLoggedIn || !isStudent) { setShowLoginRequired(true); return; }
+    setShowReviewModal(true);
   };
 
-  // ── Loading / error guards ────────────────────────────────────────────
-  if (loading) return (
-    <div className="acd-page">
-      <NavBar navigate={navigate} showDropdown={showDropdown}
-        setShowDropdown={setShowDropdown} dropdownRef={dropdownRef} />
-      <PageSkeleton />
-    </div>
-  );
+  const handleReviewSubmit = async ({ stars, text }) => {
+    setReviewSubmitting(true);
+    try {
+      const raw   = await apiPost('/review', { reviewer: userId, accommodation: id, rating: stars, comment: text });
+      const saved = unwrap(raw);
+      let photoUrl = null;
+      if (currentUser?.profileImage) {
+        photoUrl = /^[a-f\d]{24}$/i.test(currentUser.profileImage)
+          ? photoSrc(currentUser.profileImage) : currentUser.profileImage;
+      }
+      const newReview = {
+        ...saved,
+        _id: saved._id ?? Date.now().toString(),
+        reviewer: { _id: userId, name: currentUser?.name ?? 'You', createdAt: currentUser?.createdAt, _profilePhotoUrl: photoUrl },
+        rating: stars, comment: text,
+        createdAt: saved.createdAt ?? new Date().toISOString(),
+        isNew: true,
+      };
+      setReviews(prev => {
+        const updated = [newReview, ...prev];
+        const { avg, count } = calcRatingStats(updated);
+        setLiveRatingAvg(avg); setLiveRatingCount(count);
+        return updated;
+      });
+      setShowReviewModal(false);
+      showToast('Thanks for your review!');
+    } catch { showToast('Failed to submit — please try again.'); }
+    finally { setReviewSubmitting(false); }
+  };
 
-  if (error || !acc) return (
-    <div className="acd-page">
-      <NavBar navigate={navigate} showDropdown={showDropdown}
-        setShowDropdown={setShowDropdown} dropdownRef={dropdownRef} />
-      <div className="acd-error-block">
-        <div className="acd-error-icon">⚠️</div>
-        <p className="acd-error-msg">{error || 'Accommodation not found.'}</p>
-        <button className="acd-error-btn" onClick={() => navigate('/Boardings')}>
-          ← Back to Boardings
-        </button>
-      </div>
-    </div>
-  );
+  const handleEditReviewSubmit = async ({ stars, text }) => {
+    if (!editingReview) return;
+    setReviewActionLoading(true);
+    try {
+      await apiPut(`/review/${editingReview._id}`, { rating: stars, comment: text });
+      setReviews(prev => {
+        const updated = prev.map(r => r._id === editingReview._id ? { ...r, rating: stars, comment: text } : r);
+        const { avg, count } = calcRatingStats(updated);
+        setLiveRatingAvg(avg); setLiveRatingCount(count);
+        return updated;
+      });
+      setEditingReview(null);
+      showToast('Review updated.');
+    } catch { showToast('Failed to update — please try again.'); }
+    finally { setReviewActionLoading(false); }
+  };
+
+  const handleDeleteReviewConfirm = async () => {
+    if (!deletingReviewId) return;
+    setReviewActionLoading(true);
+    try {
+      await apiDelete(`/review/${deletingReviewId}`);
+      setReviews(prev => {
+        const updated = prev.filter(r => r._id !== deletingReviewId);
+        const { avg, count } = calcRatingStats(updated);
+        setLiveRatingAvg(avg); setLiveRatingCount(count);
+        return updated;
+      });
+      setDeletingReviewId(null);
+      showToast('Review deleted.');
+    } catch { showToast('Failed to delete — please try again.'); }
+    finally { setReviewActionLoading(false); }
+  };
 
   // ── Derived ───────────────────────────────────────────────────────────
-  const rating    = acc.ratingAverage   ?? 0;
-  const rateCount = acc.ratingCount     ?? 0;
-  const amenities = acc.amenities       ?? [];
-  const reviews   = acc.reviews         ?? [];
-  const rbd       = acc.ratingBreakdown ?? {};
+  const hostBtnLabel  = !isLoggedIn ? 'Login' : isHost ? 'Host Page' : null;
+  const hostBtnAction = () => navigate(!isLoggedIn ? '/Login' : '/Listings');
 
-  // ── Host derived fields ───────────────────────────────────────────────
-  // FIX: map populated User fields to what the template expects
-  const host = acc.host
+  const host = acc?.host
     ? {
         ...acc.host,
-        // `joinedYear` doesn't exist on User — derive it from `createdAt`
-        joinedYear:    acc.host.createdAt ? new Date(acc.host.createdAt).getFullYear() : null,
-        // `isSuperhost` doesn't exist on User — derive from `stats` or `role`
-        isSuperhost:   acc.host.stats?.isSuperhost ?? (acc.host.role === 'superhost') ?? false,
-        // `totalReviews` lives under `stats` on the User model
-        totalReviews:  acc.host.stats?.totalReviews ?? null,
+        joinedYear:   acc.host.createdAt ? new Date(acc.host.createdAt).getFullYear() : null,
+        isSuperhost:  acc.host.stats?.isSuperhost ?? false,
+        totalReviews: acc.host.stats?.totalReviews ?? null,
       }
     : null;
 
+  const hostAvatarSrc = host
+    ? (() => {
+        const img = host.profileImage ?? host.avatar;
+        if (img) return img.startsWith('http') ? img : photoSrc(img);
+        return null;
+      })()
+    : null;
+
+  const previewReviews = reviews.slice(0, 4);
+
+  // ── Guards ────────────────────────────────────────────────────────────
+  if (error) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16, fontFamily: FONT }}>
+        <FaExclamationTriangle style={{ fontSize: 40, color: ORANGE }} />
+        <div style={{ fontSize: 18, fontWeight: 700 }}>Failed to load</div>
+        <div style={{ fontSize: 14, color: '#757575' }}>{error}</div>
+        <button onClick={() => window.location.reload()} style={{ padding: '10px 24px', background: ORANGE, color: '#fff', border: 'none', borderRadius: 10, fontFamily: FONT, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Retry</button>
+      </div>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // RENDER
   // ─────────────────────────────────────────────────────────────────────
   return (
-    <div className="acd-page">
+    <div style={{ fontFamily: FONT, background: '#fff', color: '#1b1b1b', fontSize: 14, lineHeight: 1.5 }}>
 
-      <NavBar navigate={navigate} showDropdown={showDropdown}
-        setShowDropdown={setShowDropdown} dropdownRef={dropdownRef} />
-
-      <main className="acd-main">
-
-        {/* ── Title row ── */}
-        <div className="acd-title-row">
-          <h1 className="acd-title">{acc.title}</h1>
-          <div className="acd-title-actions">
-            <button className="acd-action-btn"
-              onClick={() => navigator.clipboard?.writeText(window.location.href)}>
-              <FaShare size={14} /> Share
+      {/* ══ NAVBAR ══ */}
+      <nav className="acd-nav">
+        <div className="acd-nav__left">
+          <a href="/" className="acd-nav__logo"><FaAirbnb /> Bodima</a>
+        </div>
+        <div className="acd-nav__tabs">
+          {[
+            { key: 'boardings',    label: 'Boardings',      href: '/Boardings'    },
+            { key: 'food',         label: 'Food Services',  href: '/FoodServices' },
+            { key: 'orders',       label: 'Orders',         href: '/Orders'       },
+          ].map(({ key, label, href }) => (
+            <a key={key} href={href}
+              className={`acd-nav__tab${activeTab === key ? ' acd-nav__tab--active' : ''}`}
+              onClick={() => setActiveTab(key)}>
+              {label}
+              {activeTab === key && <span className="acd-nav__tab-underline" />}
+            </a>
+          ))}
+        </div>
+        <div className="acd-nav__right">
+          {hostBtnLabel && (
+            <button className="acd-nav__host-btn" style={{ fontFamily: FONT }} onClick={hostBtnAction}>
+              {hostBtnLabel}
             </button>
+          )}
+          <div className="acd-nav__avatar">
+            {userAvatarSrc
+              ? <img src={userAvatarSrc} alt="Profile" className="acd-nav__avatar-img" onError={() => setUserAvatarSrc(null)} />
+              : <FaUser className="acd-nav__avatar-icon" />}
+          </div>
+          <div ref={dropdownRef} className="acd-dropdown">
+            <div className="acd-nav__icon-btn" onClick={() => setShowDropdown(p => !p)}><FaBars /></div>
+            {showDropdown && (
+              <div className="acd-dropdown__menu">
+                {isLoggedIn && currentUser && (
+                  <>
+                    <div className="acd-dropdown__user">
+                      <span className="acd-dropdown__username">{currentUser.name ?? 'User'}</span>
+                      <span className="acd-dropdown__email">{currentUser.email ?? ''}</span>
+                      <span className={`acd-dropdown__role acd-dropdown__role--${userRole}`}>{userRole}</span>
+                    </div>
+                    <div className="acd-dropdown__divider" />
+                  </>
+                )}
+                {(isStudent || isHost) && (
+                  <div className="acd-dropdown__item" onClick={() => { setShowDropdown(false); navigate('/Profile'); }}>
+                    <FaUser style={{ opacity: 0.7 }} /> Profile
+                  </div>
+                )}
+                {!isLoggedIn && (
+                  <>
+                    <div className="acd-dropdown__item" onClick={() => handleProtectedClick()}><FaUser style={{ opacity: 0.7 }} /> Profile</div>
+                    <div className="acd-dropdown__item" onClick={() => handleProtectedClick()}><FaEnvelope style={{ opacity: 0.7 }} /> Messages</div>
+                  </>
+                )}
+                {isStudent && (
+                  <div className="acd-dropdown__item" onClick={() => { setShowDropdown(false); navigate('/Messages'); }}>
+                    <FaEnvelope style={{ opacity: 0.7 }} /> Messages
+                  </div>
+                )}
+                {isLoggedIn && (isStudent || isHost) && (
+                  <>
+                    <div className="acd-dropdown__divider" />
+                    <div className="acd-dropdown__item acd-dropdown__item--danger"
+                      onClick={() => { setShowDropdown(false); setShowLogoutModal(true); }}>
+                      <FaSignOutAlt style={{ opacity: 0.7 }} /> Logout
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      {/* ══ HERO ══ */}
+      <div style={{ padding: '0 24px' }}>
+        <div className="acd-hero">
+          {displayImages[0] && displayImages[0] !== 'https://via.placeholder.com/800x500?text=No+Image'
+            ? <img src={displayImages[0]} alt="banner"
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }} />
+            : <><div className="acd-hero__dots" /><div className="acd-hero__gradient" /></>}
+        </div>
+      </div>
+
+      {/* ══ WRAPPER ══ */}
+      <div className="acd-wrapper">
+
+        {/* Accommodation header */}
+        <div className="acd-listing-header">
+          <div className="acd-listing-header__logo">
+            {displayImages[0] && displayImages[0] !== 'https://via.placeholder.com/800x500?text=No+Image'
+              ? <img src={displayImages[0]} alt="icon"
+                  style={{ width: '100%', height: '100%', borderRadius: 10, objectFit: 'cover' }} />
+              : '🏠'}
+          </div>
+
+          <div className="acd-listing-header__info">
+            {loading
+              ? <><Skeleton h={32} w="60%" mb={10} /><Skeleton h={16} w="80%" mb={12} /><Skeleton h={16} w="40%" /></>
+              : <>
+                  <h1 className="acd-listing-header__title">{acc?.title ?? 'Loading…'}</h1>
+                  <div className="acd-listing-header__meta">
+                    <span style={{ fontWeight: 600, color: '#1b1b1b' }}>⭐ {liveRatingAvg.toFixed(1)}</span>
+                    {[`(${liveRatingCount} ratings)`, acc?.type ?? acc?.roomType].filter(Boolean).map(t => (
+                      <span key={t} style={{ display: 'contents' }}>
+                        <span style={{ color: '#ccc' }}>•</span><span>{t}</span>
+                      </span>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+                    {acc?.maxGuests && (
+                      <span className="acd-listing-header__badge"><FaUsers style={{ fontSize: 12 }} /> {acc.maxGuests} guest{acc.maxGuests !== 1 ? 's' : ''}</span>
+                    )}
+                    {acc?.bedrooms && (
+                      <span className="acd-listing-header__badge"><FaBed style={{ fontSize: 12 }} /> {acc.bedrooms} bedroom{acc.bedrooms !== 1 ? 's' : ''}</span>
+                    )}
+                    {acc?.bathrooms && (
+                      <span className="acd-listing-header__badge"><FaBath style={{ fontSize: 12 }} /> {acc.bathrooms} bath{acc.bathrooms !== 1 ? 's' : ''}</span>
+                    )}
+                    {acc?.genderPolicy && (
+                      <span className="acd-listing-header__badge"><FaUsers style={{ fontSize: 12 }} /> {acc.genderPolicy}</span>
+                    )}
+                  </div>
+                  {acc?.address && <div className="acd-listing-header__address"><FaMapMarkerAlt style={{ fontSize: 12 }} /> {acc.address}</div>}
+                  {acc?.description && <div style={{ fontSize: 13, color: '#757575', marginTop: 6 }}>{acc.description}</div>}
+                </>}
+          </div>
+
+          <div className="acd-listing-header__actions">
             <button
               className={`acd-action-btn${isSaved ? ' acd-action-btn--saved' : ''}`}
-              onClick={() => setIsSaved(p => !p)}>
-              {isSaved ? <FaHeart size={14} /> : <FaRegHeart size={14} />} Save
+              onClick={() => { setIsSaved(p => !p); showToast(isSaved ? 'Removed from saved' : 'Saved to wishlist!'); }}>
+              {isSaved ? <FaHeart style={{ color: ORANGE, fontSize: 16 }} /> : <FaRegHeart style={{ color: '#444', fontSize: 16 }} />}
             </button>
-          </div>
-        </div>
 
-        {/* ── Gallery ── */}
-        <div className="acd-gallery">
-          <div className="acd-gallery__main">
-            <img src={displayImages[activeImg]} alt="Accommodation"
-              className="acd-gallery__main-img"
-              onError={e => { e.target.src = 'https://via.placeholder.com/800x500?text=No+Image'; }} />
-            {displayImages.length > 1 && <>
-              <button className="acd-gallery__nav acd-gallery__nav--prev" onClick={prevImg}>‹</button>
-              <button className="acd-gallery__nav acd-gallery__nav--next" onClick={nextImg}>›</button>
-            </>}
-            <div className="acd-gallery__counter">
-              {activeImg + 1} / {displayImages.length}
-            </div>
-          </div>
-          {displayImages.length > 1 && (
-            <div className="acd-gallery__thumbs">
-              {displayImages.slice(0, 4).map((src, i) => (
-                <div key={i}
-                  className={`acd-gallery__thumb${i === activeImg ? ' acd-gallery__thumb--active' : ''}`}
-                  onClick={() => setActiveImg(i)}>
-                  <img src={src} alt={`thumb ${i + 1}`}
-                    onError={e => { e.target.src = 'https://via.placeholder.com/200x140?text=N/A'; }} />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ── Content grid ── */}
-        <div className="acd-content-grid">
-
-          {/* ════ LEFT COLUMN ════ */}
-          <div className="acd-left">
-
-            {/* Room info */}
-            <section className="acd-section acd-section--room">
-              <h2 className="acd-section__title">
-                {acc.type ?? acc.roomType ?? 'Room'} · {acc.address}
-              </h2>
-              <div className="acd-specs">
-                {acc.maxGuests && <><span><FaUsers /> {acc.maxGuests} guest{acc.maxGuests !== 1 ? 's' : ''}</span><span className="acd-dot">·</span></>}
-                {acc.bedrooms  && <><span><FaBed />   {acc.bedrooms}  bedroom{acc.bedrooms !== 1 ? 's' : ''}</span><span className="acd-dot">·</span></>}
-                {acc.beds      && <><span><FaBed />   {acc.beds}      bed{acc.beds !== 1 ? 's' : ''}</span><span className="acd-dot">·</span></>}
-                {acc.bathrooms && <span><FaBath />    {acc.bathrooms} bath{acc.bathrooms !== 1 ? 's' : ''}</span>}
-              </div>
-            </section>
-
-            {/* Rating banner */}
-            {rating > 0 && (
-              <section className="acd-section acd-rating-banner">
-                <div className="acd-rating-banner__left">
-                  <span className="acd-rating-banner__crown">👑</span>
-                  <div>
-                    <strong>Guest favourite</strong>
-                    <p>One of the most loved homes on Bodima</p>
+            <div ref={actionMenuRef} style={{ position: 'relative' }}>
+              <button className="acd-action-btn" onClick={() => setShowActionMenu(p => !p)}>
+                <FaEllipsisH style={{ color: '#444', fontSize: 15 }} />
+              </button>
+              {showActionMenu && (
+                <div className="acd-action-dropdown">
+                  <div className="acd-action-dropdown__host">
+                    <div className="acd-action-dropdown__host-avatar">
+                      {hostAvatarSrc
+                        ? <img src={hostAvatarSrc} alt="host"
+                            style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                            onError={e => { e.currentTarget.style.display = 'none'; }} />
+                        : <FaUserCircle style={{ fontSize: 36, color: '#bbb' }} />}
+                    </div>
+                    <div>
+                      <div className="acd-action-dropdown__host-label">Hosted by</div>
+                      <div className="acd-action-dropdown__host-name">{host?.name ?? ownerUser?.name ?? 'Host'}</div>
+                      <div className="acd-action-dropdown__host-since">
+                        {host?.joinedYear ? `Member since ${host.joinedYear}` : 'Bodima Host'}
+                      </div>
+                    </div>
                   </div>
+                  <div className="acd-action-dropdown__divider" />
+                  <button className="acd-action-dropdown__item acd-action-dropdown__item--primary"
+                    onClick={() => {
+                      setShowActionMenu(false);
+                      if (!isLoggedIn || !isStudent) { setShowLoginRequired(true); return; }
+                      showToast('Opening messages…');
+                    }}>
+                    <FaCommentAlt style={{ fontSize: 13 }} /> Message Host
+                  </button>
+                  <button className="acd-action-dropdown__item"
+                    onClick={() => { setShowActionMenu(false); }}>
+                    <FaUserCircle style={{ fontSize: 14 }} /> View Host Profile
+                  </button>
+                  <div className="acd-action-dropdown__divider" />
+                  <button className="acd-action-dropdown__item"
+                    onClick={() => { setShowActionMenu(false); navigator.clipboard?.writeText(window.location.href); showToast('Link copied!'); }}>
+                    <FaShare style={{ fontSize: 13 }} /> Share this listing
+                  </button>
+                  <button className="acd-action-dropdown__item acd-action-dropdown__item--danger"
+                    onClick={() => {
+                      setShowActionMenu(false);
+                      if (!isLoggedIn) { setShowLoginRequired(true); return; }
+                      showToast('Report submitted. Thank you.');
+                    }}>
+                    <FaFlag style={{ fontSize: 13 }} /> Report
+                  </button>
                 </div>
-                <div className="acd-rating-banner__right">
-                  <Stars rating={rating} size={16} />
-                  <span className="acd-rating-banner__num">{rating.toFixed(2)}</span>
-                  <span className="acd-rating-banner__count">{rateCount} Review{rateCount !== 1 ? 's' : ''}</span>
-                </div>
-              </section>
-            )}
+              )}
+            </div>
+          </div>
+        </div>
 
-            {/* Description */}
-            {acc.description && (
-              <section className="acd-section">
-                <h3 className="acd-section__subtitle">About this place</h3>
-                <p className="acd-desc">{acc.description}</p>
-              </section>
-            )}
+        <div className="acd-divider" />
+
+        {/* ══ 2-COLUMN BODY ══ */}
+        <div className="acd-body-grid">
+
+          {/* Left: Gallery + Info */}
+          <main>
+            {/* Gallery */}
+            {loading
+              ? <Skeleton h={400} radius={12} mb={32} />
+              : (
+                <div className="acd-gallery">
+                  <div className="acd-gallery__main">
+                    <img src={displayImages[activeImg]} alt="Accommodation"
+                      className="acd-gallery__main-img"
+                      onError={e => { e.target.src = 'https://via.placeholder.com/800x500?text=No+Image'; }} />
+                    {displayImages.length > 1 && <>
+                      <button className="acd-gallery__nav acd-gallery__nav--prev" onClick={prevImg}><FaChevronLeft /></button>
+                      <button className="acd-gallery__nav acd-gallery__nav--next" onClick={nextImg}><FaChevronRight /></button>
+                    </>}
+                    <div className="acd-gallery__counter">{activeImg + 1} / {displayImages.length}</div>
+                  </div>
+                  {displayImages.length > 1 && (
+                    <div className="acd-gallery__thumbs">
+                      {displayImages.slice(0, 5).map((src, i) => (
+                        <div key={i}
+                          className={`acd-gallery__thumb${i === activeImg ? ' acd-gallery__thumb--active' : ''}`}
+                          onClick={() => setActiveImg(i)}>
+                          <img src={src} alt={`thumb ${i + 1}`}
+                            onError={e => { e.target.src = 'https://via.placeholder.com/200x140?text=N/A'; }} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
             {/* Amenities */}
-            {amenities.length > 0 && (
-              <section className="acd-section">
-                <h3 className="acd-section__subtitle">What this place offers</h3>
-                <div className="acd-amenities">
-                  {amenities.map((a, i) => {
+            {!loading && (acc?.amenities ?? []).length > 0 && (
+              <section className="acd-amenities-section">
+                <div className="acd-amenities-section__title">What this place offers</div>
+                <div className="acd-amenities-grid">
+                  {(acc?.amenities ?? []).map((a, i) => {
                     const label = typeof a === 'string' ? a : (a.name ?? String(a));
                     const Icon  = amenityIcon(label);
                     return (
-                      <div key={i} className="acd-amenity">
-                        <Icon className="acd-amenity__icon" />
+                      <div key={i} className="acd-amenity-item">
+                        <Icon className="acd-amenity-item__icon" />
                         <span>{label}</span>
                       </div>
                     );
@@ -422,253 +843,284 @@ const AccommodationDetails = () => {
               </section>
             )}
 
-            {/* ── HOST PROFILE ── */}
-            {host && (
-              <section className="acd-section acd-host-section">
-                <h3 className="acd-section__subtitle">Hosted by</h3>
+            {/* Host profile card */}
+            {!loading && host && (
+              <section className="acd-host-section">
+                <div className="acd-host-section__title">Hosted by</div>
                 <div className="acd-host-card">
-                  <div className="acd-host-card__left">
-                    <div className="acd-host-card__avatar-wrap">
-                      <img
-                        src={hostAvatar(host)}
-                        alt={host.name ?? 'Host'}
-                        className="acd-host-card__avatar"
-                        onError={e => {
-                          e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(host.name ?? 'Host')}&background=FF385C&color=fff&size=128`;
-                        }}
-                      />
-                      {host.isSuperhost && (
-                        <span className="acd-host-card__badge" title="Superhost">🏅</span>
-                      )}
-                    </div>
-                    <div className="acd-host-card__info">
-                      <p className="acd-host-card__name">{host.name}</p>
-                      <p className="acd-host-card__sub">
-                        {host.isSuperhost && <span className="acd-host-card__superhost">Superhost · </span>}
-                        {/* FIX: derived from createdAt, not a missing joinedYear field */}
-                        {host.joinedYear ? `Joined ${host.joinedYear}` : ''}
-                      </p>
-                      {/* FIX: totalReviews from host.stats.totalReviews */}
-                      {(host.totalReviews ?? rateCount) > 0 && (
-                        <p className="acd-host-card__reviews">
-                          {host.totalReviews ?? rateCount} reviews
-                        </p>
-                      )}
-                    </div>
+                  <div className="acd-host-card__avatar-wrap">
+                    {hostAvatarSrc
+                      ? <img src={hostAvatarSrc} alt={host.name ?? 'Host'} className="acd-host-card__avatar"
+                          onError={e => { e.currentTarget.style.display = 'none'; }} />
+                      : <div className="acd-host-card__avatar-placeholder">
+                          {(host.name ?? 'H')[0].toUpperCase()}
+                        </div>}
+                    {host.isSuperhost && <span className="acd-host-card__badge">🏅</span>}
                   </div>
-                  <button className="acd-host-card__btn">
+                  <div className="acd-host-card__info">
+                    <div className="acd-host-card__name">{host.name}</div>
+                    <div className="acd-host-card__sub">
+                      {host.isSuperhost && <span className="acd-host-card__superhost">Superhost · </span>}
+                      {host.joinedYear ? `Joined ${host.joinedYear}` : ''}
+                    </div>
+                    {(host.totalReviews ?? liveRatingCount) > 0 && (
+                      <div className="acd-host-card__reviews">{host.totalReviews ?? liveRatingCount} reviews</div>
+                    )}
+                  </div>
+                  <button className="acd-host-card__btn" onClick={() => {
+                    if (!isLoggedIn || !isStudent) { setShowLoginRequired(true); return; }
+                    showToast('Opening messages…');
+                  }}>
                     <FaEnvelope style={{ marginRight: 7, fontSize: 13 }} /> Contact host
                   </button>
                 </div>
               </section>
             )}
+          </main>
 
-            {/* ── REVIEWS ── */}
-            {(rating > 0 || reviews.length > 0) && (
-              <section className="acd-section acd-reviews">
-
-                {/* Header */}
-                <div className="acd-reviews__header">
-                  <Stars rating={rating} size={17} />
-                  <span className="acd-reviews__rating">{rating.toFixed(2)}</span>
-                  <span className="acd-reviews__count">· {rateCount} reviews</span>
-                </div>
-
-                {/* Rating breakdown */}
-                <div className="acd-reviews__breakdown">
-                  <div className="acd-reviews__bars">
-                    <p className="acd-reviews__bars-title">Overall rating</p>
-                    {[5, 4, 3, 2, 1].map(num => (
-                      <div key={num} className="acd-bar-row">
-                        <span className="acd-bar-num">{num}</span>
-                        <div className="acd-bar-track">
-                          <div className="acd-bar-fill"
-                            style={{ width: `${(rateCount > 0 ? Math.min(num / 5, 1) : num === Math.round(rating) ? 0.8 : 0.1) * 100}%` }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="acd-reviews__cats">
-                    {[
-                      { label: 'Cleanliness',   value: rbd.cleanliness   ?? rating, icon: '🧹' },
-                      { label: 'Accuracy',      value: rbd.accuracy      ?? rating, icon: '✓'  },
-                      { label: 'Check-in',      value: rbd.checkIn       ?? rating, icon: '🔍' },
-                      { label: 'Communication', value: rbd.communication ?? rating, icon: '💬' },
-                      { label: 'Location',      value: rbd.location      ?? rating, icon: '🏢' },
-                      { label: 'Value',         value: rbd.value         ?? rating, icon: '💵' },
-                    ].map((cat, i) => (
-                      <div key={i} className="acd-cat-item">
-                        <span className="acd-cat-icon">{cat.icon}</span>
-                        <div>
-                          <p className="acd-cat-label">{cat.label}</p>
-                          <p className="acd-cat-val">{Number(cat.value).toFixed(1)}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Guest review cards */}
-                {reviews.length > 0 && (
-                  <div className="acd-reviews__grid">
-                    {reviews.map((rev, i) => {
-                      // FIX: reviewer is now a populated User object, not a flat review object.
-                      // Pull name/avatar from rev.reviewer (User), not from rev directly.
-                      const reviewer  = rev.reviewer;
-                      const revName   = (typeof reviewer === 'object' ? reviewer?.name : null) ?? 'Guest';
-                      const revImgRaw = typeof reviewer === 'object'
-                        ? (reviewer?.profileImage ?? reviewer?.avatar)
-                        : null;
-                      const revAvatar = revImgRaw
-                        ? (revImgRaw.startsWith('http') ? revImgRaw : photoSrc(revImgRaw))
-                        : `https://ui-avatars.com/api/?name=${encodeURIComponent(revName)}&background=ebebeb&color=222&size=96`;
-
-                      // FIX: date comes from rev.createdAt, not a missing rev.date field
-                      const revDate = rev.createdAt
-                        ? new Date(rev.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-                        : (rev.date ?? '');
-
-                      // FIX: location comes from reviewer.address, not rev.location
-                      const revLocation = typeof reviewer === 'object' ? reviewer?.address : null;
-
-                      return (
-                        <div key={i} className="acd-review-card">
-                          <div className="acd-review-card__head">
-                            <img src={revAvatar} alt={revName}
-                              className="acd-review-card__avatar"
-                              onError={e => { e.target.src = 'https://ui-avatars.com/api/?name=U&background=ebebeb&color=222'; }} />
-                            <div>
-                              <p className="acd-review-card__name">{revName}</p>
-                              <p className="acd-review-card__meta">{revLocation ?? ''}</p>
-                            </div>
-                          </div>
-                          <div className="acd-review-card__meta-row">
-                            <Stars rating={rev.rating ?? 5} size={11} />
-                            <span className="acd-review-card__date">{revDate}</span>
-                          </div>
-                          <p className={`acd-review-card__text${expandedRev[i] ? ' acd-review-card__text--expanded' : ''}`}>
-                            {rev.comment}
-                          </p>
-                          <button className="acd-review-card__toggle"
-                            onClick={() => setExpandedRev(p => ({ ...p, [i]: !p[i] }))}>
-                            {expandedRev[i] ? 'Show less' : 'Show more'}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                <button className="acd-show-all-btn">Show all reviews</button>
-              </section>
-            )}
-
-          </div>{/* end acd-left */}
-
-          {/* ════ RIGHT COLUMN ════ */}
-          <div className="acd-right">
-
-            {/* Booking card */}
+          {/* Booking sidebar */}
+          <aside className="acd-booking-sidebar">
             <div className="acd-booking-card">
               <div className="acd-booking-card__price-row">
-                {acc.pricePerMonth
+                {acc?.pricePerMonth
                   ? <>
                       <span className="acd-booking-card__price">Rs {acc.pricePerMonth?.toLocaleString()}</span>
                       <span className="acd-booking-card__per"> / month</span>
                     </>
-                  : <span className="acd-booking-card__price-label">Add dates for prices</span>}
+                  : loading
+                    ? <Skeleton h={28} w="60%" />
+                    : <span className="acd-booking-card__price-label">Add dates for prices</span>}
               </div>
 
-              <div className="acd-booking-card__dates">
-                <div className="acd-booking-card__date-field">
-                  <label>CHECK-IN</label>
-                  <input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)} />
+              {!loading && <>
+                <div className="acd-booking-card__rating">
+                  <span style={{ fontWeight: 700, fontSize: 14 }}>⭐ {liveRatingAvg.toFixed(1)}</span>
+                  <span style={{ color: '#757575', fontSize: 13 }}>({liveRatingCount} reviews)</span>
                 </div>
-                <div className="acd-booking-card__date-field">
-                  <label>CHECK-OUT</label>
-                  <input type="date" value={checkOut} onChange={e => setCheckOut(e.target.value)} />
-                </div>
-              </div>
 
-              <div className="acd-booking-card__guests">
-                <label>GUESTS</label>
-                <div className="acd-booking-card__guests-row">
-                  <input type="number" min="1" max={acc.maxGuests ?? 10}
-                    value={guests} onChange={e => setGuests(parseInt(e.target.value) || 1)} />
-                  <FaChevronDown size={13} />
-                </div>
-              </div>
-
-              <button className="acd-booking-card__btn">Book Now</button>
-              <p className="acd-booking-card__note">You won't be charged yet</p>
-
-              {acc.pricePerMonth && (
-                <div className="acd-booking-card__breakdown">
-                  <div className="acd-booking-card__breakdown-row">
-                    <span>Rs {acc.pricePerMonth?.toLocaleString()} × 1 month</span>
-                    <span>Rs {acc.pricePerMonth?.toLocaleString()}</span>
+                <div className="acd-booking-card__dates">
+                  <div className="acd-booking-card__date-field">
+                    <label><FaCalendarAlt style={{ marginRight: 4, fontSize: 10 }} />CHECK-IN</label>
+                    <input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)} />
                   </div>
-                  <div className="acd-booking-card__breakdown-row acd-booking-card__breakdown-row--total">
-                    <span>Total</span>
-                    <span>Rs {acc.pricePerMonth?.toLocaleString()}</span>
+                  <div className="acd-booking-card__date-field">
+                    <label><FaCalendarAlt style={{ marginRight: 4, fontSize: 10 }} />CHECK-OUT</label>
+                    <input type="date" value={checkOut} onChange={e => setCheckOut(e.target.value)} />
                   </div>
                 </div>
-              )}
+
+                <div className="acd-booking-card__guests">
+                  <label>GUESTS</label>
+                  <div className="acd-booking-card__guests-controls">
+                    <button className="acd-booking-card__qty-btn" onClick={() => setGuests(g => Math.max(1, g - 1))}>−</button>
+                    <span className="acd-booking-card__qty-val">{guests}</span>
+                    <button className="acd-booking-card__qty-btn" onClick={() => setGuests(g => Math.min(acc?.maxGuests ?? 10, g + 1))}>+</button>
+                  </div>
+                </div>
+
+                <button
+                  className="acd-booking-card__btn"
+                  style={{ fontFamily: FONT }}
+                  onClick={() => {
+                    if (!isLoggedIn || !isStudent) { setShowLoginRequired(true); return; }
+                    showToast('Booking flow coming soon!');
+                  }}>
+                  <span>Reserve now</span>
+                  {acc?.pricePerMonth && <span>Rs {acc.pricePerMonth?.toLocaleString()}</span>}
+                </button>
+                <p className="acd-booking-card__note">You won't be charged yet</p>
+
+                {acc?.pricePerMonth && (
+                  <div className="acd-booking-card__breakdown">
+                    <div className="acd-booking-card__breakdown-row">
+                      <span>Rs {acc.pricePerMonth?.toLocaleString()} × 1 month</span>
+                      <span>Rs {acc.pricePerMonth?.toLocaleString()}</span>
+                    </div>
+                    <div className="acd-booking-card__breakdown-row acd-booking-card__breakdown-row--total">
+                      <span>Total</span>
+                      <span>Rs {acc.pricePerMonth?.toLocaleString()}</span>
+                    </div>
+                  </div>
+                )}
+              </>}
             </div>
 
-            {/* Quick info card */}
-            <div className="acd-info-card">
-              {acc.genderPolicy && (
-                <div className="acd-info-card__row">
-                  <FaUsers className="acd-info-card__icon" />
-                  <span>Gender: <strong>{acc.genderPolicy}</strong></span>
+            {!loading && acc && (
+              <div className="acd-info-card">
+                {acc.genderPolicy && (
+                  <div className="acd-info-card__row">
+                    <FaUsers className="acd-info-card__icon" />
+                    <span>Gender: <strong>{acc.genderPolicy}</strong></span>
+                  </div>
+                )}
+                {acc.roomType && (
+                  <div className="acd-info-card__row">
+                    <FaBed className="acd-info-card__icon" />
+                    <span>Room type: <strong>{acc.roomType}</strong></span>
+                  </div>
+                )}
+                {acc.address && (
+                  <div className="acd-info-card__row">
+                    <FaMapMarkerAlt className="acd-info-card__icon" />
+                    <span>{acc.address}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </aside>
+        </div>
+      </div>
+
+      {/* ══ REVIEWS ══ */}
+      <section className="acd-reviews-section">
+        <div className="acd-wrapper">
+          <div className="acd-reviews-section__header">What guests are saying</div>
+          <div className="acd-reviews-section__rating-row">
+            {loading
+              ? <Skeleton h={48} w={80} radius={8} />
+              : <>
+                  <span className="acd-reviews-section__score">{liveRatingAvg.toFixed(1)}</span>
+                  <div>
+                    <div style={{ fontSize: 18 }}>
+                      {'★'.repeat(Math.round(liveRatingAvg))}{'☆'.repeat(5 - Math.round(liveRatingAvg))}
+                    </div>
+                    <div style={{ fontSize: 14, color: '#757575' }}>{liveRatingCount} ratings</div>
+                  </div>
+                </>}
+          </div>
+
+          <button className="acd-write-review-btn" style={{ fontFamily: FONT }} onClick={handleWriteReviewClick}>
+            <FaPen style={{ fontSize: 13 }} /> Write a Review
+          </button>
+
+          {loading
+            ? <div className="acd-reviews-section__grid">
+                {[1,2,3,4].map(i => (
+                  <div key={i} style={{ padding: '28px 0', paddingRight: i % 2 === 1 ? 40 : 0, paddingLeft: i % 2 === 0 ? 40 : 0 }}>
+                    <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+                      <Skeleton w={48} h={48} radius={24} />
+                      <div style={{ flex: 1 }}>
+                        <Skeleton h={16} w="50%" mb={6} /><Skeleton h={13} w="70%" />
+                      </div>
+                    </div>
+                    <Skeleton h={13} w="100%" mb={6} />
+                    <Skeleton h={13} w="85%" mb={6} />
+                    <Skeleton h={13} w="60%" />
+                  </div>
+                ))}
+              </div>
+            : reviews.length === 0
+              ? <div style={{ textAlign: 'center', padding: '40px 0', color: '#757575', fontSize: 15 }}>
+                  No reviews yet — be the first to share your experience!
                 </div>
-              )}
-              {acc.roomType && (
-                <div className="acd-info-card__row">
-                  <FaBed className="acd-info-card__icon" />
-                  <span>Room type: <strong>{acc.roomType}</strong></span>
+              : <div className="acd-reviews-section__grid">
+                  {(showAllReviews ? reviews : previewReviews).map((r, i) => {
+                    const reviewerId = r.reviewer?._id ?? r.reviewer;
+                    const isOwn = isLoggedIn && userId === reviewerId;
+                    return (
+                      <ReviewCard key={r._id ?? i} review={r} index={i}
+                        total={showAllReviews ? reviews.length : previewReviews.length}
+                        expanded={!!expanded[r._id ?? i]}
+                        onToggle={() => setExpanded(e => ({ ...e, [r._id ?? i]: !e[r._id ?? i] }))}
+                        isOwn={isOwn}
+                        onEdit={() => setEditingReview(r)}
+                        onDelete={() => setDeletingReviewId(r._id)}
+                      />
+                    );
+                  })}
+                </div>}
+
+          {reviews.length > 4 && (
+            <button className="acd-reviews-section__show-all-btn" style={{ fontFamily: FONT }}
+              onClick={() => setShowAllReviews(p => !p)}>
+              {showAllReviews ? 'Show less' : `Show all ${reviews.length} reviews`}
+            </button>
+          )}
+        </div>
+      </section>
+
+      {/* ══ MAP ══ */}
+      {!loading && acc?.location?.coordinates && (
+        <section className="acd-map-section">
+          <div className="acd-wrapper">
+            <div className="acd-map-section__title"><FaMapMarkerAlt style={{ color: ORANGE, marginRight: 6 }} /> Where you'll stay</div>
+            <div className="acd-map-section__address">{acc?.address}</div>
+            <div className="acd-map-section__container">
+              <iframe
+                className="acd-map-section__iframe"
+                src={`https://maps.google.com/maps?q=${acc.location.coordinates[1]},${acc.location.coordinates[0]}&z=16&output=embed`}
+                allowFullScreen loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title={acc?.title} />
+              <div className="acd-map-section__card">
+                <FaBed style={{ fontSize: 22, color: ORANGE }} />
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#000' }}>{acc?.title}</div>
+                  <div style={{ fontSize: 12, color: '#757575', marginTop: 2 }}>{acc?.address}</div>
                 </div>
-              )}
-              {acc.address && (
-                <div className="acd-info-card__row">
-                  <FaMapMarkerAlt className="acd-info-card__icon" />
-                  <span>{acc.address}</span>
-                </div>
-              )}
+              </div>
             </div>
-
-          </div>{/* end acd-right */}
-
-        </div>{/* end acd-content-grid */}
-      </main>
+          </div>
+        </section>
+      )}
 
       {/* ══ FOOTER ══ */}
       <footer className="acd-footer">
-        <div className="acd-footer__grid">
-          {[
-            { title: 'Support',   links: ['Help Center','Safety','Cancellation Options','Community Guideline'] },
-            { title: 'Community', links: ['Bodima Adventures','New Features','Tips for Hosts','Careers'] },
-            { title: 'Host',      links: ['Host a home','Host an experience','Responsible hosting','Community forum'] },
-            { title: 'About',     links: ['About Bodima','Newsroom','Investors','Bodima Plus'] },
-          ].map(({ title, links }) => (
-            <div key={title}>
-              <h4 className="acd-footer__col-title">{title}</h4>
-              {links.map(l => <a key={l} href="#" className="acd-footer__link">{l}</a>)}
-            </div>
-          ))}
-        </div>
         <div className="acd-footer__bottom">
-          <span>© 2026 Bodima, Inc. · <a href="#" className="acd-footer__legal">Privacy · Terms · Sitemap</a></span>
+          <div className="acd-footer__left">
+            <span>© 2026 Bodima, Inc.</span>
+            <span className="acd-footer__dot">·</span>
+            <a href="#" className="acd-footer__legal-link">Privacy</a>
+            <span className="acd-footer__dot">·</span>
+            <a href="#" className="acd-footer__legal-link">Terms</a>
+            <span className="acd-footer__dot">·</span>
+            <a href="#" className="acd-footer__legal-link">Sitemap</a>
+          </div>
           <div className="acd-footer__socials">
-            <a href="#" className="acd-footer__social-icon"><FaFacebookF /></a>
-            <a href="#" className="acd-footer__social-icon"><FaTwitter /></a>
-            <a href="#" className="acd-footer__social-icon"><FaInstagram /></a>
+            {[FaFacebookF, FaTwitter, FaInstagram].map((Icon, i) => (
+              <a key={i} href="#" className="acd-footer__social-icon"><Icon /></a>
+            ))}
           </div>
         </div>
       </footer>
 
+      {/* ══ WRITE REVIEW MODAL ══ */}
+      {showReviewModal && (
+        <ReviewModal onClose={() => setShowReviewModal(false)} onSubmit={handleReviewSubmit} submitting={reviewSubmitting} />
+      )}
+
+      {/* ══ EDIT REVIEW MODAL ══ */}
+      {editingReview && (
+        <ReviewModal isEdit initialStars={editingReview.rating ?? 0} initialText={editingReview.comment ?? ''}
+          onClose={() => setEditingReview(null)} onSubmit={handleEditReviewSubmit} submitting={reviewActionLoading} />
+      )}
+
+      {/* ══ DELETE REVIEW CONFIRM ══ */}
+      {deletingReviewId && (
+        <DeleteReviewModal onConfirm={handleDeleteReviewConfirm} onCancel={() => setDeletingReviewId(null)} deleting={reviewActionLoading} />
+      )}
+
+      {/* ══ LOGOUT CONFIRM ══ */}
+      {showLogoutModal && (
+        <LogoutModal onConfirm={handleLogoutConfirm} onCancel={() => setShowLogoutModal(false)} />
+      )}
+
+      {/* ══ LOGIN REQUIRED ══ */}
+      {showLoginRequired && (
+        <LoginRequiredModal onClose={() => setShowLoginRequired(false)} onLogin={() => { setShowLoginRequired(false); navigate('/Login'); }} />
+      )}
+
+      {/* ══ TOAST ══ */}
+      <div className={`acd-toast${toast.show ? ' acd-toast--visible' : ''}`}>{toast.msg}</div>
+
+      <style>{`
+        @keyframes acdSkeleton {
+          0%   { background-position:  200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        .acd-spin { animation: acdSpinAnim 0.8s linear infinite; display: inline-block; }
+        @keyframes acdSpinAnim { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 };
