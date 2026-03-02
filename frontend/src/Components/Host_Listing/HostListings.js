@@ -450,7 +450,7 @@ export default function HostListings() {
             { key: "today",    label: "Today",    href: "#" },
             { key: "Calendar", label: "Calendar", href: "#" },
             { key: "listings", label: "Listings", href: "/Listings" },
-            { key: "Messages", label: "Messages", href: "#" },
+            { key: "Messages", label: "Messages", href: "/Messages" },
           ].map(({ key, label, href }) => (
             <a key={key} href={href}
               className={`hl-nav__tab${activeNav === key ? " hl-nav__tab--active" : ""}`}

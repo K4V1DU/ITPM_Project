@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import axios from "axios";
 import "./AccommodationDetails.css";
 import {
   FaHeart,
@@ -137,7 +138,6 @@ async function apiDelete(path) {
 
 // ─── Populate owner + reviews ─────────────────────────────────────────────
 async function populateAccommodation(acc) {
-  // ✅ Schema uses 'owner' not 'host'
   if (acc.owner && typeof acc.owner === "string") {
     try {
       const res = await fetch(`${API_BASE}/User/${acc.owner}`);
@@ -430,7 +430,6 @@ function ReviewCard({
   const hasBorderBtm = index < total - 2;
   const isLong = (review.comment?.length ?? 0) > SHOW_MORE_THRESHOLD;
 
-  // ✅ Resolve reviewer avatar — could be ObjectId or URL
   const revImgRaw =
     typeof reviewer === "object"
       ? (reviewer?._profilePhotoUrl ??
@@ -594,8 +593,10 @@ const AccommodationDetails = () => {
   const [activeImg, setActiveImg] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(false);
+  // FIX: moved checkIn/checkTime/note/guests state inside component
   const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
+  const [checkTime, setCheckTime] = useState("");
+  const [note, setNote] = useState("");
   const [guests, setGuests] = useState(1);
   const [expanded, setExpanded] = useState({});
   const [toast, setToast] = useState({ show: false, msg: "" });
@@ -631,7 +632,6 @@ const AccommodationDetails = () => {
       .then((raw) => {
         const user = unwrap(raw);
         setCurrentUser(user);
-        // ✅ profileImage can be ObjectId → resolve via /Photo/
         const photoId = user?.profileImage ?? null;
         if (photoId) setUserAvatarSrc(resolveImageSrc(photoId));
         setReviews((prev) =>
@@ -672,7 +672,7 @@ const AccommodationDetails = () => {
       })
       .then(async (raw) => {
         const data = unwrap(raw);
-        await populateAccommodation(data); // populates data.owner
+        await populateAccommodation(data);
         setAcc(data);
         setLiveRatingAvg(data.ratingAverage ?? 0);
         setLiveRatingCount(data.ratingCount ?? 0);
@@ -697,10 +697,8 @@ const AccommodationDetails = () => {
           setLiveRatingCount(count);
         }
 
-        // ✅ Use data.owner (schema field) — already populated by populateAccommodation
         const ownerId = data.owner?._id ?? data.owner;
         if (ownerId && typeof data.owner === "string") {
-          // owner wasn't populated (still a string ID), fetch separately
           fetch(`${API_BASE}/User/${ownerId}`)
             .then((r) => (r.ok ? r.json() : null))
             .then((raw2) => {
@@ -711,7 +709,6 @@ const AccommodationDetails = () => {
           setOwnerUser(data.owner);
         }
 
-        // Load images (schema: images[] of ObjectId refs to Photo)
         const imgIds = data.images ?? [];
         const loaded = await Promise.all(
           imgIds.map(async (imgId) => {
@@ -880,7 +877,54 @@ const AccommodationDetails = () => {
     }
   };
 
-  // ── Derived host object from acc.owner (schema field) ─────────────────
+  // ── Contact Host ──────────────────────────────────────────────────────
+  // FIX: use currentUser instead of undefined `user`, use acc.owner for hostId
+  const handleContactHost = async () => {
+    if (!isLoggedIn || !currentUser) {
+      setShowLoginRequired(true);
+      return;
+    }
+    if (!checkIn) {
+      showToast("Please select a date");
+      return;
+    }
+    if (!checkTime) {
+      showToast("Please select a time");
+      return;
+    }
+
+    const payload = {
+      studentId: currentUser._id ?? userId,
+      accommodationId: acc._id,
+      visitDate: checkIn,
+      visitTime: checkTime,
+      message: note || "",
+    };
+
+    try {
+      await axios.post(`${API_BASE}/contact`, payload);
+      showToast("Message sent to host successfully!");
+      setCheckIn("");
+      setCheckTime("");
+      setNote("");
+    } catch (err) {
+      const serverMsg =
+        err.response?.data?.message ??
+        err.response?.data?.error ??
+        (typeof err.response?.data === "string" ? err.response.data : null) ??
+        err.message;
+      console.error("Contact host error:", {
+        status: err.response?.status,
+        data: err.response?.data,
+        payload,
+      });
+      showToast(
+        `Failed: ${typeof serverMsg === "string" ? serverMsg : "Server error — check console"}`
+      );
+    }
+  };
+
+  // ── Derived host object from acc.owner ────────────────────────────────
   const rawOwner =
     acc?.owner && typeof acc.owner === "object" ? acc.owner : ownerUser;
   const host = rawOwner
@@ -889,13 +933,11 @@ const AccommodationDetails = () => {
         joinedYear: rawOwner.createdAt
           ? new Date(rawOwner.createdAt).getFullYear()
           : null,
-        // ✅ schema: stats.hostSince, stats.hostRating, stats.totalReviews
         isSuperhost: rawOwner.stats?.hostRating >= 4.8 ?? false,
         totalReviews: rawOwner.stats?.totalReviews ?? null,
       }
     : null;
 
-  // ✅ Resolve host avatar — profileImage can be ObjectId string
   const hostAvatarSrc = host
     ? resolveImageSrc(host.profileImage ?? host.avatar)
     : null;
@@ -1154,7 +1196,6 @@ const AccommodationDetails = () => {
                   </span>
                   {[
                     `(${liveRatingCount} ratings)`,
-                    // schema field: accommodationType
                     acc?.accommodationType,
                   ]
                     .filter(Boolean)
@@ -1174,7 +1215,6 @@ const AccommodationDetails = () => {
                     marginBottom: 14,
                   }}
                 >
-                  {/* schema field: maxGuests doesn't exist — use beds instead */}
                   {acc?.beds && (
                     <span className="acd-listing-header__badge">
                       <FaBed style={{ fontSize: 12 }} /> {acc.beds} bed
@@ -1193,7 +1233,6 @@ const AccommodationDetails = () => {
                       {acc.bathrooms !== 1 ? "s" : ""}
                     </span>
                   )}
-                  {/* schema field: genderPreference */}
                   {acc?.genderPreference && (
                     <span className="acd-listing-header__badge">
                       <FaUsers style={{ fontSize: 12 }} />{" "}
@@ -1250,7 +1289,6 @@ const AccommodationDetails = () => {
               </button>
               {showActionMenu && (
                 <div className="acd-action-dropdown">
-                  {/* Host details from acc.owner (populated) or ownerUser fallback */}
                   <div className="acd-action-dropdown__host">
                     <div className="acd-action-dropdown__host-avatar">
                       {hostAvatarSrc ? (
@@ -1275,7 +1313,6 @@ const AccommodationDetails = () => {
                       <div className="acd-action-dropdown__host-label">
                         Hosted by
                       </div>
-
                       <div className="acd-action-dropdown__host-name">
                         {host?.name ?? "Host"}
                       </div>
@@ -1430,7 +1467,7 @@ const AccommodationDetails = () => {
               </section>
             )}
 
-            {/* Host profile card — uses acc.owner data */}
+            {/* Host profile card */}
             {!loading && host && (
               <section className="acd-host-section">
                 <div className="acd-host-section__title">Hosted by</div>
@@ -1476,13 +1513,11 @@ const AccommodationDetails = () => {
                         {host.about}
                       </div>
                     )}
-                    {/* ✅ schema: stats.totalReviews */}
                     {(host.totalReviews ?? liveRatingCount) > 0 && (
                       <div className="acd-host-card__reviews">
                         {host.totalReviews ?? liveRatingCount} reviews
                       </div>
                     )}
-                    {/* ✅ schema: stats.hostRating */}
                     {host.stats?.hostRating > 0 && (
                       <div
                         style={{ fontSize: 13, color: "#545454", marginTop: 2 }}
@@ -1490,7 +1525,6 @@ const AccommodationDetails = () => {
                         ⭐ {host.stats.hostRating.toFixed(1)} host rating
                       </div>
                     )}
-                    {/* ✅ show languages from User schema */}
                     {(host.languages ?? []).length > 0 && (
                       <div
                         style={{ fontSize: 13, color: "#757575", marginTop: 4 }}
@@ -1498,7 +1532,6 @@ const AccommodationDetails = () => {
                         🗣 {host.languages.join(", ")}
                       </div>
                     )}
-                    {/* ✅ show phone if available */}
                     {host.phone && (
                       <div
                         style={{ fontSize: 13, color: "#757575", marginTop: 2 }}
@@ -1506,7 +1539,6 @@ const AccommodationDetails = () => {
                         📞 {host.phone}
                       </div>
                     )}
-                    {/* ✅ show verified badges */}
                     {host.isVerified && (
                       <div
                         style={{
@@ -1676,9 +1708,7 @@ const AccommodationDetails = () => {
                   <div className="acd-booking-card__dates">
                     <div className="acd-booking-card__date-field">
                       <label>
-                        <FaCalendarAlt
-                          style={{ marginRight: 4, fontSize: 10 }}
-                        />
+                        <FaCalendarAlt style={{ marginRight: 4, fontSize: 10 }} />
                         DATE
                       </label>
                       <input
@@ -1689,16 +1719,13 @@ const AccommodationDetails = () => {
                     </div>
                     <div className="acd-booking-card__date-field">
                       <label>
-                        <FaCalendarAlt
-                          style={{ marginRight: 4, fontSize: 10 }}
-                        />
-                        Time
+                        <FaCalendarAlt style={{ marginRight: 4, fontSize: 10 }} />
+                        TIME
                       </label>
-
                       <input
                         type="time"
-                        // value={checkOut}
-                        // onChange={(e) => setCheckTime(e.target.value)}
+                        value={checkTime}
+                        onChange={(e) => setCheckTime(e.target.value)}
                       />
                     </div>
                   </div>
@@ -1706,7 +1733,11 @@ const AccommodationDetails = () => {
                   <div className="acd-booking-card__guests">
                     <label>Make a Note</label>
                     <div className="acd-booking-card__guests-controls">
-                      <input placeholder="Ask Somrthing..."></input>
+                      <input
+                        placeholder="Ask something..."
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                      />
                     </div>
                   </div>
 
@@ -1718,13 +1749,13 @@ const AccommodationDetails = () => {
                         setShowLoginRequired(true);
                         return;
                       }
-                      showToast("Booking flow coming soon!");
+                      handleContactHost();
                     }}
                   >
                     <span>Book Now</span>
                   </button>
                   <p className="acd-booking-card__note">
-                    You won't be charged yet
+                    Fix Date for Visit
                   </p>
 
                   {acc?.pricePerMonth && (
@@ -1758,7 +1789,6 @@ const AccommodationDetails = () => {
 
             {!loading && acc && (
               <div className="acd-info-card">
-                {/* ✅ genderPreference (schema field) */}
                 {acc.genderPreference && (
                   <div className="acd-info-card__row">
                     <FaUsers className="acd-info-card__icon" />
@@ -1770,7 +1800,6 @@ const AccommodationDetails = () => {
                     </span>
                   </div>
                 )}
-                {/* ✅ accommodationType (schema field) */}
                 {acc.accommodationType && (
                   <div className="acd-info-card__row">
                     <FaBed className="acd-info-card__icon" />
@@ -1801,7 +1830,6 @@ const AccommodationDetails = () => {
                     <span>{acc.address}</span>
                   </div>
                 )}
-                {/* ✅ isAvailable */}
                 <div className="acd-info-card__row">
                   <FaCheck
                     className="acd-info-card__icon"
@@ -1981,17 +2009,11 @@ const AccommodationDetails = () => {
           <div className="acd-footer__left">
             <span>© 2026 Bodima, Inc.</span>
             <span className="acd-footer__dot">·</span>
-            <a href="#" className="acd-footer__legal-link">
-              Privacy
-            </a>
+            <a href="#" className="acd-footer__legal-link">Privacy</a>
             <span className="acd-footer__dot">·</span>
-            <a href="#" className="acd-footer__legal-link">
-              Terms
-            </a>
+            <a href="#" className="acd-footer__legal-link">Terms</a>
             <span className="acd-footer__dot">·</span>
-            <a href="#" className="acd-footer__legal-link">
-              Sitemap
-            </a>
+            <a href="#" className="acd-footer__legal-link">Sitemap</a>
           </div>
           <div className="acd-footer__socials">
             {[FaFacebookF, FaTwitter, FaInstagram].map((Icon, i) => (
