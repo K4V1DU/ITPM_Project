@@ -14,6 +14,7 @@ import HostProfile from "./Components/Host_Profile/HostProfile";
 import FoodCheckout from "./Components/Food_Checkout/FoodCheckout";
 import Payment from "./Components/Payment/Payment";
 import PaymentReceipt from "./Components/Payment/PaymentReceipt";
+import Messages from "./Components/Message/Message";
 
 
 
@@ -36,6 +37,8 @@ function App() {
       <Route path="/FoodCheckout/:id" element={<FoodCheckout />} />
       <Route path="/Payment" element={<Payment />} />
       <Route path="/PaymentReceipt" element={<PaymentReceipt />} />
+      <Route path="/Messages" element={<Messages />} />
+
       
 
     </Routes>
