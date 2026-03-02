@@ -1,0 +1,45 @@
+const mongoose = require("mongoose");
+
+const contactRequestSchema = new mongoose.Schema(
+  {
+    accommodationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Accommodation",
+      required: true,
+    },
+
+    studentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    hostId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    visitDate: {
+      type: String,
+      required: true,
+    },
+
+    visitTime: {
+      type: String,
+      required: true,
+    },
+
+    message: {
+      type: String,
+    },
+
+    status: {
+      type: String,
+      default: "pending",
+    },
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model("ContactRequest", contactRequestSchema);
