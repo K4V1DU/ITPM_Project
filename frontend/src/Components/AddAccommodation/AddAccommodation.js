@@ -194,6 +194,12 @@ const AddAccommodation = () => {
       }
     }
 
+  const getYesterday = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString();
+};
+
     // Send BOTH field name variants to cover whichever the backend requires
     const payload = {
       owner:             CURRENT_USER_ID,
@@ -222,7 +228,7 @@ const AddAccommodation = () => {
       },
       images:            imageIds,
       isAvailable:       true,
-      expireDate:        (() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString(); })(),
+      expireDate: getYesterday(),
     };
 
     try {
