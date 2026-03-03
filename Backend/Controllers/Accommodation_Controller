@@ -22,7 +22,8 @@ const addAccommodation = async (req, res) => {
       genderPreference,
       accommodationType,
       keyMoneyDuration,
-      utilityBills
+      utilityBills,
+      expireDate
     } = req.body;
 
     // ✅ Validation: Ensure distance is included
@@ -50,7 +51,8 @@ const addAccommodation = async (req, res) => {
       genderPreference,
       accommodationType,
       keyMoneyDuration: Number(keyMoneyDuration) || 0,
-      utilityBills: utilityBills || { electricityIncluded: false, waterIncluded: false }
+      utilityBills: utilityBills || { electricityIncluded: false, waterIncluded: false },
+      expireDate: expireDate || null
     });
 
     await newAccommodation.save();
