@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  FaAirbnb, FaBars, FaUser,
-  FaFacebookF, FaTwitter, FaInstagram,
-  FaSignOutAlt, FaEnvelope,
+  FaUser,
   FaMotorcycle, FaShoppingBag, FaPen,
   FaSpinner, FaExclamationTriangle,
   FaHeart, FaRegHeart, FaEllipsisH, FaCommentAlt, FaUserCircle, FaShare, FaFlag,
@@ -15,6 +13,8 @@ import {
   FaTrash, FaEdit,
 } from "react-icons/fa";
 import "./FoodService.css";
+import StudentNavbar from "../NavBar/Student_NavBar/StudentNavbar";
+import Footer from "../NavBar/Footer/Footer";
 
 // ─────────────────────────────────────────
 // CONFIG
@@ -139,25 +139,6 @@ function calcRatingStats(reviewList) {
   if (!reviewList.length) return { avg: 0, count: 0 };
   const sum = reviewList.reduce((s, r) => s + (r.rating ?? 0), 0);
   return { avg: parseFloat((sum / reviewList.length).toFixed(1)), count: reviewList.length };
-}
-
-// ─────────────────────────────────────────
-// LOGOUT CONFIRM MODAL
-// ─────────────────────────────────────────
-function LogoutModal({ onConfirm, onCancel }) {
-  return (
-    <div className="fs-gen-modal-overlay" onClick={onCancel}>
-      <div className="fs-gen-modal" onClick={e => e.stopPropagation()}>
-        <div className="fs-gen-modal__icon fs-gen-modal__icon--logout"><FaSignOutAlt /></div>
-        <h3 className="fs-gen-modal__title">Logout</h3>
-        <p className="fs-gen-modal__msg">Are you sure you want to logout?</p>
-        <div className="fs-gen-modal__actions">
-          <button className="fs-gen-modal__btn fs-gen-modal__btn--cancel" onClick={onCancel}>Cancel</button>
-          <button className="fs-gen-modal__btn fs-gen-modal__btn--danger" onClick={onConfirm}>Yes, Logout</button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 // ─────────────────────────────────────────
@@ -454,8 +435,6 @@ export default function FoodService() {
 
   // ── Auth state ────────────────────────
   const [currentUser,       setCurrentUser]       = useState(null);
-  const [userAvatarSrc,     setUserAvatarSrc]     = useState(null);
-  const [showLogoutModal,   setShowLogoutModal]   = useState(false);
   const [showLoginRequired, setShowLoginRequired] = useState(false);
 
   // ── Loading / error ───────────────────
@@ -472,7 +451,6 @@ export default function FoodService() {
   const [modalQty,         setModalQty]         = useState(1);
   const [toast,            setToast]            = useState({ show:false, msg:"" });
   const [expanded,         setExpanded]         = useState({});
-  const [showDropdown,     setShowDropdown]     = useState(false);
   const [orderType,        setOrderType]        = useState("delivery");
   const [showReviewModal,  setShowReviewModal]  = useState(false);
   const [showAllReviews,   setShowAllReviews]   = useState(false);
@@ -490,7 +468,6 @@ export default function FoodService() {
 
   const sectionRefs          = useRef({});
   const toastTimer           = useRef(null);
-  const dropdownRef          = useRef(null);
   const actionMenuRef        = useRef(null);
   const activeCategoriesRef  = useRef([]);
 
@@ -499,7 +476,6 @@ export default function FoodService() {
   const isLoggedIn = !!userId;
   const userRole   = currentUser?.role ?? null;
   const isStudent  = userRole === "student";
-  const isHost     = userRole === "host";
 
   // ── Fetch current user ────────────────────────────────────────────────
   useEffect(() => {
@@ -510,10 +486,8 @@ export default function FoodService() {
         const user = unwrap(raw);
         setCurrentUser(user);
         const photoId = user?.profileImage ?? null;
-        if (photoId) setUserAvatarSrc(`${API_BASE}/Photo/${photoId}`);
 
-        // Patch already-loaded reviews that belong to this user —
-        // they may have been enriched as "Guest" before user data arrived
+        // Patch already-loaded reviews that belong to this user
         setReviews(prev => prev.map(r => {
           const reviewerId = r.reviewer?._id ?? r.reviewer;
           if (String(reviewerId) !== String(userId)) return r;
@@ -530,7 +504,7 @@ export default function FoodService() {
           };
         }));
       })
-      .catch(() => { setCurrentUser(null); setUserAvatarSrc(null); });
+      .catch(() => { setCurrentUser(null); });
   }, []);
 
   // ── Fetch: FoodService ────────────────────────────────────────────────
@@ -621,7 +595,6 @@ export default function FoodService() {
       );
       const sorted = [...enriched].sort((a, b) => new Date(b.createdAt ?? 0) - new Date(a.createdAt ?? 0));
       setReviews(sorted);
-      // Sync live rating from fetched reviews
       const { avg, count } = calcRatingStats(sorted);
       setLiveRatingAvg(avg);
       setLiveRatingCount(count);
@@ -678,38 +651,14 @@ export default function FoodService() {
     sectionRefs.current[`cat-${cat}`]?.scrollIntoView({ behavior:"smooth", block:"start" });
   };
 
-  // ── Outside click ─────────────────────────────────────────────────────
+  // ── Outside click (action menu only) ─────────────────────────────────
   useEffect(() => {
     const h = (e) => {
-      if (dropdownRef.current   && !dropdownRef.current.contains(e.target))   setShowDropdown(false);
       if (actionMenuRef.current && !actionMenuRef.current.contains(e.target)) setShowActionMenu(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
-
-  // ── Logout ────────────────────────────────────────────────────────────
-  const handleLogoutConfirm = () => {
-    localStorage.removeItem("CurrentUserId");
-    setShowDropdown(false);
-    setShowLogoutModal(false);
-    navigate("/Login");
-  };
-
-  // ── Dropdown guard — non-students see login-required modal ─────────────
-  const handleProtectedClick = (cb) => {
-    if (!isLoggedIn || !isStudent) {
-      setShowDropdown(false);
-      setShowLoginRequired(true);
-      return;
-    }
-    setShowDropdown(false);
-    cb?.();
-  };
-
-  // ── Navbar action button ──────────────────────────────────────────────
-  const hostBtnLabel  = !isLoggedIn ? "Login" : isHost ? "Host Page" : null;
-  const hostBtnAction = () => navigate(!isLoggedIn ? "/Login" : "/Listings");
 
   // ── Write Review guard ────────────────────────────────────────────────
   const handleWriteReviewClick = () => {
@@ -739,15 +688,12 @@ export default function FoodService() {
       const newReview = {
         ...saved,
         _id:      saved._id ?? Date.now().toString(),
-        // Always build reviewer from currentUser — never fall back to API response
-        // which may only contain an ID string
         reviewer: {
           _id:             userId,
           name:            currentUser?.name ?? "You",
           createdAt:       currentUser?.createdAt,
           _profilePhotoUrl: photoUrl,
         },
-        // Preserve rating/comment explicitly in case backend response omits them
         rating:    stars,
         comment:   text,
         createdAt: saved.createdAt ?? new Date().toISOString(),
@@ -774,13 +720,10 @@ export default function FoodService() {
     if (!editingReview) return;
     setReviewActionLoading(true);
     try {
-      const raw    = await apiPut(`/review/${editingReview._id}`, { rating: stars, comment: text });
-      const saved  = unwrap(raw);
+      await apiPut(`/review/${editingReview._id}`, { rating: stars, comment: text });
       setReviews(prev => {
         const updated = prev.map(r =>
           r._id === editingReview._id
-            // Explicitly only update rating + comment — never overwrite
-            // the enriched reviewer object with the raw API response
             ? { ...r, rating: stars, comment: text }
             : r
         );
@@ -871,97 +814,7 @@ export default function FoodService() {
     <div style={{ fontFamily:FONT, background:"#fff", color:"#1b1b1b", fontSize:14, lineHeight:1.5 }}>
 
       {/* ══ NAVBAR ══ */}
-      <nav className="fs-nav">
-        <div className="fs-nav__left">
-          <a href="/" className="fs-nav__logo"><FaAirbnb /> Bodima</a>
-        </div>
-
-        <div className="fs-nav__tabs">
-          {[
-            { key:"boardings",   label:"Boardings",          href:"/Boardings"    },
-            { key:"food",        label:"Food Services",      href:"/FoodServices" },
-            { key:"experiences", label:"Orders", href:"/Orders"             },
-          ].map(({ key, label, href }) => (
-            <a key={key} href={href}
-              className={`fs-nav__tab${activeTab === key ? " fs-nav__tab--active" : ""}`}
-              onClick={() => setActiveTab(key)}>
-              {label}
-              {activeTab === key && <span className="fs-nav__tab-underline" />}
-            </a>
-          ))}
-        </div>
-
-        <div className="fs-nav__right">
-          {hostBtnLabel && (
-            <button className="fs-nav__host-btn" style={{ fontFamily:FONT }} onClick={hostBtnAction}>
-              {hostBtnLabel}
-            </button>
-          )}
-
-          <div className="fs-nav__avatar">
-            {userAvatarSrc
-              ? <img src={userAvatarSrc} alt="Profile" className="fs-nav__avatar-img"
-                  onError={() => setUserAvatarSrc(null)} />
-              : <FaUser className="fs-nav__avatar-icon" />}
-          </div>
-
-          <div ref={dropdownRef} className="fs-dropdown">
-            <div className="fs-nav__icon-btn" onClick={() => setShowDropdown(p => !p)}>
-              <FaBars />
-            </div>
-
-            {showDropdown && (
-              <div className="fs-dropdown__menu">
-                {isLoggedIn && currentUser && (
-                  <>
-                    <div className="fs-dropdown__user">
-                      <span className="fs-dropdown__username">{currentUser.name ?? "User"}</span>
-                      <span className="fs-dropdown__email">{currentUser.email ?? ""}</span>
-                      <span className={`fs-dropdown__role fs-dropdown__role--${userRole}`}>{userRole}</span>
-                    </div>
-                    <div className="fs-dropdown__divider" />
-                  </>
-                )}
-
-                {(isStudent || isHost) && (
-                  <div className="fs-dropdown__item"
-                    onClick={() => { setShowDropdown(false); navigate("/Profile"); }}>
-                    <FaUser style={{ opacity:0.7 }} /> Profile
-                  </div>
-                )}
-
-                {!isLoggedIn && (
-                  <>
-                    <div className="fs-dropdown__item" onClick={() => handleProtectedClick()}>
-                      <FaUser style={{ opacity:0.7 }} /> Profile
-                    </div>
-                    <div className="fs-dropdown__item" onClick={() => handleProtectedClick()}>
-                      <FaEnvelope style={{ opacity:0.7 }} /> Messages
-                    </div>
-                  </>
-                )}
-
-                {isStudent && (
-                  <div className="fs-dropdown__item"
-                    onClick={() => { setShowDropdown(false); navigate("/Messages"); }}>
-                    <FaEnvelope style={{ opacity:0.7 }} /> Messages
-                  </div>
-                )}
-
-                {isLoggedIn && (isStudent || isHost) && (
-                  <>
-                    <div className="fs-dropdown__divider" />
-                    <div className="fs-dropdown__item fs-dropdown__item--danger"
-                      onClick={() => { setShowDropdown(false); setShowLogoutModal(true); }}>
-                      <FaSignOutAlt style={{ opacity:0.7 }} /> Logout
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </nav>
+      <StudentNavbar />
 
       {/* ══ HERO ══ */}
       <div style={{ padding:"0 24px" }}>
@@ -1271,13 +1124,10 @@ export default function FoodService() {
                 </>}
           </div>
 
-          {/* Write review button — guards non-logged-in / non-student */}
           <button className="fs-write-review-btn" style={{ fontFamily:FONT }}
             onClick={handleWriteReviewClick}>
             <FaPen style={{ fontSize:13 }} /> Write a Review
           </button>
-
-
 
           {loadingReviews
             ? <div className="fs-reviews__grid">
@@ -1347,24 +1197,7 @@ export default function FoodService() {
       </section>
 
       {/* ══ FOOTER ══ */}
-      <footer className="fs-footer">
-        <div className="fs-footer__bottom">
-          <div className="fs-footer__left">
-            <span>© 2026 Bodima, Inc.</span>
-            <span className="fs-footer__dot">·</span>
-            <a href="#" className="fs-footer__legal-link">Privacy</a>
-            <span className="fs-footer__dot">·</span>
-            <a href="#" className="fs-footer__legal-link">Terms</a>
-            <span className="fs-footer__dot">·</span>
-            <a href="#" className="fs-footer__legal-link">Sitemap</a>
-          </div>
-          <div className="fs-footer__socials">
-            {[FaFacebookF, FaTwitter, FaInstagram].map((Icon,i) => (
-              <a key={i} href="#" className="fs-footer__social-icon"><Icon /></a>
-            ))}
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       {/* ══ ITEM MODAL ══ */}
       {modal && (
@@ -1454,14 +1287,6 @@ export default function FoodService() {
           onConfirm={handleDeleteReviewConfirm}
           onCancel={() => setDeletingReviewId(null)}
           deleting={reviewActionLoading}
-        />
-      )}
-
-      {/* ══ LOGOUT CONFIRM ══ */}
-      {showLogoutModal && (
-        <LogoutModal
-          onConfirm={handleLogoutConfirm}
-          onCancel={() => setShowLogoutModal(false)}
         />
       )}
 
