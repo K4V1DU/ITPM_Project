@@ -18,6 +18,8 @@ import Messages from "./Components/Message/Message";
 import HostOrders from "./Components/Host_Orders/HostOrders";
 import HostNavbar from "./Components/NavBar/Host_NavBar/HostNavbar";
 import Footer from "./Components/NavBar/Footer/Footer";
+import StudentOrders from "./Components/Student_Orders/StudentOrders";
+
 
 function App() {
   return (
@@ -42,6 +44,10 @@ function App() {
       <Route path="/HostOrders" element={<HostOrders />} />
       <Route path="/HostNavbar" element={<HostNavbar />} />
       <Route path="/Footer" element={<Footer />} />
+      <Route path="/StudentOrders" element={<StudentOrders />} />
+
+
+
 
     </Routes>
   );

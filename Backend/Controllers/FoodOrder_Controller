@@ -1,4 +1,5 @@
 const FoodOrder = require("../models/FoodOrder");
+const User = require("../models/User");
 
 // ==============================
 // Create New Order
@@ -103,13 +104,26 @@ const getOrderById = async (req, res) => {
 const getOrdersByStudent = async (req, res) => {
   try {
     const orders = await FoodOrder.find({ student: req.params.studentId })
-      .populate("foodService", "kitchenName address iconImage")
+      .populate("foodService", "kitchenName address iconImage location owner")
       .sort({ createdAt: -1 });
+
+    // owner is a plain String (not ObjectId ref), so populate manually
+    const ownerIds = [...new Set(orders.map(o => o.foodService?.owner).filter(Boolean))];
+    const owners   = await User.find({ _id: { $in: ownerIds } }).select("phone name");
+    const ownerMap = Object.fromEntries(owners.map(u => [String(u._id), u]));
+
+    const data = orders.map(o => {
+      const plain = o.toObject();
+      if (plain.foodService?.owner) {
+        plain.foodService.ownerInfo = ownerMap[String(plain.foodService.owner)] ?? null;
+      }
+      return plain;
+    });
 
     res.status(200).json({
       success: true,
-      count: orders.length,
-      data: orders,
+      count: data.length,
+      data,
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -162,7 +176,7 @@ const getOrdersByOwner = async (req, res) => {
 
     // Step 2: Find all orders for those food services
     const orders = await FoodOrder.find({ foodService: { $in: foodServiceIds } })
-      .populate("foodService", "kitchenName address iconImage")
+      .populate("foodService", "kitchenName address iconImage location")
       .populate("student", "name email phone profileImage")
       .sort({ createdAt: -1 });
 
