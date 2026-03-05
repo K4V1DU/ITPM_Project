@@ -2,19 +2,18 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
-  FaAirbnb, FaBars, FaUser, FaTimes,
-  FaFacebookF, FaTwitter, FaInstagram,
-  FaSignOutAlt,
+  FaTimes,
   FaMapMarkerAlt, FaClock, FaMotorcycle,
   FaShoppingBag, FaStar, FaCreditCard,
   FaEdit, FaTrash,
 } from "react-icons/fa";
+import HostNavbar from "../NavBar/Host_NavBar/HostNavbar";
+import Footer from "../NavBar/Footer/Footer";
 import "./HostListings.css";
 
 const BASE_URL        = "http://localhost:8000";
 const CURRENT_USER_ID = localStorage.getItem("CurrentUserId") ?? "";
 const photoUrl        = (id) => `${BASE_URL}/photo/${id}`;
-const DEFAULT_AVATAR  = "/default-avatar.png";
 
 function ListingCard({ item, type, onClick }) {
   const coverImg = type === "food"
@@ -149,7 +148,7 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
     setToggling(false);
   };
 
-  const fmtDate  = (d) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const fmtDate   = (d) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   const isExpired = item.expireDate && new Date(item.expireDate) < new Date();
 
   return (
@@ -268,18 +267,14 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
           </div>
 
           <div className="popup-actions">
-            {/* ── FIXED: navigates to /Payment with correct state ── */}
             <button className="popup-btn popup-btn--payment" onClick={() => onAddPayment(item._id, type, item)}>
-              <FaCreditCard />
-              Add Payment
+              <FaCreditCard /> Add Payment
             </button>
             <button className="popup-btn popup-btn--edit" onClick={() => onEdit(item._id, type)}>
-              <FaEdit />
-              Edit Listing
+              <FaEdit /> Edit Listing
             </button>
             <button className="popup-btn popup-btn--delete" onClick={() => onDelete(item._id, type)}>
-              <FaTrash />
-              Delete
+              <FaTrash /> Delete
             </button>
           </div>
         </div>
@@ -327,37 +322,14 @@ export default function HostListings() {
   const [loading,        setLoading]        = useState(true);
   const [deleteTarget,   setDeleteTarget]   = useState(null);
   const [selectedItem,   setSelectedItem]   = useState(null);
-  const [showDropdown,   setShowDropdown]   = useState(false);
-  const [activeNav,      setActiveNav]      = useState("listings");
-  const [profileImageUrl, setProfileImageUrl] = useState(DEFAULT_AVATAR);
 
   const menuItemCacheRef = useRef({});
   const [menuItemCache,  setMenuItemCache]  = useState({});
-  const dropdownRef = useRef(null);
 
   const handleMenuItemCacheUpdate = (id, data) => {
     menuItemCacheRef.current[id] = data;
     setMenuItemCache(prev => ({ ...prev, [id]: data }));
   };
-
-  useEffect(() => {
-    const h = e => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target))
-        setShowDropdown(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
-
-  useEffect(() => {
-    if (!CURRENT_USER_ID) return;
-    axios.get(`${BASE_URL}/user/${CURRENT_USER_ID}`)
-      .then(r => {
-        const user = r.data?.data || r.data;
-        if (user?.profileImage) setProfileImageUrl(photoUrl(user.profileImage));
-      })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (!CURRENT_USER_ID) { setLoading(false); return; }
@@ -399,19 +371,18 @@ export default function HostListings() {
     } catch { alert("Failed to update status."); }
   };
 
-  // Navigate to /Payment — host paying to publish/extend their listing
   const handleAddPayment = (id, type, item) => {
     setSelectedItem(null);
     navigate("/Payment", {
       state: {
-        type:             type,
-        listingId:        id,
-        listingName:      type === "food" ? (item?.kitchenName ?? "Food Service") : (item?.title ?? "Accommodation"),
+        type,
+        listingId:         id,
+        listingName:       type === "food" ? (item?.kitchenName ?? "Food Service") : (item?.title ?? "Accommodation"),
         currentExpireDate: item?.expireDate ?? null,
-        bankName:         "Commercial Bank",
-        accountName:      "Bodima Payments",
-        accountNumber:    "8000123456",
-        branch:           "Negombo",
+        bankName:          "Commercial Bank",
+        accountName:       "Bodima Payments",
+        accountNumber:     "8000123456",
+        branch:            "Negombo",
       },
     });
   };
@@ -441,57 +412,10 @@ export default function HostListings() {
   return (
     <div className="page">
 
-      <nav className="hl-nav">
-        <div className="hl-nav__logo-wrap">
-          <a href="/Boardings" className="hl-nav__logo"><FaAirbnb /> Bodima</a>
-        </div>
-        <div className="hl-nav__center">
-          {[
-            { key: "today",    label: "Today",    href: "#" },
-            { key: "Calendar", label: "Calendar", href: "#" },
-            { key: "listings", label: "Listings", href: "/Listings" },
-            { key: "Messages", label: "Messages", href: "/Messages" },
-          ].map(({ key, label, href }) => (
-            <a key={key} href={href}
-              className={`hl-nav__tab${activeNav === key ? " hl-nav__tab--active" : ""}`}
-              onClick={() => setActiveNav(key)}
-            >
-              {label}
-              {activeNav === key && <span className="hl-nav__tab-underline" />}
-            </a>
-          ))}
-        </div>
-        <div className="hl-nav__right">
-          <button className="hl-nav__switch-btn" onClick={() => navigate("/Boardings")}>
-            Switch to exploring
-          </button>
-          <div ref={dropdownRef} className="hl-dropdown">
-            <button className="hl-nav__menu-btn" onClick={() => setShowDropdown(p => !p)}>
-              <FaBars className="hl-menu-icon" />
-              <img
-                src={profileImageUrl} alt="profile" className="hl-user-avatar"
-                onError={e => {
-                  if (e.currentTarget.src !== window.location.origin + DEFAULT_AVATAR)
-                    e.currentTarget.src = DEFAULT_AVATAR;
-                }}
-              />
-            </button>
-            {showDropdown && (
-              <div className="hl-dropdown__menu">
-                <div className="hl-dropdown__item" onClick={() => navigate("/Host-Profile")}>
-                  <FaUser style={{ opacity: 0.6 }} /> Profile
-                </div>
-                <div className="hl-dropdown__divider" />
-                <div className="hl-dropdown__item hl-dropdown__item--danger"
-                  onClick={() => { localStorage.clear(); navigate("/Login"); }}>
-                  <FaSignOutAlt style={{ opacity: 0.6 }} /> Logout
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </nav>
+      {/* ══ NAVBAR ══ */}
+      <HostNavbar activeHref="/Listings" />
 
+      {/* ══ PAGE HEADER ══ */}
       <div className="page-header">
         <div className="page-header-inner">
           <div className="page-header-left">
@@ -516,6 +440,7 @@ export default function HostListings() {
         </div>
       </div>
 
+      {/* ══ CONTENT ══ */}
       <div className="page-content">
         {loading ? (
           <div className="grid">
@@ -545,29 +470,8 @@ export default function HostListings() {
         )}
       </div>
 
-      <footer className="hl-footer">
-        <div className="hl-footer__grid">
-          {[
-            { title: "Support",   links: ["Help Center","Safety info","Cancellation options","Community guidelines"] },
-            { title: "Community", links: ["Bodima Adventures","New features","Tips for hosts","Careers"] },
-            { title: "Hosting",   links: ["Host a home","Host an experience","Responsible hosting","Community forum"] },
-            { title: "About",     links: ["About Bodima","Newsroom","Investors","Bodima Plus"] },
-          ].map(({ title, links }) => (
-            <div key={title}>
-              <h4 className="hl-footer__col-title">{title}</h4>
-              {links.map(l => <a key={l} href="#" className="hl-footer__link">{l}</a>)}
-            </div>
-          ))}
-        </div>
-        <div className="hl-footer__bottom">
-          <span>© 2026 Bodima, Inc. · <a href="#" className="hl-footer__legal">Privacy · Terms · Sitemap</a></span>
-          <div className="hl-footer__socials">
-            {[FaFacebookF, FaTwitter, FaInstagram].map((Icon, i) => (
-              <a key={i} href="#" className="hl-footer__social-icon"><Icon /></a>
-            ))}
-          </div>
-        </div>
-      </footer>
+      {/* ══ FOOTER ══ */}
+      <Footer />
 
       {selectedItem && (
         <ListingPopup

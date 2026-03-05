@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FaAirbnb, FaBars, FaUser, FaSearch,
-  FaFacebookF, FaTwitter, FaInstagram,
-  FaCog, FaSignOutAlt, FaEnvelope,
+  FaSearch,
   FaMotorcycle, FaShoppingBag,
   FaHeart, FaRegHeart, FaSlidersH, FaTimes,
   FaUtensils, FaCoffee, FaBreadSlice, FaHome,
@@ -13,6 +11,8 @@ import {
   FaStar, FaExclamationCircle, FaSignInAlt,
 } from "react-icons/fa";
 import "./Foods.css";
+import StudentNavbar from "../NavBar/Student_NavBar/StudentNavbar";
+import Footer from "../NavBar/Footer/Footer";
 
 // ─── Config ───────────────────────────────────────────────────────────────
 const API_BASE = "http://localhost:8000";
@@ -67,31 +67,6 @@ function isCurrentlyOpen(operatingHours) {
     if (closeMin <= openMin) return nowMin >= openMin || nowMin < closeMin;
     return nowMin >= openMin && nowMin < closeMin;
   } catch { return false; }
-}
-
-// ─────────────────────────────────────────
-// LOGOUT CONFIRM MODAL
-// ─────────────────────────────────────────
-function LogoutModal({ onConfirm, onCancel }) {
-  return (
-    <div className="fsl-modal-overlay" onClick={onCancel}>
-      <div className="fsl-modal" onClick={e => e.stopPropagation()}>
-        <div className="fsl-modal__icon fsl-modal__icon--logout">
-          <FaSignOutAlt />
-        </div>
-        <h3 className="fsl-modal__title">Logout</h3>
-        <p className="fsl-modal__msg">Are you sure you want to logout?</p>
-        <div className="fsl-modal__actions">
-          <button className="fsl-modal__btn fsl-modal__btn--cancel" onClick={onCancel}>
-            Cancel
-          </button>
-          <button className="fsl-modal__btn fsl-modal__btn--danger" onClick={onConfirm}>
-            Yes, Logout
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 // ─────────────────────────────────────────
@@ -309,37 +284,26 @@ export default function Foods() {
   const [showFilter,     setShowFilter]     = useState(false);
   const [appliedFilters, setAppliedFilters] = useState(DEFAULT_FILTERS);
   const [draftFilters,   setDraftFilters]   = useState(DEFAULT_FILTERS);
-  const [showDropdown,   setShowDropdown]   = useState(false);
-  const [activeTab,      setActiveTab]      = useState("food");
 
   // ── Auth state ────────────────────────────────────────────────────────
   const [currentUser,       setCurrentUser]       = useState(null);
-  const [userAvatarSrc,     setUserAvatarSrc]     = useState(null);
-  const [showLogoutModal,   setShowLogoutModal]   = useState(false);
   const [showLoginRequired, setShowLoginRequired] = useState(false);
 
-  const dropdownRef = useRef(null);
   const activeCount = countActive(appliedFilters);
 
-  // Derived role helpers — read fresh from localStorage each render
+  // Derived role helpers
   const userId     = localStorage.getItem("CurrentUserId");
   const isLoggedIn = !!userId;
-  const userRole   = currentUser?.role ?? null;   // "student" | "host" | "admin" | null
+  const userRole   = currentUser?.role ?? null;
   const isStudent  = userRole === "student";
-  const isHost     = userRole === "host";
 
   // ── Fetch current user ────────────────────────────────────────────────
   useEffect(() => {
     if (!userId) return;
     fetch(`${API_BASE}/User/${userId}`)
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-      .then(raw => {
-        const user = unwrap(raw);
-        setCurrentUser(user);
-        const photoId = user?.profileImage ?? null;
-        if (photoId) setUserAvatarSrc(`${API_BASE}/Photo/${photoId}`);
-      })
-      .catch(() => { setCurrentUser(null); setUserAvatarSrc(null); });
+      .then(raw => { setCurrentUser(unwrap(raw)); })
+      .catch(() => setCurrentUser(null));
   }, []);
 
   // ── Fetch food services ───────────────────────────────────────────────
@@ -352,7 +316,6 @@ export default function Foods() {
         const now  = new Date();
         const arr  = (Array.isArray(list) ? list : []).filter(s => {
           if (s.isAvailable !== true) return false;
-          // Must have a valid expireDate that is in the future
           if (!s.expireDate) return false;
           if (new Date(s.expireDate) < now) return false;
           return true;
@@ -402,6 +365,7 @@ export default function Foods() {
     }
     return r;
   };
+
   useEffect(() => {
     if (services.length) setFiltered(runFilter(appliedFilters, searchQuery, services));
   }, [services]);
@@ -423,42 +387,6 @@ export default function Foods() {
     setFiltered(runFilter(DEFAULT_FILTERS, searchQuery, services));
   };
 
-  // ── Logout confirm ────────────────────────────────────────────────────
-  const handleLogoutConfirm = () => {
-    localStorage.removeItem("CurrentUserId");
-    setShowDropdown(false);
-    setShowLogoutModal(false);
-    navigate("/Login");
-  };
-
-  // ── Dropdown item guard — only students can access ────────────────────
-  const handleProtectedClick = (cb) => {
-    if (!isLoggedIn || !isStudent) {
-      setShowDropdown(false);
-      setShowLoginRequired(true);
-      return;
-    }
-    setShowDropdown(false);
-    cb?.();
-  };
-
-  // ── Navbar action button ───────────────────────────────────────────────
-  // No user    → "Login"  → navigate /Login
-  // Student    → hidden
-  // Host/Admin → "Host Page" → navigate /HostPage
-  const hostBtnLabel  = !isLoggedIn ? "Login" : isHost ? "Host Page" : null;
-  const hostBtnAction = () => navigate(!isLoggedIn ? "/Login" : "/Listings");
-
-  // ── Close dropdown on outside click ──────────────────────────────────
-  useEffect(() => {
-    const h = e => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target))
-        setShowDropdown(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
-
   const filterSummary = () => {
     const parts = [];
     if (appliedFilters.serviceTypes.length) parts.push(appliedFilters.serviceTypes.join(", "));
@@ -469,116 +397,11 @@ export default function Foods() {
     return parts.join(" · ");
   };
 
-  // ── Avatar ────────────────────────────────────────────────────────────
-  const UserAvatar = () => (
-    <div className="fsl-nav__avatar">
-      {userAvatarSrc
-        ? <img src={userAvatarSrc} alt="Profile" className="fsl-nav__avatar-img"
-            onError={() => setUserAvatarSrc(null)} />
-        : <FaUser className="fsl-nav__avatar-icon" />}
-    </div>
-  );
-
   return (
     <div className="fsl-page">
 
       {/* ══ NAVBAR ══ */}
-      <nav className="fsl-nav">
-        <div className="fsl-nav__left">
-          <a href="/" className="fsl-nav__logo"><FaAirbnb /> Bodima</a>
-        </div>
-
-        <div className="fsl-nav__tabs">
-          {[
-            { key:"boardings",   label:"Boardings",          href:"/Boardings"    },
-            { key:"food",        label:"Food Services",      href:"/Foods" },
-            { key:"experiences", label:"Orders", href:"#"             },
-          ].map(({ key, label, href }) => (
-            <a key={key} href={href}
-              className={`fsl-nav__tab${activeTab === key ? " fsl-nav__tab--active" : ""}`}
-              onClick={() => setActiveTab(key)}>
-              {label}
-              {activeTab === key && <span className="fsl-nav__tab-underline" />}
-            </a>
-          ))}
-        </div>
-
-        <div className="fsl-nav__right">
-          {/* Show "Login" when not logged in, "Host Page" for hosts, hidden for students */}
-          {hostBtnLabel && (
-            <button className="fsl-nav__host-btn" onClick={hostBtnAction}>
-              {hostBtnLabel}
-            </button>
-          )}
-
-          <UserAvatar />
-
-          <div ref={dropdownRef} className="fsl-dropdown">
-            <div className="fsl-nav__icon-btn" onClick={() => setShowDropdown(p => !p)}>
-              <FaBars />
-            </div>
-
-            {showDropdown && (
-              <div className="fsl-dropdown__menu">
-                {/* User info — only when logged in */}
-                {isLoggedIn && currentUser && (
-                  <>
-                    <div className="fsl-dropdown__user">
-                      <span className="fsl-dropdown__username">{currentUser.name ?? "User"}</span>
-                      <span className="fsl-dropdown__email">{currentUser.email ?? ""}</span>
-                      <span className={`fsl-dropdown__role fsl-dropdown__role--${userRole}`}>
-                        {userRole}
-                      </span>
-                    </div>
-                    <div className="fsl-dropdown__divider" />
-                  </>
-                )}
-
-                {/* Profile — accessible by students AND hosts */}
-                {(isStudent || isHost) && (
-                  <div className="fsl-dropdown__item"
-                    onClick={() => { setShowDropdown(false); navigate("/Profile"); }}>
-                    <FaUser style={{ opacity:0.7 }} /> Profile
-                  </div>
-                )}
-
-                {/* Not logged in — show login-required on all items */}
-                {!isLoggedIn && (
-                  <>
-                    <div className="fsl-dropdown__item"
-                      onClick={() => handleProtectedClick()}>
-                      <FaUser style={{ opacity:0.7 }} /> Profile
-                    </div>
-                    <div className="fsl-dropdown__item"
-                      onClick={() => handleProtectedClick()}>
-                      <FaEnvelope style={{ opacity:0.7 }} /> Messages
-                    </div>
-                  </>
-                )}
-
-                {/* Messages — students only */}
-                {isStudent && (
-                  <div className="fsl-dropdown__item"
-                    onClick={() => { setShowDropdown(false); navigate("/Messages"); }}>
-                    <FaEnvelope style={{ opacity:0.7 }} /> Messages
-                  </div>
-                )}
-
-                {/* Logout — students and hosts */}
-                {isLoggedIn && (isStudent || isHost) && (
-                  <>
-                    <div className="fsl-dropdown__divider" />
-                    <div className="fsl-dropdown__item fsl-dropdown__item--danger"
-                      onClick={() => { setShowDropdown(false); setShowLogoutModal(true); }}>
-                      <FaSignOutAlt style={{ opacity:0.7 }} /> Logout
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </nav>
+      <StudentNavbar />
 
       {/* ══ SEARCH + FILTER BAR ══ */}
       <div className="fsl-search-container">
@@ -651,16 +474,7 @@ export default function Foods() {
       </section>
 
       {/* ══ FOOTER ══ */}
-      <footer className="fsl-footer">
-        <div className="fsl-footer__bottom">
-          <span>© 2026 Bodima, Inc. · <a href="#" className="fsl-footer__legal">Privacy · Terms · Sitemap</a></span>
-          <div className="fsl-footer__socials">
-            {[FaFacebookF, FaTwitter, FaInstagram].map((Icon,i) => (
-              <a key={i} href="#" className="fsl-footer__social-icon"><Icon /></a>
-            ))}
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       {/* ══ FILTER POPUP ══ */}
       {showFilter && (
@@ -668,14 +482,6 @@ export default function Foods() {
           draft={draftFilters} setDraft={setDraftFilters}
           onApply={handleFilterApply} onClear={handleFilterClear}
           onClose={() => setShowFilter(false)}
-        />
-      )}
-
-      {/* ══ LOGOUT CONFIRM ══ */}
-      {showLogoutModal && (
-        <LogoutModal
-          onConfirm={handleLogoutConfirm}
-          onCancel={() => setShowLogoutModal(false)}
         />
       )}
 

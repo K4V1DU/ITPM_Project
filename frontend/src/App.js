@@ -15,7 +15,10 @@ import FoodCheckout from "./Components/Food_Checkout/FoodCheckout";
 import Payment from "./Components/Payment/Payment";
 import PaymentReceipt from "./Components/Payment/PaymentReceipt";
 import Messages from "./Components/Message/Message";
-
+import HostOrders from "./Components/Host_Orders/HostOrders";
+import HostNavbar from "./Components/NavBar/Host_NavBar/HostNavbar";
+import Footer from "./Components/NavBar/Footer/Footer";
+import StudentOrders from "./Components/Student_Orders/StudentOrders";
 
 
 function App() {
@@ -38,8 +41,13 @@ function App() {
       <Route path="/Payment" element={<Payment />} />
       <Route path="/PaymentReceipt" element={<PaymentReceipt />} />
       <Route path="/Messages" element={<Messages />} />
+      <Route path="/HostOrders" element={<HostOrders />} />
+      <Route path="/HostNavbar" element={<HostNavbar />} />
+      <Route path="/Footer" element={<Footer />} />
+      <Route path="/StudentOrders" element={<StudentOrders />} />
 
-      
+
+
 
     </Routes>
   );

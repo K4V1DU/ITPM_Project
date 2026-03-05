@@ -1,0 +1,106 @@
+const mongoose = require("mongoose");
+
+const orderItemSchema = new mongoose.Schema(
+  {
+    menuItem: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "MenuItem",
+      required: true,
+    },
+    name: {
+      type: String,
+      required: true,
+    },
+    price: {
+      type: Number,
+      required: true,
+    },
+    qty: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+  },
+  { _id: false }
+);
+
+const foodOrderSchema = new mongoose.Schema(
+  {
+    student: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    foodService: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FoodService",
+      required: true,
+    },
+    orderType: {
+      type: String,
+      enum: ["delivery", "pickup"],
+      required: true,
+    },
+    items: {
+      type: [orderItemSchema],
+      validate: {
+        validator: function (v) {
+          return v.length > 0;
+        },
+        message: "Order must have at least one item",
+      },
+    },
+    itemCount: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+    subtotal: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    deliveryFee: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
+    total: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    status: {
+      type: String,
+      enum: ["pending", "accepted", "completed", "cancelled"],
+      default: "pending",
+    },
+    notes: {
+      type: String,
+      default: "",
+      maxlength: 500,
+    },
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number],
+        required: true,
+      },
+    },
+  },
+  { timestamps: true }
+);
+
+foodOrderSchema.index({ location: "2dsphere" });
+foodOrderSchema.index({ student: 1, createdAt: -1 });
+foodOrderSchema.index({ foodService: 1, createdAt: -1 });
+foodOrderSchema.index({ foodService: 1, status: 1 });
+
+module.exports =
+  mongoose.models.FoodOrder ||
+  mongoose.model("FoodOrder", foodOrderSchema);
