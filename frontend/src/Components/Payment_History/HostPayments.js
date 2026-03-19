@@ -3,12 +3,12 @@ import { useNavigate } from "react-router-dom";
 import {
   FaReceipt, FaCheckCircle, FaTimesCircle, FaClock,
   FaExclamationTriangle, FaSearch, FaSyncAlt, FaBoxOpen,
-  FaMotorcycle, FaHome, FaCalendarAlt, FaTag, FaCoins,
+  FaUtensils, FaHome, FaCalendarAlt, FaTag, FaCoins,
   FaFileUpload, FaBan,
-  FaSpinner, FaInfoCircle,
+  FaSpinner, FaInfoCircle, FaImage,
 } from "react-icons/fa";
 import "./HostPayments.css";
-import StudentNavbar from "../NavBar/Student_NavBar/StudentNavbar";
+import StudentNavbar from "../NavBar/Host_NavBar/HostNavbar";
 import Footer from "../NavBar/Footer/Footer";
 
 const API_BASE    = "http://localhost:8000";
@@ -64,7 +64,7 @@ function SkeletonRow() {
 }
 
 // ── Payment Row ────────────────────────────────────────────────────────────
-function PaymentRow({ payment, selected, onClick }) {
+function PaymentRow({ payment, listing, selected, onClick }) {
   const s = STATUS[payment.status] ?? STATUS.created;
   const isFood = payment.listingType === "food";
   return (
@@ -74,11 +74,13 @@ function PaymentRow({ payment, selected, onClick }) {
       onClick={onClick}
     >
       <div className="hp-row__icon">
-        {isFood ? <FaMotorcycle /> : <FaHome />}
+        {listing?.iconUrl
+          ? <img src={listing.iconUrl} alt="" className="hp-row__icon-img" onError={e => { e.currentTarget.style.display="none"; }} />
+          : isFood ? <FaUtensils /> : <FaHome />}
       </div>
       <div className="hp-row__body">
         <div className="hp-row__top">
-          <span className="hp-row__ref">{payment.referenceCode}</span>
+          <span className="hp-row__ref">{listing?.name ?? payment.referenceCode}</span>
           <StatusBadge status={payment.status} />
         </div>
         <div className="hp-row__meta">
@@ -88,8 +90,12 @@ function PaymentRow({ payment, selected, onClick }) {
           <span className="hp-sep">·</span>
           <span className="hp-row__time"><FaClock style={{ fontSize: 9 }} /> {timeAgo(payment.createdAt)}</span>
         </div>
-        <div className="hp-row__type">
-          {isFood ? <><FaMotorcycle style={{ fontSize: 10 }} /> Food Service</> : <><FaHome style={{ fontSize: 10 }} /> Accommodation</>}
+        <div className="hp-row__ref-sub">
+          <span className="hp-row__type">
+            {isFood ? <><FaUtensils style={{ fontSize: 10 }} /> Food Service</> : <><FaHome style={{ fontSize: 10 }} /> Accommodation</>}
+          </span>
+          <span className="hp-sep">·</span>
+          <span className="hp-row__ref-code">{payment.referenceCode}</span>
         </div>
       </div>
     </div>
@@ -97,8 +103,98 @@ function PaymentRow({ payment, selected, onClick }) {
 }
 
 
+// ── Receipt Section — collapsible, loads image on first expand ────────────
+function ReceiptSection({ payment, receiptImage, onExpand }) {
+  const [open, setOpen] = useState(false);
+
+  const handleToggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next && !receiptImage) onExpand(payment._id);
+  };
+
+  return (
+    <div className="hp-detail__section">
+      <div className="hp-detail__section-label">Receipt</div>
+
+      {/* Clickable header row */}
+      <div
+        className={`hp-receipt-uploaded-row hp-receipt-uploaded-row--clickable${open ? " hp-receipt-uploaded-row--open" : ""}`}
+        onClick={handleToggle}
+      >
+        <div className="hp-receipt-uploaded-icon">
+          <FaFileUpload style={{ fontSize: 13, color: "#0369a1" }} />
+        </div>
+        <div>
+          <div className="hp-receipt-uploaded-label">Receipt uploaded</div>
+          <div className="hp-receipt-uploaded-date">{formatDate(payment.receiptUploadedAt)}</div>
+        </div>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+          {payment.amountMatched && payment.refMatched
+            ? <span className="hp-receipt-match hp-receipt-match--ok"><FaCheckCircle style={{ fontSize: 10 }} /> Auto-verified</span>
+            : <span className="hp-receipt-match hp-receipt-match--fail"><FaTimesCircle style={{ fontSize: 10 }} /> Needs review</span>}
+          <span className={`hp-receipt-chevron${open ? " hp-receipt-chevron--open" : ""}`}>▾</span>
+        </div>
+      </div>
+
+      {/* Expandable content */}
+      {open && (
+        <div className="hp-receipt-expanded">
+          {/* Image */}
+          {receiptImage
+            ? <div className="hp-receipt-img-wrap">
+                <img src={receiptImage} alt="Payment receipt" className="hp-receipt-img" />
+              </div>
+            : <div className="hp-receipt-img-placeholder">
+                <FaSpinner className="hp-spin" style={{ fontSize: 18, color: "#aaa" }} />
+                <span>Loading receipt…</span>
+              </div>}
+
+          {/* OCR verification grid */}
+          {(payment.extractedAmount !== undefined && payment.extractedAmount !== null) && (
+            <div className="hp-detail__verify-grid" style={{ marginTop: 12 }}>
+              <div className={`hp-verify-item${payment.amountMatched ? " hp-verify-item--ok" : " hp-verify-item--fail"}`}>
+                {payment.amountMatched ? <FaCheckCircle /> : <FaTimesCircle />}
+                <div>
+                  <div className="hp-verify-item__label">Amount Read</div>
+                  <div className="hp-verify-item__value">LKR {Number(payment.extractedAmount)?.toLocaleString()}</div>
+                </div>
+              </div>
+              <div className={`hp-verify-item${payment.refMatched ? " hp-verify-item--ok" : " hp-verify-item--fail"}`}>
+                {payment.refMatched ? <FaCheckCircle /> : <FaTimesCircle />}
+                <div>
+                  <div className="hp-verify-item__label">Reference Read</div>
+                  <div className="hp-verify-item__value">{payment.extractedRef || "Not detected"}</div>
+                </div>
+              </div>
+              {payment.extractedBank && (
+                <div className="hp-verify-item hp-verify-item--neutral">
+                  <FaInfoCircle />
+                  <div>
+                    <div className="hp-verify-item__label">Bank</div>
+                    <div className="hp-verify-item__value" style={{ textTransform: "capitalize" }}>{payment.extractedBank}</div>
+                  </div>
+                </div>
+              )}
+              {payment.extractedDate && (
+                <div className="hp-verify-item hp-verify-item--neutral">
+                  <FaCalendarAlt />
+                  <div>
+                    <div className="hp-verify-item__label">Transfer Date</div>
+                    <div className="hp-verify-item__value">{payment.extractedDate}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Payment Detail ─────────────────────────────────────────────────────────
-function PaymentDetail({ payment, onCancel, onUpload }) {
+function PaymentDetail({ payment, listing, receiptImage, onExpandReceipt, onCancel, onUpload }) {
   if (!payment) {
     return (
       <div className="hp-detail hp-detail--empty">
@@ -110,7 +206,7 @@ function PaymentDetail({ payment, onCancel, onUpload }) {
 
   const isFood    = payment.listingType === "food";
   const canCancel = payment.status === "created";
-  const canUpload = !["verified"].includes(payment.status);
+  const canUpload = !["verified", "manual_requested"].includes(payment.status);
 
   const PLAN_LABELS = { "1m": "1 Month", "3m": "3 Months", "6m": "6 Months", "12m": "12 Months" };
 
@@ -127,11 +223,16 @@ function PaymentDetail({ payment, onCancel, onUpload }) {
         <div className="hp-detail__header-row">
           <div className="hp-detail__listing">
             <div className="hp-detail__listing-icon">
-              {isFood ? <FaMotorcycle style={{ fontSize: 18, color: ORANGE }} /> : <FaHome style={{ fontSize: 18, color: "#0369a1" }} />}
+              {listing?.iconUrl
+                ? <img src={listing.iconUrl} alt="listing" className="hp-detail__listing-img"
+                    onError={e => { e.currentTarget.style.display="none"; }} />
+                : isFood
+                  ? <FaUtensils style={{ fontSize: 18, color: ORANGE }} />
+                  : <FaHome style={{ fontSize: 18, color: "#0369a1" }} />}
             </div>
             <div className="hp-detail__listing-info">
               <div className="hp-detail__listing-type">{isFood ? "Food Service" : "Accommodation"}</div>
-              <div className="hp-detail__listing-id">{payment.listing ?? "—"}</div>
+              <div className="hp-detail__listing-name">{listing?.name ?? "—"}</div>
             </div>
           </div>
           <StatusBadge status={payment.status} />
@@ -173,62 +274,13 @@ function PaymentDetail({ payment, onCancel, onUpload }) {
           </div>
         </div>
 
-        {/* Receipt uploaded indicator + verification results ── */}
+        {/* Receipt — collapsible, image loads on expand ── */}
         {payment.receiptUploadedAt && (
-          <div className="hp-detail__section">
-            <div className="hp-detail__section-label">Receipt</div>
-            <div className="hp-receipt-uploaded-row">
-              <div className="hp-receipt-uploaded-icon">
-                <FaFileUpload style={{ fontSize: 13, color: "#0369a1" }} />
-              </div>
-              <div>
-                <div className="hp-receipt-uploaded-label">Receipt uploaded</div>
-                <div className="hp-receipt-uploaded-date">{formatDate(payment.receiptUploadedAt)}</div>
-              </div>
-              <div style={{ marginLeft: "auto" }}>
-                {payment.amountMatched && payment.refMatched
-                  ? <span className="hp-receipt-match hp-receipt-match--ok"><FaCheckCircle style={{ fontSize: 10 }} /> Auto-verified</span>
-                  : <span className="hp-receipt-match hp-receipt-match--fail"><FaTimesCircle style={{ fontSize: 10 }} /> Needs review</span>}
-              </div>
-            </div>
-
-            {(payment.extractedAmount !== undefined && payment.extractedAmount !== null) && (
-              <div className="hp-detail__verify-grid" style={{ marginTop: 12 }}>
-                <div className={`hp-verify-item${payment.amountMatched ? " hp-verify-item--ok" : " hp-verify-item--fail"}`}>
-                  {payment.amountMatched ? <FaCheckCircle /> : <FaTimesCircle />}
-                  <div>
-                    <div className="hp-verify-item__label">Amount Read</div>
-                    <div className="hp-verify-item__value">LKR {Number(payment.extractedAmount)?.toLocaleString()}</div>
-                  </div>
-                </div>
-                <div className={`hp-verify-item${payment.refMatched ? " hp-verify-item--ok" : " hp-verify-item--fail"}`}>
-                  {payment.refMatched ? <FaCheckCircle /> : <FaTimesCircle />}
-                  <div>
-                    <div className="hp-verify-item__label">Reference Read</div>
-                    <div className="hp-verify-item__value">{payment.extractedRef || "Not detected"}</div>
-                  </div>
-                </div>
-                {payment.extractedBank && (
-                  <div className="hp-verify-item hp-verify-item--neutral">
-                    <FaInfoCircle />
-                    <div>
-                      <div className="hp-verify-item__label">Bank</div>
-                      <div className="hp-verify-item__value" style={{ textTransform: "capitalize" }}>{payment.extractedBank}</div>
-                    </div>
-                  </div>
-                )}
-                {payment.extractedDate && (
-                  <div className="hp-verify-item hp-verify-item--neutral">
-                    <FaCalendarAlt />
-                    <div>
-                      <div className="hp-verify-item__label">Transfer Date</div>
-                      <div className="hp-verify-item__value">{payment.extractedDate}</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <ReceiptSection
+            payment={payment}
+            receiptImage={receiptImage}
+            onExpand={onExpandReceipt}
+          />
         )}
 
         {/* Actions */}
@@ -291,6 +343,8 @@ export default function HostPayments() {
   const [lastRefresh,    setLastRefresh]    = useState(Date.now());
   const [toast,          setToast]          = useState({ show: false, msg: "" });
 
+  const [listingInfo,    setListingInfo]    = useState({});  // keyed by payment._id
+  const [receiptImages,  setReceiptImages]  = useState({});  // keyed by payment._id
   const [cancelModal,    setCancelModal]    = useState(null);
   const [cancelLoading,  setCancelLoading]  = useState(false);
 
@@ -326,6 +380,39 @@ export default function HostPayments() {
       })
       .finally(() => setLoading(false));
   }, [hostId, lastRefresh]);
+
+  // Fetch listing name + icon for each payment after payments load
+  useEffect(() => {
+    if (!payments.length) return;
+    payments.forEach(async (p) => {
+      if (listingInfo[p._id]) return; // already fetched
+      try {
+        const endpoint = p.listingType === "food"
+          ? `${API_BASE}/FoodService/${p.listing}`
+          : `${API_BASE}/Accommodation/${p.listing}`;
+        const res  = await fetch(endpoint);
+        const raw  = await res.json();
+        const doc  = raw?.data ?? raw?.result ?? raw;
+        // name: kitchenName for food, title for accommodation
+        const name    = doc?.kitchenName ?? doc?.title ?? "—";
+        // iconId: iconImage for food, first image for accommodation
+        const iconId  = doc?.iconImage ?? doc?.images?.[0] ?? null;
+        const iconUrl = iconId ? `${API_BASE}/Photo/${String(iconId)}` : null;
+        setListingInfo(prev => ({ ...prev, [p._id]: { name, iconUrl } }));
+      } catch { /* silent — listing may have been deleted */ }
+    });
+  }, [payments]);
+
+  // Fetch receipt image only when user expands the receipt section
+  const handleExpandReceipt = async (paymentId) => {
+    if (receiptImages[paymentId]) return; // already fetched
+    try {
+      const res = await fetch(`${API_BASE}/Payment/${paymentId}/receipt-image?hostId=${hostId}`);
+      if (!res.ok) return;
+      const blob = await res.blob();
+      setReceiptImages(prev => ({ ...prev, [paymentId]: URL.createObjectURL(blob) }));
+    } catch { /* no image stored */ }
+  };
 
   const handleCancelConfirm = async () => {
     if (!cancelModal) return;
@@ -458,6 +545,7 @@ export default function HostPayments() {
               <PaymentRow
                 key={payment._id}
                 payment={payment}
+                listing={listingInfo[payment._id]}
                 selected={selectedPayment?._id === payment._id}
                 onClick={() => setSelectedPayment(payment)}
               />
@@ -468,6 +556,9 @@ export default function HostPayments() {
           <div className="hp-split__right">
             <PaymentDetail
               payment={selectedPayment}
+              listing={selectedPayment ? listingInfo[selectedPayment._id] : null}
+              receiptImage={selectedPayment ? receiptImages[selectedPayment._id] : null}
+              onExpandReceipt={handleExpandReceipt}
               onCancel={p => setCancelModal(p)}
               onUpload={p => navigate("/PaymentReceipt", {
             state: {
@@ -477,7 +568,7 @@ export default function HostPayments() {
               plan:          p.plan,
               daysAdded:     p.daysAdded,
               newExpireDate: p.newExpireDate,
-              listingName:   p.listingType === "food" ? "Food Service" : "Accommodation",
+              listingName:   listingInfo[p._id]?.name ?? (p.listingType === "food" ? "Food Service" : "Accommodation"),
             },
           })}
             />
