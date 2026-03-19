@@ -98,7 +98,11 @@ export default function HostNavbar({
         {/* ── Logo ── */}
         <div className="hn-nav__logo-wrap">
           <a href="/" className="hn-nav__logo">
-            <FaAirbnb /> Unisewana
+            <img
+              src="/images/logo2.png"
+              alt="Unisewana Logo"
+              style={{ height: "32px", width: "auto", display: "block" }}
+            />
           </a>
         </div>
 
@@ -202,8 +206,8 @@ export default function HostNavbar({
                   <FaUser style={{ opacity: 0.55 }} /> Profile
                 </div>
                 <div className="hn-dropdown__item"
-                  onClick={() => { setShowDropdown(false); navigate("/Payment"); }}>
-                  <FaCreditCard style={{ opacity: 0.55 }} /> Payment
+                  onClick={() => { setShowDropdown(false); navigate("/PaymentHistory"); }}>
+                  <FaCreditCard style={{ opacity: 0.55 }} /> Payments
                 </div>
                 <div className="hn-dropdown__item"
                   onClick={() => { setShowDropdown(false); navigate("/Messages"); }}>

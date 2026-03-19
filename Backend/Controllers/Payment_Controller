@@ -23,33 +23,25 @@ const generateReferenceCode = async () => {
 };
 
 // ─── Helper: Calculate new expireDate ────────────────────────────────────────
-// If current expireDate is in the future  → add days FROM that date
-// If current expireDate is in the past    → add days FROM today
 const calcNewExpireDate = (currentExpireDate, daysAdded) => {
   const now      = new Date();
   const baseDate = currentExpireDate && new Date(currentExpireDate) > now
-    ? new Date(currentExpireDate)   // still valid — extend from current expiry
-    : new Date();                   // expired or never set — start from today
-
+    ? new Date(currentExpireDate)
+    : new Date();
   baseDate.setDate(baseDate.getDate() + daysAdded);
   return baseDate;
 };
 
-// ─── Helper: Apply expireDate to the listing ──────────────────────────────────
-// Matches the exact pattern used in Review_Controller:
-//   FoodService.findByIdAndUpdate(foodService, { $push: { reviews: review._id } })
-//   — no options, uses $set operator explicitly
+// ─── Helper: Apply expireDate to the listing ─────────────────────────────────
 const applyExpireDateToListing = async (listingId, listingType, daysAdded) => {
   const Model      = listingType === "food" ? FoodService : Accommodation;
   const listingStr = listingId?.toString();
 
-  // 1. Fetch current expireDate to calculate the new one
   const listing = await Model.findById(listingStr).select("expireDate");
   if (!listing) throw new Error(`Listing not found — id: ${listingStr}, type: ${listingType}`);
 
   const newExpireDate = calcNewExpireDate(listing.expireDate, daysAdded);
 
-  // 2. Use $set with no options — same pattern as Review_Controller
   await Model.findByIdAndUpdate(listingStr, {
     $set: {
       expireDate:  newExpireDate,
@@ -68,7 +60,6 @@ exports.getPlans = (req, res) => {
 };
 
 // ─── POST /Payment/create ─────────────────────────────────────────────────────
-// Body: { hostId, listingId, listingType, plan }
 exports.createPayment = async (req, res) => {
   try {
     const { hostId, listingId, listingType, plan } = req.body;
@@ -80,7 +71,6 @@ exports.createPayment = async (req, res) => {
 
     const { amount, daysAdded } = PLANS[plan];
 
-    // Preview expireDate (recalculated on actual verify — this is just for display)
     const Model   = listingType === "food" ? FoodService : Accommodation;
     const listing = await Model.findById(listingId).select("expireDate");
     const previewExpireDate = calcNewExpireDate(listing?.expireDate, daysAdded);
@@ -154,8 +144,30 @@ exports.getPaymentById = async (req, res) => {
   }
 };
 
+// ─── GET /Payment/:id/receipt-image ──────────────────────────────────────────
+// Serves the stored receipt image buffer as an image response.
+// Query param hostId is optional but recommended for ownership check.
+exports.getReceiptImage = async (req, res) => {
+  try {
+    const query = { _id: req.params.id };
+    // If hostId provided, scope to that host only
+    if (req.query.hostId) query.host = req.query.hostId;
+
+    const payment = await Payment.findOne(query).select("receiptImage receiptMimeType host");
+
+    if (!payment)              return res.status(404).json({ success: false, message: "Payment not found." });
+    if (!payment.receiptImage) return res.status(404).json({ success: false, message: "No receipt image uploaded yet." });
+
+    res.set("Content-Type", payment.receiptMimeType || "image/jpeg");
+    res.set("Cache-Control", "private, max-age=3600");
+    res.send(payment.receiptImage);
+  } catch (err) {
+    console.error("getReceiptImage error:", err);
+    res.status(500).json({ success: false, message: "Server error.", error: err.message });
+  }
+};
+
 // ─── POST /Payment/:id/upload-receipt ────────────────────────────────────────
-// Body (multipart): receipt image + OCR fields
 exports.uploadReceipt = async (req, res) => {
   try {
     const payment = await Payment.findById(req.params.id);
@@ -169,9 +181,6 @@ exports.uploadReceipt = async (req, res) => {
 
     const parsedAmount = parseFloat(extractedAmount) || 0;
 
-    // ── Verification logic ────────────────────────────────────────────────────
-    // Exact match only — OCR must read the number correctly, no tolerance
-    // If OCR reads 2,589 instead of 2,599 that is an OCR failure → manual review
     const amountMatched = parsedAmount === payment.amount;
     const refMatched    = extractedRef
       ? extractedRef.toUpperCase().includes(payment.referenceCode.toUpperCase())
@@ -179,39 +188,22 @@ exports.uploadReceipt = async (req, res) => {
 
     const newStatus = (amountMatched && refMatched) ? "verified" : "pending";
 
-    // ── Always log so we can debug ────────────────────────────────────────────
     console.log("─── uploadReceipt debug ───────────────────────────────");
     console.log("  paymentId    :", req.params.id);
-    console.log("  listingId    :", payment.listing?.toString());
-    console.log("  listingType  :", payment.listingType);
-    console.log("  daysAdded    :", payment.daysAdded);
     console.log("  expected amt :", payment.amount, "| extracted:", parsedAmount, "| matched:", amountMatched);
     console.log("  expected ref :", payment.referenceCode, "| extracted:", extractedRef, "| matched:", refMatched);
     console.log("  → newStatus  :", newStatus);
     console.log("───────────────────────────────────────────────────────");
 
-    // ── If verified → update expireDate on the listing ───────────────────────
     let finalExpireDate = payment.newExpireDate;
     if (newStatus === "verified") {
-      console.log("🔄 Verifying payment — updating listing...");
-      console.log("   listingId   :", payment.listing);
-      console.log("   listingType :", payment.listingType);
-      console.log("   daysAdded   :", payment.daysAdded);
-
-      const Model = payment.listingType === "food" ? FoodService : Accommodation;
-      const before = await Model.findById(payment.listing).select("expireDate isAvailable");
-      console.log("   listing found:", before ? "YES" : "NO — ID mismatch or wrong model");
-      if (before) console.log("   current expireDate:", before.expireDate);
-
       finalExpireDate = await applyExpireDateToListing(
         payment.listing,
         payment.listingType,
         payment.daysAdded,
       );
-      console.log(`✅ Done — new expireDate: ${finalExpireDate}`);
     }
 
-    // ── Save receipt + OCR data ───────────────────────────────────────────────
     const updateData = {
       status:            newStatus,
       receiptUploadedAt: new Date(),
@@ -230,14 +222,14 @@ exports.uploadReceipt = async (req, res) => {
       updateData.receiptMimeType = req.file.mimetype;
     }
 
-    const updated = await Payment.findByIdAndUpdate(req.params.id, updateData, { returnDocument: 'after' })
+    const updated = await Payment.findByIdAndUpdate(req.params.id, updateData, { returnDocument: "after" })
       .select("-receiptImage -rawOcrText");
 
     res.json({
       success: true,
       message: newStatus === "verified"
         ? "Payment verified! Your listing is now active."
-        : "Receipt uploaded. Verification failed — you may request manual review.",
+        : "Receipt uploaded. Verification failed — please contact support if needed.",
       payment:      updated,
       verification: { amountMatched, refMatched, newStatus, newExpireDate: finalExpireDate },
     });
@@ -248,14 +240,13 @@ exports.uploadReceipt = async (req, res) => {
 };
 
 // ─── PATCH /Payment/:id/manual-request ───────────────────────────────────────
-// Body: { note }
 exports.requestManualReview = async (req, res) => {
   try {
     const payment = await Payment.findById(req.params.id);
     if (!payment) return res.status(404).json({ success: false, message: "Payment not found." });
 
-    if (payment.status === "verified")          return res.status(400).json({ success: false, message: "Payment is already verified." });
-    if (payment.status === "manual_requested")  return res.status(400).json({ success: false, message: "Manual review already requested." });
+    if (payment.status === "verified")         return res.status(400).json({ success: false, message: "Payment is already verified." });
+    if (payment.status === "manual_requested") return res.status(400).json({ success: false, message: "Manual review already requested." });
     if (!["pending", "created"].includes(payment.status)) {
       return res.status(400).json({ success: false, message: `Cannot request manual review for status "${payment.status}".` });
     }
@@ -263,7 +254,7 @@ exports.requestManualReview = async (req, res) => {
     const updated = await Payment.findByIdAndUpdate(
       req.params.id,
       { status: "manual_requested", note: req.body.note || "" },
-      { returnDocument: 'after' },
+      { returnDocument: "after" },
     ).select("-receiptImage -rawOcrText");
 
     res.json({
@@ -278,7 +269,6 @@ exports.requestManualReview = async (req, res) => {
 };
 
 // ─── PATCH /Payment/:id/cancel ────────────────────────────────────────────────
-// Body: { hostId }
 exports.cancelPayment = async (req, res) => {
   try {
     const { hostId } = req.body;
