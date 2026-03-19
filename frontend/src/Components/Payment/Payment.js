@@ -9,7 +9,7 @@ import {
 const BASE_URL = "http://localhost:8000";
 
 const PLANS = [
-  { key: "1m",  label: "Starter", duration: "1 Month",   amount: 299,  daysAdded: 30,  badge: null,        color: "#6c757d" },
+  { key: "1m",  label: "Starter", duration: "1 Month",   amount: 299,  daysAdded: 30,  badge: null,        color: "#00b345" },
   { key: "3m",  label: "Growth",  duration: "3 Months",  amount: 799,  daysAdded: 90,  badge: null,        color: "#0077b6" },
   { key: "6m",  label: "Pro",     duration: "6 Months",  amount: 1499, daysAdded: 180, badge: "POPULAR",   color: "#e07b00" },
   { key: "12m", label: "Elite",   duration: "12 Months", amount: 2599, daysAdded: 365, badge: "BEST DEAL", color: "#c0392b" },
