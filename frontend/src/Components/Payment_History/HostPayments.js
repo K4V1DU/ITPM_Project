@@ -18,6 +18,17 @@ const ORANGE      = "#FF6B2B";
 
 function unwrap(raw) { return raw?.data ?? raw?.result ?? raw; }
 
+// ─── Notification helper — fire-and-forget ────────────────────────────────────
+async function sendNotification({ recipient, type, title, message, link, refId, refType }) {
+  try {
+    await fetch(`${API_BASE}/Notification`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ recipient, type, title, message, link, refId, refType }),
+    });
+  } catch { /* silent */ }
+}
+
 function timeAgo(dateStr) {
   const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
   if (diff < 60)    return `${diff}s ago`;
@@ -446,6 +457,20 @@ export default function HostPayments() {
       setPayments(prev => prev.filter(p => p._id !== cancelModal._id));
       setSelectedPayment(prev => prev?._id === cancelModal._id ? null : prev);
       showToast("Payment cancelled.");
+
+      // ── Notify host: payment cancelled ───────────────────────────────────
+      if (hostId) {
+        sendNotification({
+          recipient: hostId,
+          type:      "payment_verified",
+          title:     "Payment Cancelled",
+          message:   `Your payment record (${cancelModal.referenceCode}) has been cancelled successfully.`,
+          link:      "/PaymentHistory",
+          refId:     cancelModal._id,
+          refType:   "Payment",
+        });
+      }
+
       setCancelModal(null);
     } catch {
       showToast("Failed to cancel. Please try again.");

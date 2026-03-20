@@ -24,7 +24,7 @@ const FoodServiceRouter = require("../Backend/Routes/FoodService_Route");
 const PaymentRouter = require("../Backend/Routes/Payment_Route");
 const ContactRouter = require("../Backend/Routes/Contact_Route")
 const FoodOrderRouter = require("../Backend/Routes/FoodOrder_Route")
-
+const NotificationRouter = require("../Backend/Routes/Notification_Route")
 
 
 
@@ -39,7 +39,7 @@ app.use("/FoodService", FoodServiceRouter);
 app.use("/Payment", PaymentRouter);
 app.use("/contact", ContactRouter);
 app.use("/FoodOrder", FoodOrderRouter);
-
+app.use("/Notification", NotificationRouter);
 
 
 const MONGO_URI = "mongodb+srv://K4V1DU:ekwpjA9nDZid3iqR@cluster0.23nczaf.mongodb.net/testing2?retryWrites=true&w=majority";

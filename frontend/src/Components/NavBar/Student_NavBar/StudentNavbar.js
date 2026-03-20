@@ -1,19 +1,18 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FaAirbnb,
   FaBars,
   FaUser,
   FaSignOutAlt,
   FaEnvelope,
+  FaBell,
+  FaReceipt,
 } from "react-icons/fa";
 import "./StudentNavbar.css";
+import { useNotifications } from "../../../hooks/useNotifications";
 
 const API_BASE = "http://localhost:8000";
-const FONT =
-  "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-
-const photoSrc = (id) => (id ? `${API_BASE}/Photo/${id}` : null);
+const FONT = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
 // ─────────────────────────────────────────
 // LOGOUT MODAL
@@ -28,16 +27,10 @@ function LogoutModal({ onConfirm, onCancel }) {
         <h3 className="snav-modal__title">Logout</h3>
         <p className="snav-modal__desc">Are you sure you want to logout?</p>
         <div className="snav-modal__btns">
-          <button
-            className="snav-modal__btn snav-modal__btn--ghost"
-            onClick={onCancel}
-          >
+          <button className="snav-modal__btn snav-modal__btn--ghost" onClick={onCancel}>
             Cancel
           </button>
-          <button
-            className="snav-modal__btn snav-modal__btn--danger"
-            onClick={onConfirm}
-          >
+          <button className="snav-modal__btn snav-modal__btn--danger" onClick={onConfirm}>
             Yes, Logout
           </button>
         </div>
@@ -52,25 +45,76 @@ function LogoutModal({ onConfirm, onCancel }) {
 //   activeTab  — "Boardings" | "Food Services" | "Orders" | ""
 // ─────────────────────────────────────────
 export default function StudentNavbar({ activeTab = "" }) {
-  const navigate = useNavigate();
-  const userId = localStorage.getItem("CurrentUserId");
+  const navigate  = useNavigate();
+  const userId    = localStorage.getItem("CurrentUserId");
 
-  const [currentUser, setCurrentUser] = useState(null);
-  const [userAvatarSrc, setUserAvatarSrc] = useState(null);
-  const [dropdown, setDropdown] = useState(false);
+  const {
+    notifications,
+    unreadCount,
+    markRead,
+    markAllRead,
+    deleteOne:     deleteNotification,
+    clearAll,
+  } = useNotifications(userId);
+
+  const [currentUser,   setCurrentUser]   = useState(null);
+  // Read persisted data URL from sessionStorage — available instantly, no flicker
+  const [userAvatarSrc, setUserAvatarSrc] = useState(
+    () => sessionStorage.getItem("studentAvatarDataUrl") || null
+  );
+  // Persist role so Login/Host Page button doesn't flicker on re-mount
+  const [cachedRole, setCachedRole] = useState(
+    () => sessionStorage.getItem("studentUserRole") || null
+  );
+  const [dropdown,   setDropdown]   = useState(false);
   const [showLogout, setShowLogout] = useState(false);
   const dropRef = useRef(null);
+  const bellRef  = useRef(null);
+  const [showBell, setShowBell] = useState(false);
 
-  // Fetch user profile
+  // Fetch user profile + cache avatar as data URL
   useEffect(() => {
     if (!userId) return;
     fetch(`${API_BASE}/User/${userId}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((raw) => {
+      .then(async (raw) => {
         if (!raw) return;
         const user = raw?.data ?? raw?.result ?? raw;
         setCurrentUser(user);
-        if (user?.profileImage) setUserAvatarSrc(photoSrc(user.profileImage));
+        if (user?.role) {
+          sessionStorage.setItem("studentUserRole", user.role);
+          setCachedRole(user.role);
+        }
+
+        if (user?.profileImage) {
+          const photoId  = String(user.profileImage);
+          const storedId = sessionStorage.getItem("studentAvatarPhotoId");
+
+          // Clear stale data URL if user changed their photo
+          if (storedId !== photoId) sessionStorage.removeItem("studentAvatarDataUrl");
+          sessionStorage.setItem("studentAvatarPhotoId", photoId);
+
+          // Use stored data URL if already available
+          const stored = sessionStorage.getItem("studentAvatarDataUrl");
+          if (stored) {
+            setUserAvatarSrc(stored);
+          } else {
+            // Fetch and convert to data URL for persistent storage
+            try {
+              const res = await fetch(`${API_BASE}/Photo/${photoId}`);
+              if (res.ok) {
+                const blob   = await res.blob();
+                const reader = new FileReader();
+                reader.onload = () => {
+                  const dataUrl = reader.result;
+                  sessionStorage.setItem("studentAvatarDataUrl", dataUrl);
+                  setUserAvatarSrc(dataUrl);
+                };
+                reader.readAsDataURL(blob);
+              }
+            } catch { /* silent */ }
+          }
+        }
       })
       .catch(() => {});
   }, [userId]);
@@ -80,6 +124,8 @@ export default function StudentNavbar({ activeTab = "" }) {
     const h = (e) => {
       if (dropRef.current && !dropRef.current.contains(e.target))
         setDropdown(false);
+      if (bellRef.current && !bellRef.current.contains(e.target))
+        setShowBell(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
@@ -87,23 +133,27 @@ export default function StudentNavbar({ activeTab = "" }) {
 
   const handleLogout = () => {
     localStorage.removeItem("CurrentUserId");
+    sessionStorage.removeItem("studentAvatarDataUrl");
+    sessionStorage.removeItem("studentAvatarPhotoId");
+    sessionStorage.removeItem("studentUserRole");
     navigate("/Login");
   };
 
-  const isLoggedIn = !!currentUser;
-  const userRole = currentUser?.role ?? null;
-  const isHost = userRole === "host";
-  const isStudent = userRole === "student";
+  const knownLoggedIn = !!localStorage.getItem("CurrentUserId");
+  const isLoggedIn    = !!currentUser || knownLoggedIn;
+  const userRole      = currentUser?.role ?? cachedRole ?? null;
+  const isHost        = userRole === "host";
+  const isStudent     = userRole === "student";
 
   const TABS = [
-    { label: "Boardings", href: "/Boardings" },
-    { label: "Food Services", href: "/Foods" },
-    { label: "Orders", href: "/StudentOrders" },
+    { label: "Boardings",     href: "/Boardings" },
+    { label: "Food Services", href: "/Foods"      },
   ];
 
   return (
     <>
       <nav className="snav" style={{ fontFamily: FONT }}>
+
         {/* Left — logo */}
         <div className="snav__left">
           <a href="/Boardings" className="snav__logo">
@@ -120,11 +170,8 @@ export default function StudentNavbar({ activeTab = "" }) {
           {TABS.map(({ label, href }) => {
             const active = activeTab === label;
             return (
-              <a
-                key={label}
-                href={href}
-                className={`snav__tab${active ? " snav__tab--active" : ""}`}
-              >
+              <a key={label} href={href}
+                className={`snav__tab${active ? " snav__tab--active" : ""}`}>
                 {label}
                 {active && <span className="snav__tab-underline" />}
               </a>
@@ -135,58 +182,95 @@ export default function StudentNavbar({ activeTab = "" }) {
         {/* Right — avatar + menu */}
         <div className="snav__right">
           {!isLoggedIn && (
-            <button
-              className="snav__host-btn"
-              onClick={() => navigate("/Login")}
-            >
+            <button className="snav__host-btn" onClick={() => navigate("/Login")}>
               Login
             </button>
           )}
           {isHost && (
-            <button
-              className="snav__host-btn"
-              onClick={() => navigate("/Listings")}
-            >
+            <button className="snav__host-btn" onClick={() => navigate("/Listings")}>
               Host Page
             </button>
           )}
 
-          {/* Avatar */}
-          <div className="snav__avatar">
-            {userAvatarSrc ? (
-              <img
-                src={userAvatarSrc}
-                alt="Profile"
-                className="snav__avatar-img"
-                onError={() => setUserAvatarSrc(null)}
-              />
-            ) : (
-              <FaUser className="snav__avatar-icon" />
+          {/* Bell */}
+          <div className="snav__bell-wrap" ref={bellRef}>
+            <button className="snav__bell-btn"
+              onClick={() => { setShowBell(p => !p); setDropdown(false); }}
+              aria-label="Notifications">
+              <FaBell className="snav__bell-icon" />
+              {unreadCount > 0 && (
+                <span className="snav__bell-badge">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+            {showBell && (
+              <div className="snav__bell-dropdown">
+                <div className="snav__bell-dropdown__header">
+                  <span className="snav__bell-dropdown__title">Notifications</span>
+                  <div style={{ display:"flex", gap:6 }}>
+                    {unreadCount > 0 && (
+                      <span className="snav__bell-count">{unreadCount} new</span>
+                    )}
+                    {notifications.length > 0 && (
+                      <button className="snav__bell-clear" onClick={clearAll}>Clear all</button>
+                    )}
+                  </div>
+                </div>
+                <div className="snav__bell-dropdown__divider" />
+                {notifications.length === 0 ? (
+                  <div className="snav__bell-empty">
+                    <FaBell style={{ fontSize: 28, color: "#d1d5db", marginBottom: 8 }} />
+                    <p>No notifications yet</p>
+                  </div>
+                ) : (
+                  <ul className="snav__bell-list">
+                    {notifications.map((n) => (
+                      <li key={n._id}
+                        className={`snav__bell-item${!n.read ? " snav__bell-item--unread" : ""}`}
+                        onClick={() => {
+                          if (!n.read) markRead(n._id);
+                          if (n.link) { setShowBell(false); navigate(n.link); }
+                        }}>
+                        <div className="snav__bell-item__dot" />
+                        <div className="snav__bell-item__body">
+                          <div className="snav__bell-item__title">{n.title}</div>
+                          <div className="snav__bell-item__msg">{n.message}</div>
+                          <div className="snav__bell-item__time">
+                            {new Date(n.createdAt).toLocaleString("en-GB", {
+                              day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"
+                            })}
+                          </div>
+                        </div>
+                        <button className="snav__bell-item__del"
+                          onClick={e => { e.stopPropagation(); deleteNotification(n._id); }}>
+                          ×
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
           </div>
 
-          {/* Dropdown burger */}
+          {/* Combined burger + avatar pill (matches HostNavbar style) */}
           <div ref={dropRef} className="snav__dropdown">
-            <div
-              className="snav__icon-btn"
-              onClick={() => setDropdown((p) => !p)}
-            >
-              <FaBars />
-            </div>
+            <button className="snav__menu-btn" onClick={() => setDropdown((p) => !p)}>
+              <FaBars className="snav__menu-icon" />
+              {userAvatarSrc
+                ? <img src={userAvatarSrc} alt="Profile" className="snav__user-avatar"
+                    onError={() => setUserAvatarSrc(null)} />
+                : <span className="snav__user-icon-wrap"><FaUser className="snav__user-icon" /></span>}
+            </button>
             {dropdown && (
               <div className="snav__dropdown-menu">
                 {isLoggedIn && currentUser && (
                   <>
                     <div className="snav__dropdown-user">
-                      <span className="snav__dropdown-username">
-                        {currentUser.name ?? "User"}
-                      </span>
-                      <span className="snav__dropdown-email">
-                        {currentUser.email ?? ""}
-                      </span>
-                      <span
-                        className={`snav__dropdown-role snav__dropdown-role--${userRole}`}
-                      >
+                      <span className="snav__dropdown-username">{currentUser.name ?? "User"}</span>
+                      <span className="snav__dropdown-email">{currentUser.email ?? ""}</span>
+                      <span className={`snav__dropdown-role snav__dropdown-role--${userRole}`}>
                         {userRole}
                       </span>
                     </div>
@@ -194,37 +278,28 @@ export default function StudentNavbar({ activeTab = "" }) {
                   </>
                 )}
                 {(isStudent || isHost) && (
-                  <div
-                    className="snav__dropdown-item"
-                    onClick={() => {
-                      setDropdown(false);
-                      navigate("/Profile");
-                    }}
-                  >
+                  <div className="snav__dropdown-item"
+                    onClick={() => { setDropdown(false); navigate("/Profile"); }}>
                     <FaUser style={{ opacity: 0.7 }} /> Profile
                   </div>
                 )}
                 {isStudent && (
-                  <div
-                    className="snav__dropdown-item"
-                    onClick={() => {
-                      setDropdown(false);
-                      navigate("/Messages");
-                    }}
-                  >
+                  <div className="snav__dropdown-item"
+                    onClick={() => { setDropdown(false); navigate("/Messages"); }}>
                     <FaEnvelope style={{ opacity: 0.7 }} /> Messages
+                  </div>
+                )}
+                {isStudent && (
+                  <div className="snav__dropdown-item"
+                    onClick={() => { setDropdown(false); navigate("/StudentOrders"); }}>
+                    <FaReceipt style={{ opacity: 0.7 }} /> My Orders
                   </div>
                 )}
                 {isLoggedIn && (isStudent || isHost) && (
                   <>
                     <div className="snav__dropdown-divider" />
-                    <div
-                      className="snav__dropdown-item snav__dropdown-item--danger"
-                      onClick={() => {
-                        setDropdown(false);
-                        setShowLogout(true);
-                      }}
-                    >
+                    <div className="snav__dropdown-item snav__dropdown-item--danger"
+                      onClick={() => { setDropdown(false); setShowLogout(true); }}>
                       <FaSignOutAlt style={{ opacity: 0.7 }} /> Logout
                     </div>
                   </>

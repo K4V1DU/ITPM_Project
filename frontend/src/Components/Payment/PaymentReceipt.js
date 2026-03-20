@@ -10,6 +10,17 @@ import "./PaymentReceipt.css";
 
 const BASE_URL = "http://localhost:8000";
 
+// ─── Notification helper — fire-and-forget ────────────────────────────────────
+async function sendNotification({ recipient, type, title, message, link, refId, refType }) {
+  try {
+    await fetch(`${BASE_URL}/Notification`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ recipient, type, title, message, link, refId, refType }),
+    });
+  } catch { /* silent */ }
+}
+
 const STATUS_CONFIG = {
   created:          { label: "Awaiting Transfer",   color: "#7f8c8d", bg: "#f4f6f7", bdr: "#d5d8dc"  },
   pending:          { label: "Verification Failed", color: "#d35400", bg: "#fef6ee", bdr: "#fddcb5"  },
@@ -183,6 +194,33 @@ export default function PaymentReceipt() {
 
       const { payment: updatedPayment, verification } = res.data;
       setStatus(updatedPayment.status);
+
+      // ── Notify host on auto-verification result ───────────────────────────
+      const hostId = localStorage.getItem("CurrentUserId");
+      if (hostId) {
+        if (verification.newStatus === "verified") {
+          sendNotification({
+            recipient: hostId,
+            type:      "payment_verified",
+            title:     "Payment Verified!",
+            message:   `Your payment for ${listingName} (${referenceCode}) has been verified. Your listing is now active for ${daysAdded} days.`,
+            link:      "/PaymentHistory",
+            refId:     paymentId,
+            refType:   "Payment",
+          });
+        } else {
+          sendNotification({
+            recipient: hostId,
+            type:      "payment_verified",
+            title:     "Receipt Uploaded — Verification Failed",
+            message:   `Your receipt for ${listingName} (${referenceCode}) could not be auto-verified. Please request a manual review.`,
+            link:      "/PaymentHistory",
+            refId:     paymentId,
+            refType:   "Payment",
+          });
+        }
+      }
+
       setOcrResult({
         amountMatched: verification.amountMatched,
         refMatched:    verification.refMatched,
@@ -205,6 +243,20 @@ export default function PaymentReceipt() {
       setStatus(res.data.payment.status);
       setManualSent(true);
       setShowManualForm(false);
+
+      // ── Notify host: manual review requested ─────────────────────────────
+      const hostIdManual = localStorage.getItem("CurrentUserId");
+      if (hostIdManual) {
+        sendNotification({
+          recipient: hostIdManual,
+          type:      "payment_verified",
+          title:     "Manual Review Requested",
+          message:   `Your manual review request for ${listingName} (${referenceCode}) has been submitted. Our team will verify within 24 hours.`,
+          link:      "/PaymentHistory",
+          refId:     paymentId,
+          refType:   "Payment",
+        });
+      }
     } catch (err) {
       setError(err.response?.data?.message || "Failed to request manual review.");
     }

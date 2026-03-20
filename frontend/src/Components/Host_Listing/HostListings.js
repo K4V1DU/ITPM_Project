@@ -9,7 +9,7 @@ import {
 } from "react-icons/fa";
 import HostNavbar from "../NavBar/Host_NavBar/HostNavbar";
 import Footer from "../NavBar/Footer/Footer";
-import { usePhotoCache, CachedImg, prefetchPhotos } from "./usePhotoCache";
+import { usePhotoCache, CachedImg, prefetchPhotos } from "../Image_Cache/usePhotoCache";
 import "./HostListings.css";
 
 const BASE_URL        = "http://localhost:8000";
@@ -344,7 +344,13 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
 function EmptyState({ type, onAdd }) {
   return (
     <div className="empty-state">
-      <div className="empty-illustration"></div>
+      <div className="empty-illustration">
+        <img
+          src={type === "food" ? "/images/icon3.jpg" : "/images/icon2.jpg"}
+          alt={type === "food" ? "Food Service" : "Accommodation"}
+          className="empty-illustration__img"
+        />
+      </div>
       <h3>No {type === "food" ? "food services" : "accommodations"} yet</h3>
       <p>
         {type === "food"

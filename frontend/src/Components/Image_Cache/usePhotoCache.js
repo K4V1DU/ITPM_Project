@@ -35,7 +35,17 @@ if (typeof window !== "undefined") {
  * Fetch a photo and store it as a blob URL.
  * Returns the blob URL (or null on error).
  */
-async function fetchPhoto(photoId) {
+/**
+ * getCachedUrl — synchronous, returns blob URL if already in cache, else null.
+ * Use for initial state to avoid flicker on re-mount.
+ */
+export function getCachedUrl(photoId) {
+  if (!photoId) return null;
+  const id = String(photoId);
+  return _cache[id]?.status === "ready" ? _cache[id].url : null;
+}
+
+export async function fetchPhoto(photoId) {
   if (!photoId) return null;
   const id = String(photoId);
 
