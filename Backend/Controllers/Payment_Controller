@@ -49,7 +49,6 @@ const applyExpireDateToListing = async (listingId, listingType, daysAdded) => {
     },
   });
 
-  console.log(`✅ ${listingType} ${listingStr} → expireDate: ${newExpireDate}, isAvailable: true`);
   return newExpireDate;
 };
 
@@ -159,7 +158,8 @@ exports.getReceiptImage = async (req, res) => {
     if (!payment.receiptImage) return res.status(404).json({ success: false, message: "No receipt image uploaded yet." });
 
     res.set("Content-Type", payment.receiptMimeType || "image/jpeg");
-    res.set("Cache-Control", "private, max-age=3600");
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.set("Pragma", "no-cache");
     res.send(payment.receiptImage);
   } catch (err) {
     console.error("getReceiptImage error:", err);
@@ -177,23 +177,21 @@ exports.uploadReceipt = async (req, res) => {
       return res.status(400).json({ success: false, message: `Payment is already ${payment.status}.` });
     }
 
-    const { extractedAmount, extractedRef, extractedDate, extractedBank, rawOcrText } = req.body;
+    const { extractedAmount, displayAmount, extractedRef, extractedDate, extractedBank, rawOcrText } = req.body;
 
-    const parsedAmount = parseFloat(extractedAmount) || 0;
+    // bestAmount  — exact/keyword match used for verification logic (0 if OCR couldn't match)
+    // storedAmount — best value OCR actually read, always stored for display even on failure
+    const bestAmount   = parseFloat(extractedAmount) || 0;
+    const storedAmount = parseFloat(displayAmount)   || bestAmount || 0;
 
-    const amountMatched = parsedAmount === payment.amount;
+    // Accept exact match OR up to 1 rupee over (OCR rounding tolerance)
+    // e.g. required 499, paid 500 → pass | paid 501 → fail | paid 498 → fail
+    const amountMatched = bestAmount > 0 && bestAmount >= payment.amount && bestAmount <= payment.amount + 1;
     const refMatched    = extractedRef
       ? extractedRef.toUpperCase().includes(payment.referenceCode.toUpperCase())
       : false;
 
     const newStatus = (amountMatched && refMatched) ? "verified" : "pending";
-
-    console.log("─── uploadReceipt debug ───────────────────────────────");
-    console.log("  paymentId    :", req.params.id);
-    console.log("  expected amt :", payment.amount, "| extracted:", parsedAmount, "| matched:", amountMatched);
-    console.log("  expected ref :", payment.referenceCode, "| extracted:", extractedRef, "| matched:", refMatched);
-    console.log("  → newStatus  :", newStatus);
-    console.log("───────────────────────────────────────────────────────");
 
     let finalExpireDate = payment.newExpireDate;
     if (newStatus === "verified") {
@@ -207,7 +205,7 @@ exports.uploadReceipt = async (req, res) => {
     const updateData = {
       status:            newStatus,
       receiptUploadedAt: new Date(),
-      extractedAmount:   parsedAmount,
+      extractedAmount:   storedAmount,  // always the best OCR read, never 0 if OCR found anything
       extractedRef:      extractedRef  || "",
       extractedDate:     extractedDate || "",
       extractedBank:     extractedBank || "",
@@ -276,7 +274,7 @@ exports.cancelPayment = async (req, res) => {
 
     if (!payment) return res.status(404).json({ success: false, message: "Payment not found." });
 
-    if (payment.status !== "created") {
+    if (!["created", "pending"].includes(payment.status)) {
       return res.status(400).json({
         success: false,
         message: `Cannot cancel a payment with status "${payment.status}".`,
