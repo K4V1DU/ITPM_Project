@@ -9,56 +9,103 @@ import {
 } from "react-icons/fa";
 import HostNavbar from "../NavBar/Host_NavBar/HostNavbar";
 import Footer from "../NavBar/Footer/Footer";
+import { usePhotoCache, CachedImg, prefetchPhotos } from "./usePhotoCache";
 import "./HostListings.css";
 
 const BASE_URL        = "http://localhost:8000";
 const CURRENT_USER_ID = localStorage.getItem("CurrentUserId") ?? "";
-const photoUrl        = (id) => `${BASE_URL}/photo/${id}`;
 
+// ─── ListingCard ──────────────────────────────────────────────────────────────
 function ListingCard({ item, type, onClick }) {
-  const coverImg = type === "food"
-    ? (item.BackgroundImage ? photoUrl(item.BackgroundImage) : null)
-    : (item.images?.[0]     ? photoUrl(item.images[0])       : null);
+  const { cachedUrl, photoStatus } = usePhotoCache();
+
+  const coverPhotoId = type === "food" ? item.BackgroundImage : item.images?.[0];
+  const coverUrl     = cachedUrl(coverPhotoId);
+  const status       = photoStatus(coverPhotoId);
+  const imgLoading   = status === "loading";
 
   const isAvailable = item.isAvailable;
+  const isOpen      = isAvailable; // alias for display
   const title       = type === "food" ? item.kitchenName : item.title;
-  const subtitle    = type === "food" ? item.serviceType : (item.accommodationType || "Accommodation");
+  const typeLabel   = type === "food" ? item.serviceType : (item.accommodationType || "Accommodation");
+  const rating      = item.ratingAverage ?? 0;
+  const reviewCount = item.ratingCount   ?? item.reviews?.length ?? 0;
 
-  return (
-    <div className="listing-card" onClick={() => onClick(item, type)}>
-      <div className="card-cover">
-        {coverImg
-          ? <img src={coverImg} alt={title} className="cover-img" />
-          : <div className="cover-placeholder"><span>{type === "food" ? "🍽️" : "🏠"}</span></div>
-        }
-        <div className={`availability-pill ${isAvailable ? "on" : "off"}`}>
-          <span className="pill-dot" />
-          {isAvailable ? "Listed" : "Unlisted"}
+  if (imgLoading) {
+    return (
+      <div className="lc lc--skeleton">
+        <div className="lc__img-skeleton" />
+        <div className="lc__body">
+          <div className="lc__skel-line lc__skel-line--title" />
+          <div className="lc__skel-line lc__skel-line--sub" />
+          <div className="lc__skel-line lc__skel-line--meta" />
         </div>
       </div>
-      <div className="card-body">
-        <div className="card-top">
-          <div className="card-top-text">
-            <p className="card-subtitle">{subtitle}</p>
-            <h3 className="card-title">{title || "Untitled listing"}</h3>
-          </div>
+    );
+  }
+
+  return (
+    <div className="lc" onClick={() => onClick(item, type)}>
+      {/* ── Cover image ── */}
+      <div className="lc__img-wrap">
+        {coverUrl
+          ? <img src={coverUrl} alt={title} className="lc__img" />
+          : <div className="lc__img-placeholder" />
+        }
+
+        {/* Open / Closed badge — top left */}
+        <div className={`lc__status ${isOpen ? "lc__status--open" : "lc__status--closed"}`}>
+          <span className="lc__status-dot" />
+          {isOpen ? "Listed" : "Unlisted"}
         </div>
-        <p className="card-address">
-          <FaMapMarkerAlt className="card-addr-icon" />
-          {item.address || <span className="no-address">No address set</span>}
-        </p>
-        {type === "food" && item.operatingHours && (
-          <p className="card-hours">
-            <FaClock className="card-addr-icon" />
-            {item.operatingHours.open} – {item.operatingHours.close}
-          </p>
-        )}
-        <div className="card-chips">
-          {type === "food" && item.deliveryAvailable && <span className="chip chip-blue"><FaMotorcycle /> Delivery</span>}
-          {type === "food" && item.pickupAvailable   && <span className="chip chip-orange"><FaShoppingBag /> Pickup</span>}
-          {type === "food" && item.menu?.length > 0  && <span className="chip chip-gray">{item.menu.length} menu items</span>}
+
+        {/* Delivery / Pickup chips — bottom left, overlaid on image */}
+        <div className="lc__img-chips">
+          {type === "food" && item.deliveryAvailable && (
+            <span className="lc__img-chip lc__img-chip--delivery"><FaMotorcycle /> Delivery</span>
+          )}
+          {type === "food" && item.pickupAvailable && (
+            <span className="lc__img-chip lc__img-chip--pickup"><FaShoppingBag /> Pickup</span>
+          )}
           {type === "accommodation" && item.pricePerMonth && (
-            <span className="chip chip-green">LKR {Number(item.pricePerMonth).toLocaleString()} / month</span>
+            <span className="lc__img-chip lc__img-chip--delivery">
+              LKR {Number(item.pricePerMonth).toLocaleString()}/mo
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* ── Card body ── */}
+      <div className="lc__body">
+        {/* Title row with rating */}
+        <div className="lc__title-row">
+          <h3 className="lc__title">{title || "Untitled listing"}</h3>
+          {rating > 0 && (
+            <span className="lc__rating">
+              <FaStar className="lc__star" /> {rating.toFixed(1)}
+            </span>
+          )}
+        </div>
+
+        {/* Subtitle: type icon · type · address */}
+        <p className="lc__subtitle">
+          
+          {typeLabel}
+          {item.address && <> · <span className="lc__addr">{item.address}</span></>}
+        </p>
+
+        {/* Bottom row: reviews left, hours right */}
+        <div className="lc__meta-row">
+          <span className="lc__reviews">
+            {reviewCount > 0
+              ? `${reviewCount} review${reviewCount !== 1 ? "s" : ""}`
+              : "No reviews yet"}
+          </span>
+          {type === "food" && item.operatingHours && (
+            <span className="lc__hours">
+              <FaClock className="lc__clock-icon" />
+              {item.operatingHours.open} – {item.operatingHours.close}
+            </span>
           )}
         </div>
       </div>
@@ -66,9 +113,11 @@ function ListingCard({ item, type, onClick }) {
   );
 }
 
+// ─── MenuItemRow ──────────────────────────────────────────────────────────────
 function MenuItemRow({ menuItemId, cachedData, onUpdate }) {
   const [menuItem, setMenuItem] = useState(cachedData || null);
   const [toggling, setToggling] = useState(false);
+  const { cachedUrl } = usePhotoCache();
 
   useEffect(() => {
     if (cachedData) { setMenuItem(cachedData); return; }
@@ -77,6 +126,9 @@ function MenuItemRow({ menuItemId, cachedData, onUpdate }) {
         const data = r.data?.data || r.data;
         setMenuItem(data);
         onUpdate?.(menuItemId, data);
+        // Pre-warm the image cache for this menu item
+        const imgId = data?.image || data?.imageId || data?.photo;
+        if (imgId) prefetchPhotos([imgId]);
       })
       .catch(() => {});
   }, [menuItemId, cachedData]);
@@ -104,13 +156,15 @@ function MenuItemRow({ menuItemId, cachedData, onUpdate }) {
     </div>
   );
 
-  const imgId = menuItem.image || menuItem.imageId || menuItem.photo;
+  const imgId  = menuItem.image || menuItem.imageId || menuItem.photo;
+  const imgUrl = cachedUrl(imgId);
+
   return (
     <div className="menu-item-row">
       <div className="mi-img-wrap">
-        {imgId
-          ? <img src={photoUrl(imgId)} alt={menuItem.name} className="mi-img" />
-          : <div className="mi-img-fallback">🍽</div>
+        {imgUrl
+          ? <img src={imgUrl} alt={menuItem.name} className="mi-img" />
+          : <div className="mi-img-fallback" />
         }
       </div>
       <div className="mi-info">
@@ -131,13 +185,15 @@ function MenuItemRow({ menuItemId, cachedData, onUpdate }) {
   );
 }
 
+// ─── ListingPopup ─────────────────────────────────────────────────────────────
 function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPayment, menuItemCache, onMenuItemCacheUpdate }) {
   const [toggling, setToggling] = useState(false);
+  const { cachedUrl } = usePhotoCache();
 
-  const coverImg    = type === "food"
-    ? (item.BackgroundImage ? photoUrl(item.BackgroundImage) : null)
-    : (item.images?.[0]     ? photoUrl(item.images[0])       : null);
-  const iconImg     = type === "food" && item.iconImage ? photoUrl(item.iconImage) : null;
+  const coverPhotoId = type === "food" ? item.BackgroundImage : item.images?.[0];
+  const coverUrl     = cachedUrl(coverPhotoId);
+  const iconUrl      = type === "food" ? cachedUrl(item.iconImage) : null;
+
   const isAvailable = item.isAvailable;
   const title       = type === "food" ? item.kitchenName : item.title;
   const subtitle    = type === "food" ? item.serviceType : (item.accommodationType || "Accommodation");
@@ -155,17 +211,18 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
     <div className="popup-overlay" onClick={onClose}>
       <div className="popup" onClick={e => e.stopPropagation()}>
         <div className="popup-cover">
-          {coverImg
-            ? <img src={coverImg} alt={title} className="popup-cover-img" />
-            : <div className="popup-cover-placeholder">{type === "food" ? "🍽️" : "🏠"}</div>
+          {coverUrl
+            ? <img src={coverUrl} alt={title} className="popup-cover-img" />
+            : <div className="popup-cover-placeholder">{type === "food" ? "Food Service" : "Accommodation"}</div>
           }
           <button className="popup-close" onClick={onClose}><FaTimes /></button>
           <div className={`popup-status-badge ${isAvailable ? "on" : "off"}`}>
             <span className="pill-dot" />{isAvailable ? "Listed" : "Unlisted"}
           </div>
-          {iconImg && (
+          {iconUrl && (
             <div className="popup-icon-wrap">
-              <img src={iconImg} alt="icon" className="popup-icon" onError={e => { e.currentTarget.style.display = "none"; }} />
+              <img src={iconUrl} alt="icon" className="popup-icon"
+                onError={e => { e.currentTarget.style.display = "none"; }} />
             </div>
           )}
         </div>
@@ -283,21 +340,23 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
   );
 }
 
+// ─── EmptyState ───────────────────────────────────────────────────────────────
 function EmptyState({ type, onAdd }) {
   return (
     <div className="empty-state">
-      <div className="empty-illustration">{type === "food" ? "🍳" : "🏡"}</div>
+      <div className="empty-illustration"></div>
       <h3>No {type === "food" ? "food services" : "accommodations"} yet</h3>
       <p>
         {type === "food"
           ? "List your kitchen, restaurant, or café to start receiving orders."
           : "List your property to start hosting guests."}
       </p>
-      <button className="btn-add-empty" onClick={onAdd}>+ Create a listing</button>
+      <button className="btn-add-empty" onClick={onAdd}>Create a listing</button>
     </div>
   );
 }
 
+// ─── DeleteModal ──────────────────────────────────────────────────────────────
 function DeleteModal({ onConfirm, onCancel }) {
   return (
     <div className="modal-overlay" onClick={onCancel}>
@@ -313,6 +372,68 @@ function DeleteModal({ onConfirm, onCancel }) {
   );
 }
 
+// ─── CreateListingModal ───────────────────────────────────────────────────────
+function CreateListingModal({ onClose, onSelect }) {
+  const [selected, setSelected] = useState(null);
+
+  const options = [
+    {
+      key: "accommodation",
+      label: "Accommodation",
+      icon: (
+        <img
+          src="/images/icon2.jpg"
+          alt="Accommodation"
+          className="cl-option__img"
+          onError={e => { e.currentTarget.style.display="none"; }}
+        />
+      ),
+    },
+    {
+      key: "food",
+      label: "Food Service",
+      icon: (
+        <img
+          src="/images/icon3.jpg"
+          alt="Food Service"
+          className="cl-option__img"
+          onError={e => { e.currentTarget.style.display="none"; }}
+        />
+      ),
+    },
+  ];
+
+  return (
+    <div className="cl-overlay" onClick={onClose}>
+      <div className="cl-modal" onClick={e => e.stopPropagation()}>
+        <h2 className="cl-title">What would you like to host?</h2>
+
+        <div className="cl-options">
+          {options.map(opt => (
+            <div
+              key={opt.key}
+              className={`cl-option${selected === opt.key ? " cl-option--selected" : ""}`}
+              onClick={() => setSelected(opt.key)}
+            >
+              <div className="cl-option__icon">{opt.icon}</div>
+              <span className="cl-option__label">{opt.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <button
+          className={`cl-next${selected ? " cl-next--active" : ""}`}
+          disabled={!selected}
+          onClick={() => selected && onSelect(selected)}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── HostListings (main) ──────────────────────────────────────────────────────
 export default function HostListings() {
   const navigate = useNavigate();
 
@@ -321,6 +442,7 @@ export default function HostListings() {
   const [accommodations, setAccommodations] = useState([]);
   const [loading,        setLoading]        = useState(true);
   const [deleteTarget,   setDeleteTarget]   = useState(null);
+  const [showCreate,     setShowCreate]     = useState(false);
   const [selectedItem,   setSelectedItem]   = useState(null);
 
   const menuItemCacheRef = useRef({});
@@ -339,14 +461,31 @@ export default function HostListings() {
         axios.get(`${BASE_URL}/Foodservice`),
         axios.get(`${BASE_URL}/accommodation`),
       ]);
+
+      let allPhotoIds = [];
+
       if (fsRes.status === "fulfilled") {
         const all = fsRes.value.data?.data || [];
-        setFoodServices(all.filter(f => String(f.owner) === String(CURRENT_USER_ID)));
+        const mine = all.filter(f => String(f.owner) === String(CURRENT_USER_ID));
+        setFoodServices(mine);
+        // Collect all photo IDs to pre-warm the cache
+        mine.forEach(f => {
+          if (f.BackgroundImage) allPhotoIds.push(f.BackgroundImage);
+          if (f.iconImage)       allPhotoIds.push(f.iconImage);
+        });
       }
+
       if (acRes.status === "fulfilled") {
         const all = acRes.value.data?.data || [];
-        setAccommodations(all.filter(a => String(a.owner) === String(CURRENT_USER_ID)));
+        const mine = all.filter(a => String(a.owner) === String(CURRENT_USER_ID));
+        setAccommodations(mine);
+        mine.forEach(a => {
+          if (a.images?.[0]) allPhotoIds.push(a.images[0]);
+        });
       }
+
+      // Fire-and-forget: fetch all images in parallel so they're ready when needed
+      prefetchPhotos(allPhotoIds);
       setLoading(false);
     };
     fetchAll();
@@ -412,10 +551,8 @@ export default function HostListings() {
   return (
     <div className="page">
 
-      {/* ══ NAVBAR ══ */}
       <HostNavbar activeHref="/Listings" />
 
-      {/* ══ PAGE HEADER ══ */}
       <div className="page-header">
         <div className="page-header-inner">
           <div className="page-header-left">
@@ -426,7 +563,7 @@ export default function HostListings() {
               </span>
             )}
           </div>
-          <button className="btn-create" onClick={() => navigate("/host")}>+ Create listing</button>
+          <button className="btn-create" onClick={() => setShowCreate(true)}>Create listing</button>
         </div>
         <div className="tabs">
           <button className={`tab ${activeTab === "food" ? "active" : ""}`} onClick={() => setActiveTab("food")}>
@@ -440,7 +577,6 @@ export default function HostListings() {
         </div>
       </div>
 
-      {/* ══ CONTENT ══ */}
       <div className="page-content">
         {loading ? (
           <div className="grid">
@@ -470,7 +606,6 @@ export default function HostListings() {
         )}
       </div>
 
-      {/* ══ FOOTER ══ */}
       <Footer />
 
       {selectedItem && (
@@ -489,6 +624,16 @@ export default function HostListings() {
 
       {deleteTarget && (
         <DeleteModal onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} />
+      )}
+
+      {showCreate && (
+        <CreateListingModal
+          onClose={() => setShowCreate(false)}
+          onSelect={(type) => {
+            setShowCreate(false);
+            navigate(type === "food" ? "/AddFoodService" : "/add-accommodation");
+          }}
+        />
       )}
     </div>
   );
