@@ -8,7 +8,7 @@ import {
   FaSpinner, FaInfoCircle, FaImage,
 } from "react-icons/fa";
 import "./HostPayments.css";
-import StudentNavbar from "../NavBar/Host_NavBar/HostNavbar";
+import HostNavbar from "../NavBar/Host_NavBar/HostNavbar";
 import Footer from "../NavBar/Footer/Footer";
 
 const API_BASE    = "http://localhost:8000";
@@ -17,6 +17,17 @@ const FONT        = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Se
 const ORANGE      = "#FF6B2B";
 
 function unwrap(raw) { return raw?.data ?? raw?.result ?? raw; }
+
+// ─── Notification helper — fire-and-forget ────────────────────────────────────
+async function sendNotification({ recipient, type, title, message, link, refId, refType }) {
+  try {
+    await fetch(`${API_BASE}/Notification`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ recipient, type, title, message, link, refId, refType }),
+    });
+  } catch { /* silent */ }
+}
 
 function timeAgo(dateStr) {
   const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
@@ -107,10 +118,18 @@ function PaymentRow({ payment, listing, selected, onClick }) {
 function ReceiptSection({ payment, receiptImage, onExpand }) {
   const [open, setOpen] = useState(false);
 
+  // Reset collapsed state whenever a different payment is shown
+  const prevIdRef = useRef(null);
+  if (prevIdRef.current !== payment._id) {
+    prevIdRef.current = payment._id;
+    if (open) setOpen(false);
+  }
+
   const handleToggle = () => {
     const next = !open;
     setOpen(next);
-    if (next && !receiptImage) onExpand(payment._id);
+    // Pass uploadedAt directly so the handler doesn't rely on stale closure state
+    if (next && !receiptImage) onExpand(payment._id, payment.receiptUploadedAt);
   };
 
   return (
@@ -205,7 +224,7 @@ function PaymentDetail({ payment, listing, receiptImage, onExpandReceipt, onCanc
   }
 
   const isFood    = payment.listingType === "food";
-  const canCancel = payment.status === "created";
+  const canCancel = ["created", "pending"].includes(payment.status);
   const canUpload = !["verified", "manual_requested"].includes(payment.status);
 
   const PLAN_LABELS = { "1m": "1 Month", "3m": "3 Months", "6m": "6 Months", "12m": "12 Months" };
@@ -344,7 +363,7 @@ export default function HostPayments() {
   const [toast,          setToast]          = useState({ show: false, msg: "" });
 
   const [listingInfo,    setListingInfo]    = useState({});  // keyed by payment._id
-  const [receiptImages,  setReceiptImages]  = useState({});  // keyed by payment._id
+  const [receiptImages,  setReceiptImages]  = useState({});  // { [paymentId]: { url, uploadedAt } }
   const [cancelModal,    setCancelModal]    = useState(null);
   const [cancelLoading,  setCancelLoading]  = useState(false);
 
@@ -357,6 +376,13 @@ export default function HostPayments() {
   };
 
   useEffect(() => { if (!hostId) navigate("/Login"); }, []);
+
+  // Refresh payments when user returns to this tab (e.g. after uploading receipt)
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") setLastRefresh(Date.now()); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
 
   // Fetch payments
   useEffect(() => {
@@ -403,15 +429,19 @@ export default function HostPayments() {
     });
   }, [payments]);
 
-  // Fetch receipt image only when user expands the receipt section
-  const handleExpandReceipt = async (paymentId) => {
-    if (receiptImages[paymentId]) return; // already fetched
+  // Fetch receipt image on expand — re-fetches if uploadedAt changed
+  const handleExpandReceipt = async (paymentId, uploadedAt) => {
+    const cached = receiptImages[paymentId];
+    // Skip only if we already have this exact version
+    if (cached && cached.uploadedAt === uploadedAt) return;
     try {
-      const res = await fetch(`${API_BASE}/Payment/${paymentId}/receipt-image?hostId=${hostId}`);
+      const ts  = uploadedAt ? new Date(uploadedAt).getTime() : Date.now();
+      const res = await fetch(`${API_BASE}/Payment/${paymentId}/receipt-image?hostId=${hostId}&t=${ts}`, { cache: "no-store" });
       if (!res.ok) return;
       const blob = await res.blob();
-      setReceiptImages(prev => ({ ...prev, [paymentId]: URL.createObjectURL(blob) }));
-    } catch { /* no image stored */ }
+      if (cached?.url) URL.revokeObjectURL(cached.url);
+      setReceiptImages(prev => ({ ...prev, [paymentId]: { url: URL.createObjectURL(blob), uploadedAt } }));
+    } catch { /* no image stored yet */ }
   };
 
   const handleCancelConfirm = async () => {
@@ -427,6 +457,20 @@ export default function HostPayments() {
       setPayments(prev => prev.filter(p => p._id !== cancelModal._id));
       setSelectedPayment(prev => prev?._id === cancelModal._id ? null : prev);
       showToast("Payment cancelled.");
+
+      // ── Notify host: payment cancelled ───────────────────────────────────
+      if (hostId) {
+        sendNotification({
+          recipient: hostId,
+          type:      "payment_verified",
+          title:     "Payment Cancelled",
+          message:   `Your payment record (${cancelModal.referenceCode}) has been cancelled successfully.`,
+          link:      "/PaymentHistory",
+          refId:     cancelModal._id,
+          refType:   "Payment",
+        });
+      }
+
       setCancelModal(null);
     } catch {
       showToast("Failed to cancel. Please try again.");
@@ -457,7 +501,7 @@ export default function HostPayments() {
   return (
     <div className="hp-page" style={{ fontFamily: FONT }}>
 
-      <StudentNavbar activeTab="" />
+      <HostNavbar />
 
       <div className="hp-wrapper">
 
@@ -557,7 +601,7 @@ export default function HostPayments() {
             <PaymentDetail
               payment={selectedPayment}
               listing={selectedPayment ? listingInfo[selectedPayment._id] : null}
-              receiptImage={selectedPayment ? receiptImages[selectedPayment._id] : null}
+              receiptImage={selectedPayment ? receiptImages[selectedPayment._id]?.url ?? null : null}
               onExpandReceipt={handleExpandReceipt}
               onCancel={p => setCancelModal(p)}
               onUpload={p => navigate("/PaymentReceipt", {

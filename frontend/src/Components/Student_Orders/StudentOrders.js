@@ -17,6 +17,17 @@ const ORDER_API = `${API_BASE}/FoodOrder`;
 const ORANGE    = "#FF6B2B";
 const FONT      = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
+// ─── Notification helper — fire-and-forget ────────────────────────────────────
+async function sendNotification({ recipient, type, title, message, link, refId, refType }) {
+  try {
+    await fetch(`${API_BASE}/Notification`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ recipient, type, title, message, link, refId, refType }),
+    });
+  } catch { /* silent */ }
+}
+
 function unwrap(raw) { return raw?.data ?? raw?.result ?? raw; }
 const photoSrc = (id) => id ? `${API_BASE}/Photo/${id}` : null;
 
@@ -470,6 +481,37 @@ export default function StudentOrders() {
       setOrders(prev => prev.map(o => o._id === cancelModal._id ? { ...o, status: "cancelled" } : o));
       setSelectedOrder(prev => prev?._id === cancelModal._id ? { ...prev, status: "cancelled" } : prev);
       showToast("Order cancelled.");
+
+      // ── Notify host: student cancelled the order ──────────────────────────
+      const hostId      = cancelModal.foodService?.owner?._id
+                       ?? cancelModal.foodService?.owner
+                       ?? null;
+      const kitchenName = cancelModal.foodService?.kitchenName ?? "your kitchen";
+      if (hostId) {
+        sendNotification({
+          recipient: hostId,
+          type:      "order_status",
+          title:     "Order Cancelled by Student",
+          message:   `A student has cancelled their order at ${kitchenName}.`,
+          link:      "/HostOrders",
+          refId:     cancelModal._id,
+          refType:   "FoodOrder",
+        });
+      }
+
+      // ── Notify student: confirmation of their own cancellation ────────────
+      if (userId) {
+        sendNotification({
+          recipient: userId,
+          type:      "order_status",
+          title:     "Order Cancelled",
+          message:   `Your order from ${kitchenName} has been cancelled successfully.`,
+          link:      "/StudentOrders",
+          refId:     cancelModal._id,
+          refType:   "FoodOrder",
+        });
+      }
+
       setCancelModal(null);
     } catch {
       showToast("Failed to cancel. Please try again.");
