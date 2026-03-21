@@ -309,10 +309,17 @@ function AccommodationEdit() {
 
       {/* ── Top Bar ── */}
       <div className="ae-topbar">
-        <div className="ae-topbar-brand">
-          <div className="ae-topbar-brand-dot"><Home size={15} /></div>
-          Manage <span>Listing</span>
-        </div>
+<a href="/Listings" className="hn-nav__logo">
+            <img
+              src="/images/logo2.png"
+              alt="Unisewana Logo"
+              style={{ height: "32px", width: "auto", display: "block"  }}
+            />
+            
+          </a>
+
+
+
         <div className="ae-topbar-center">
           <Pencil size={13} />
           <span>Editing listing</span>
@@ -583,6 +590,7 @@ function AccommodationEdit() {
               <div className="ae-upload-hint">PNG, JPG — up to 5 photos · {uploadedImageIds.length}/5 uploaded</div>
             </div>
 
+            {/* ── 5 photo slots always on one row ── */}
             <div className="ae-photo-grid">
               {[0, 1, 2, 3, 4].map(index => (
                 <div key={index} className="ae-photo-box">
