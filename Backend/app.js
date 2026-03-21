@@ -25,7 +25,7 @@ const PaymentRouter = require("../Backend/Routes/Payment_Route");
 const ContactRouter = require("../Backend/Routes/Contact_Route")
 const FoodOrderRouter = require("../Backend/Routes/FoodOrder_Route")
 const NotificationRouter = require("../Backend/Routes/Notification_Route")
-
+const favouriteRoute = require("../Backend/Routes/Favourite_Route");
 
 
 
@@ -40,6 +40,10 @@ app.use("/Payment", PaymentRouter);
 app.use("/contact", ContactRouter);
 app.use("/FoodOrder", FoodOrderRouter);
 app.use("/Notification", NotificationRouter);
+app.use("/favourite", favouriteRoute);
+
+
+
 
 
 const MONGO_URI = "mongodb+srv://K4V1DU:ekwpjA9nDZid3iqR@cluster0.23nczaf.mongodb.net/testing2?retryWrites=true&w=majority";
@@ -59,8 +63,8 @@ const connectWithRetry = () => {
       });
     })
     .catch((err) => {
-      console.error("❌ MongoDB connection failed:", err.message);
-      console.log("Retrying in 5 seconds...");
+      console.error("MongoDB connection failed");
+      console.log("Retrying in 3 seconds...");
       // Wait 5 seconds before retrying
       setTimeout(connectWithRetry, 4000);
     });

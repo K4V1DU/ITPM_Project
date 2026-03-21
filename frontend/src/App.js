@@ -20,6 +20,7 @@ import HostNavbar from "./Components/NavBar/Host_NavBar/HostNavbar";
 import Footer from "./Components/NavBar/Footer/Footer";
 import StudentOrders from "./Components/Student_Orders/StudentOrders";
 import PaymentHistory from "./Components/Payment_History/HostPayments";
+import Favourites from "./Components/Favourites/Favourites";
 
 
 
@@ -49,7 +50,7 @@ function App() {
       <Route path="/Footer" element={<Footer />} />
       <Route path="/StudentOrders" element={<StudentOrders />} />
       <Route path="/PaymentHistory" element={<PaymentHistory />} />
-
+      <Route path="/Favourites" element={<Favourites />} />
 
 
 

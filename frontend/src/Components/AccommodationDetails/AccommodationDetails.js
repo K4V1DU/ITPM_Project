@@ -362,8 +362,11 @@ const AccommodationDetails = () => {
   const [currentUser,       setCurrentUser]       = useState(null);
   const [showLoginRequired, setShowLoginRequired] = useState(false);
 
-  // ── UI state ──────────────────────────────────────────────────────────
+  // ── Favourite state ───────────────────────────────────────────────────
   const [isSaved,        setIsSaved]        = useState(false);
+  const [favPending,     setFavPending]     = useState(false);
+
+  // ── UI state ──────────────────────────────────────────────────────────
   const [activeImg,      setActiveImg]      = useState(0);
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [checkIn,        setCheckIn]        = useState("");
@@ -415,6 +418,36 @@ const AccommodationDetails = () => {
       })
       .catch(() => { setCurrentUser(null); });
   }, []);
+
+  // ── Fetch existing favourite status ───────────────────────────────────
+  useEffect(() => {
+    if (!userId || !id) return;
+    fetch(`${API_BASE}/favourite/check/${userId}/${id}/Accommodation`)
+      .then(r => r.json())
+      .then(raw => { setIsSaved(raw?.isFavourited === true); })
+      .catch(() => {});
+  }, [userId, id]);
+
+  // ── Toggle favourite ──────────────────────────────────────────────────
+  const handleToggleFavourite = async () => {
+    if (!userId || !isStudent) { setShowLoginRequired(true); return; }
+    if (favPending) return;
+    setFavPending(true);
+    const method = isSaved ? "DELETE" : "POST";
+    try {
+      await fetch(`${API_BASE}/favourite`, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user: userId, itemId: id, itemType: "Accommodation" }),
+      });
+      setIsSaved(p => !p);
+      showToast(isSaved ? "Removed from favourites" : "Saved to favourites!");
+    } catch {
+      showToast("Failed to update favourites.");
+    } finally {
+      setFavPending(false);
+    }
+  };
 
   // ── Fetch accommodation ───────────────────────────────────────────────
   useEffect(() => {
@@ -598,14 +631,28 @@ const AccommodationDetails = () => {
   // ── Error guard ───────────────────────────────────────────────────────
   if (error) {
     return (
-      <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:"60vh", gap:16, fontFamily:FONT }}>
-        <FaExclamationTriangle style={{ fontSize:40, color:ORANGE }} />
-        <div style={{ fontSize:18, fontWeight:700 }}>Failed to load</div>
-        <div style={{ fontSize:14, color:"#757575" }}>{error}</div>
-        <button onClick={() => window.location.reload()}
-          style={{ padding:"10px 24px", background:ORANGE, color:"#fff", border:"none", borderRadius:10, fontFamily:FONT, fontSize:14, fontWeight:600, cursor:"pointer" }}>
-          Retry
-        </button>
+      <div style={{ fontFamily: FONT }}>
+        <StudentNavbar activeTab="Boardings" />
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center",
+          justifyContent: "center", minHeight: "60vh", gap: 12, padding: "40px 20px",
+          textAlign: "center",
+        }}>
+          <img src="/images/icon7.jpg" alt="Connection error"
+            style={{ width: 140, height: 140, objectFit: "cover" }} />
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#1b1b1b" }}>Connection Error</div>
+          <div style={{ fontSize: 14, color: "#757575", maxWidth: 300, lineHeight: 1.6 }}>
+            Something went wrong. Please check your connection and try again.
+          </div>
+          <button onClick={() => window.location.reload()} style={{
+            padding: "10px 24px", background: ORANGE, color: "#fff",
+            border: "none", borderRadius: 10, fontFamily: FONT,
+            fontSize: 14, fontWeight: 600, cursor: "pointer", marginTop: 4,
+          }}>
+            Retry
+          </button>
+        </div>
+        <Footer />
       </div>
     );
   }
@@ -676,11 +723,17 @@ const AccommodationDetails = () => {
 
           {/* ── Action buttons ── */}
           <div className="acd-listing-header__actions">
+            {/* Favourite heart button — connected to API */}
             <button
               className={`acd-action-btn${isSaved ? " acd-action-btn--saved" : ""}`}
-              onClick={() => { setIsSaved(p => !p); showToast(isSaved ? "Removed from saved" : "Saved to wishlist!"); }}
+              onClick={handleToggleFavourite}
+              disabled={favPending}
+              style={{ opacity: favPending ? 0.6 : 1 }}
+              title={isSaved ? "Remove from favourites" : "Save to favourites"}
             >
-              {isSaved ? <FaHeart style={{ color:ORANGE, fontSize:16 }} /> : <FaRegHeart style={{ color:"#444", fontSize:16 }} />}
+              {isSaved
+                ? <FaHeart    style={{ color: ORANGE, fontSize: 16 }} />
+                : <FaRegHeart style={{ color: "#444", fontSize: 16 }} />}
             </button>
 
             <div ref={actionMenuRef} style={{ position:"relative" }}>

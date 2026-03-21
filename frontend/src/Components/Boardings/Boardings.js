@@ -1,13 +1,12 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Boardings.css";
 import {
   FaSearch,
-  FaFacebookF, FaTwitter, FaInstagram,
   FaHeart, FaRegHeart, FaSlidersH, FaTimes,
   FaBed, FaWifi, FaSnowflake, FaParking, FaUtensils,
   FaShower, FaMale, FaFemale, FaUsers,
-  FaStar, FaExclamationCircle, FaSignInAlt,
+  FaStar, FaExclamationCircle, FaSignInAlt, FaMapMarkerAlt,
 } from "react-icons/fa";
 import axios from "axios";
 import StudentNavbar from "../NavBar/Student_NavBar/StudentNavbar";
@@ -82,8 +81,16 @@ function CardSkeleton() {
 // ─────────────────────────────────────────
 // BOARDING CARD
 // ─────────────────────────────────────────
-function BoardingCard({ acc, imageUrl, onNavigate }) {
-  const [favourited, setFavourited] = useState(false);
+function BoardingCard({ acc, imageUrl, onNavigate, isFavourited, onToggleFavourite }) {
+  const [pending, setPending] = useState(false);
+
+  const handleHeart = async (e) => {
+    e.stopPropagation();
+    if (pending) return;
+    setPending(true);
+    await onToggleFavourite(acc._id, isFavourited);
+    setPending(false);
+  };
 
   return (
     <div className="bd-card" onClick={() => onNavigate(acc._id)}>
@@ -96,9 +103,11 @@ function BoardingCard({ acc, imageUrl, onNavigate }) {
         />
         <button
           className="bd-card__heart"
-          onClick={e => { e.stopPropagation(); setFavourited(p => !p); }}
+          onClick={handleHeart}
+          disabled={pending}
+          style={{ opacity: pending ? 0.6 : 1 }}
         >
-          {favourited
+          {isFavourited
             ? <FaHeart    style={{ color: "var(--orange)", fontSize: 15 }} />
             : <FaRegHeart style={{ color: "#333",          fontSize: 15 }} />}
         </button>
@@ -113,7 +122,10 @@ function BoardingCard({ acc, imageUrl, onNavigate }) {
             <span className="bd-card__rating">★ {acc.ratingAverage.toFixed(1)}</span>
           )}
         </div>
-        <p className="bd-card__subtitle">📍 {acc.address}</p>
+        <p className="bd-card__subtitle">
+          <FaMapMarkerAlt style={{ color: "var(--orange)", fontSize: 12, flexShrink: 0 }} />
+          {acc.address}
+        </p>
         <div className="bd-card__footer">
           <span className="bd-card__review-count">
             {acc.ratingCount > 0
@@ -226,7 +238,64 @@ const Boarding = () => {
   const [draftFilters,   setDraftFilters]   = useState(DEFAULT_FILTERS);
   const [showLoginRequired, setShowLoginRequired] = useState(false);
 
+  // ── Auth ──────────────────────────────────────────────────────────────
+  const [currentUser,  setCurrentUser]  = useState(null);
+
+  // ── Favourites — Set of favourited accommodation IDs ──────────────────
+  const [favouriteIds, setFavouriteIds] = useState(new Set());
+
   const activeCount = countActive(appliedFilters);
+  const userId      = localStorage.getItem("CurrentUserId");
+  const userRole    = currentUser?.role ?? null;
+  const isStudent   = userRole === "student";
+
+  // ── Fetch current user ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!userId) return;
+    fetch(`${API_BASE}/User/${userId}`)
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(raw => setCurrentUser(unwrap(raw)))
+      .catch(() => setCurrentUser(null));
+  }, []);
+
+  // ── Fetch existing favourites ─────────────────────────────────────────
+  useEffect(() => {
+    if (!userId) return;
+    fetch(`${API_BASE}/favourite/${userId}?itemType=Accommodation`)
+      .then(r => r.json())
+      .then(raw => {
+        const list = unwrap(raw);
+        const ids  = (Array.isArray(list) ? list : []).map(f =>
+          typeof f.itemId === "object" ? f.itemId._id : f.itemId
+        );
+        setFavouriteIds(new Set(ids));
+      })
+      .catch(() => {});
+  }, [userId]);
+
+  // ── Toggle favourite ──────────────────────────────────────────────────
+  const handleToggleFavourite = async (accId, currentlyFavourited) => {
+    if (!userId || !isStudent) {
+      setShowLoginRequired(true);
+      return;
+    }
+
+    const method = currentlyFavourited ? "DELETE" : "POST";
+
+    try {
+      await fetch(`${API_BASE}/favourite`, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user: userId, itemId: accId, itemType: "Accommodation" }),
+      });
+
+      setFavouriteIds(prev => {
+        const next = new Set(prev);
+        currentlyFavourited ? next.delete(accId) : next.add(accId);
+        return next;
+      });
+    } catch { /* silent */ }
+  };
 
   // ── Fetch accommodations ──────────────────────────────────────────────
   useEffect(() => {
@@ -371,8 +440,9 @@ const Boarding = () => {
 
         {error && (
           <div className="bd-error">
-            <div className="bd-error__icon">⚠️</div>
-            <div className="bd-error__msg">Failed to load: {error}</div>
+            <img src="/images/icon7.jpg" alt="Connection error" className="bd-error__img" />
+            <div className="bd-error__title">Connection Error</div>
+            <div className="bd-error__msg">Something went wrong. Please check your connection and try again.</div>
             <button className="bd-error__btn" onClick={() => window.location.reload()}>Retry</button>
           </div>
         )}
@@ -380,20 +450,28 @@ const Boarding = () => {
         <div className="bd-grid">
           {loading
             ? Array.from({ length: 8 }).map((_, i) => <CardSkeleton key={i} />)
-            : filtered.length === 0
-              ? (
-                <div className="bd-empty">
-                  <div className="bd-empty__icon">🏠</div>
-                  <div className="bd-empty__title">No boardings found</div>
-                  <div className="bd-empty__sub">Try adjusting your search or filters</div>
-                </div>
-              )
-              : filtered.map(acc => (
-                  <BoardingCard
-                    key={acc._id} acc={acc} imageUrl={imageUrls[acc._id]}
-                    onNavigate={id => navigate(`/details-Accommodation/${id}`)}
-                  />
-                ))}
+            : error
+              ? null
+              : filtered.length === 0
+                ? (
+                  <div className="bd-empty">
+                    <div className="bd-empty__icon">
+                      <img src="/images/icon4.jpg" alt="No boardings" className="bd-empty__img" />
+                    </div>
+                    <div className="bd-empty__title">No boardings found</div>
+                    <div className="bd-empty__sub">Try adjusting your search or filters</div>
+                  </div>
+                )
+                : filtered.map(acc => (
+                    <BoardingCard
+                      key={acc._id}
+                      acc={acc}
+                      imageUrl={imageUrls[acc._id]}
+                      isFavourited={favouriteIds.has(acc._id)}
+                      onToggleFavourite={handleToggleFavourite}
+                      onNavigate={id => navigate(`/details-Accommodation/${id}`)}
+                    />
+                  ))}
         </div>
       </section>
 

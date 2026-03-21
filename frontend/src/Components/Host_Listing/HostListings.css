@@ -425,7 +425,6 @@ body { font-family: var(--font); background: #fff; color: var(--dark); }
   100% { background-position: -200% 0; }
 }
 
-/* Initial page load skeleton cards (while API fetches) */
 .skeleton-card  { border-radius: 16px; border: 1px solid var(--border); overflow: hidden; }
 .skeleton-cover {
   height: 180px;
@@ -629,3 +628,46 @@ body { font-family: var(--font); background: #fff; color: var(--dark); }
   .cl-options  { grid-template-columns: 1fr; }
   .cl-title    { font-size: 22px; }
 }
+
+/* ════════════════════════════════════════════════
+   CONNECTION ERROR STATE
+════════════════════════════════════════════════ */
+.hl-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+  gap: 12px;
+}
+.hl-error__img {
+  width: 140px;
+  height: 140px;
+  object-fit: cover;
+}
+.hl-error__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--dark);
+}
+.hl-error__msg {
+  font-size: 14px;
+  color: var(--mid);
+  max-width: 300px;
+  line-height: 1.6;
+}
+.hl-error__btn {
+  margin-top: 4px;
+  padding: 10px 28px;
+  background: var(--orange);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background 0.16s;
+}
+.hl-error__btn:hover { background: #d35400; }
