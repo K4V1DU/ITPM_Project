@@ -11,116 +11,156 @@ import { FaTrash, FaSyncAlt } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 import axios from "axios";
 import {
-  Home, Users, BedDouble, Bath, Wifi, Car, Wind, UtensilsCrossed,
-  Tv, Dumbbell, Waves, Camera, ShieldCheck, MapPin, Crosshair,
-  ChevronRight, ChevronLeft, CheckCircle, Loader2, Upload,
-  Image as ImageIcon, Building2, DoorOpen, Zap, Droplets,
-  CigaretteOff, VolumeX, PartyPopper, PawPrint,
+  Home,
+  Users,
+  BedDouble,
+  Bath,
+  Wifi,
+  Car,
+  Wind,
+  UtensilsCrossed,
+  Tv,
+  Dumbbell,
+  Waves,
+  Camera,
+  ShieldCheck,
+  MapPin,
+  Crosshair,
+  ChevronRight,
+  ChevronLeft,
+  CheckCircle,
+  Loader2,
+  Upload,
+  Image as ImageIcon,
+  Building2,
+  DoorOpen,
+  Zap,
+  Droplets,
+  CigaretteOff,
+  VolumeX,
+  PartyPopper,
+  PawPrint,
 } from "lucide-react";
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyDKKnxSMEUkZyZiLT83DXCJhR4eplblzKA";
 const BASE_URL = "http://localhost:8000";
-const CURRENT_USER_ID = localStorage.getItem("CurrentUserId") ?? "";
 
 const SLIIT_LOCATION = { lat: 6.9147, lng: 79.9727 };
 const LIBRARIES = ["places"];
-const mapContainerStyle = { width: "100%", height: "420px", borderRadius: "10px" };
+const mapContainerStyle = {
+  width: "100%",
+  height: "420px",
+  borderRadius: "10px",
+};
 const defaultOptions = {
-  zoomControl: true, mapTypeControl: false, scaleControl: false,
-  streetViewControl: false, rotateControl: false, fullscreenControl: true,
+  zoomControl: true,
+  mapTypeControl: false,
+  scaleControl: false,
+  streetViewControl: false,
+  rotateControl: false,
+  fullscreenControl: true,
 };
 
 const ACC_TYPES = [
-  { key: "Private Room",  icon: DoorOpen,    desc: "Your own private room" },
-  { key: "Shared Room",   icon: Users,       desc: "Share with others"     },
-  { key: "Apartment",     icon: Building2,   desc: "Full apartment"        },
-  { key: "House",         icon: Home,        desc: "Entire house"          },
+  { key: "Private Room", icon: DoorOpen, desc: "Your own private room" },
+  { key: "Shared Room", icon: Users, desc: "Share with others" },
+  { key: "Apartment", icon: Building2, desc: "Full apartment" },
+  { key: "House", icon: Home, desc: "Entire house" },
 ];
 
 const GENDER_OPTIONS = [
-  { key: "mixed", label: "Mixed",       desc: "Boys & Girls" },
-  { key: "boys",  label: "Boys Only",   desc: "Male tenants" },
-  { key: "girls", label: "Girls Only",  desc: "Female tenants" },
+  { key: "mixed", label: "Mixed", desc: "Boys & Girls" },
+  { key: "boys", label: "Boys Only", desc: "Male tenants" },
+  { key: "girls", label: "Girls Only", desc: "Female tenants" },
 ];
 
 const AMENITY_LIST = [
-  { key: "WiFi",    icon: Wifi            },
+  { key: "WiFi", icon: Wifi },
   { key: "Kitchen", icon: UtensilsCrossed },
-  { key: "Parking", icon: Car             },
-  { key: "AC",      icon: Wind            },
-  { key: "Washer",  icon: Droplets        },
-  { key: "CCTV",    icon: Camera          },
-  { key: "TV",      icon: Tv              },
-  { key: "Gym",     icon: Dumbbell        },
-  { key: "Pool",    icon: Waves           },
+  { key: "Parking", icon: Car },
+  { key: "AC", icon: Wind },
+  { key: "Washer", icon: Droplets },
+  { key: "CCTV", icon: Camera },
+  { key: "TV", icon: Tv },
+  { key: "Gym", icon: Dumbbell },
+  { key: "Pool", icon: Waves },
 ];
 
 const RULE_LIST = [
-  { key: "No Smoking",              icon: CigaretteOff },
-  { key: "Quiet hours after 10 PM", icon: VolumeX      },
-  { key: "No Party",                icon: PartyPopper  },
-  { key: "No Pets",                 icon: PawPrint     },
+  { key: "No Smoking", icon: CigaretteOff },
+  { key: "Quiet hours after 10 PM", icon: VolumeX },
+  { key: "No Party", icon: PartyPopper },
+  { key: "No Pets", icon: PawPrint },
 ];
 
 const STEPS = [
-  { num: 1, label: "Details"  },
+  { num: 1, label: "Details" },
   { num: 2, label: "Location" },
-  { num: 3, label: "Photos"   },
-  { num: 4, label: "Save"     },
+  { num: 3, label: "Photos" },
+  { num: 4, label: "Save" },
 ];
 
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371;
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
 const AddAccommodation = () => {
-  const navigate       = useNavigate();
+  const navigate = useNavigate();
   const updateInputRef = useRef(null);
 
   const [currentStep, setCurrentStep] = useState(1);
-  const [showForm,    setShowForm]    = useState(false);
-  const [isSaving,    setIsSaving]    = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Step 1
-  const [genderPref,  setGenderPref]  = useState("mixed");
-  const [accType,     setAccType]     = useState("Private Room");
-  const [rooms,       setRooms]       = useState(1);
-  const [beds,        setBeds]        = useState(1);
-  const [bathrooms,   setBathrooms]   = useState(1);
-  const [utilities,   setUtilities]   = useState({ electricity: false, water: false });
-  const [amenities,   setAmenities]   = useState([]);
+  const [genderPref, setGenderPref] = useState("mixed");
+  const [accType, setAccType] = useState("Private Room");
+  const [rooms, setRooms] = useState(1);
+  const [beds, setBeds] = useState(1);
+  const [bathrooms, setBathrooms] = useState(1);
+  const [utilities, setUtilities] = useState({
+    electricity: false,
+    water: false,
+  });
+  const [amenities, setAmenities] = useState([]);
 
   // Step 2
-  const [selectedLocation,    setSelectedLocation]    = useState(SLIIT_LOCATION);
-  const [address,             setAddress]             = useState("SLIIT University, Malabe, Sri Lanka");
-  const [map,                 setMap]                 = useState(null);
-  const [autocomplete,        setAutocomplete]        = useState(null);
-  const [searchInput,         setSearchInput]         = useState("");
+  const [selectedLocation, setSelectedLocation] = useState(SLIIT_LOCATION);
+  const [address, setAddress] = useState("");
+  const [map, setMap] = useState(null);
+  const [autocomplete, setAutocomplete] = useState(null);
+  const [searchInput, setSearchInput] = useState("");
   const [hasSelectedLocation, setHasSelectedLocation] = useState(false);
 
   // Step 3
-  const [photos,        setPhotos]        = useState([]);
+  const [photos, setPhotos] = useState([]);
   const [updatingIndex, setUpdatingIndex] = useState(null);
-  const [title,         setTitle]         = useState("");
-  const [description,   setDescription]   = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
 
   // Step 4
-  const [price,       setPrice]       = useState("");
+  const [price, setPrice] = useState("");
   const [keyDuration, setKeyDuration] = useState(0);
-  const [rules,       setRules]       = useState([]);
-  const [otherRules,  setOtherRules]  = useState("");
-  const [isVerified,  setIsVerified]  = useState(false);
-  const [isAgreed,    setIsAgreed]    = useState(false);
+  const [rules, setRules] = useState([]);
+  const [otherRules, setOtherRules] = useState("");
+  const [isVerified, setIsVerified] = useState(false);
+  const [isAgreed, setIsAgreed] = useState(false);
 
-  const calculatedKeyMoney = price && keyDuration ? Number(price) * Number(keyDuration) : 0;
-  const distanceFromSLIIT  = calculateDistance(
-    selectedLocation.lat, selectedLocation.lng,
-    SLIIT_LOCATION.lat, SLIIT_LOCATION.lng
+  const calculatedKeyMoney =
+    price && keyDuration ? Number(price) * Number(keyDuration) : 0;
+  const distanceFromSLIIT = calculateDistance(
+    selectedLocation.lat,
+    selectedLocation.lng,
+    SLIIT_LOCATION.lat,
+    SLIIT_LOCATION.lng,
   );
 
   const getFormattedDistance = () =>
@@ -135,47 +175,61 @@ const AddAccommodation = () => {
   };
 
   const toggleAmenity = (name) =>
-    setAmenities(p => p.includes(name) ? p.filter(a => a !== name) : [...p, name]);
+    setAmenities((p) =>
+      p.includes(name) ? p.filter((a) => a !== name) : [...p, name],
+    );
   const toggleRule = (name) =>
-    setRules(p => p.includes(name) ? p.filter(r => r !== name) : [...p, name]);
+    setRules((p) =>
+      p.includes(name) ? p.filter((r) => r !== name) : [...p, name],
+    );
 
-  const handleExit       = () => navigate("/");
+  const handleExit = () => navigate("/Listings");
   const handleGetStarted = () => setShowForm(true);
 
   const handleNextStep = () => {
     if (currentStep === 1) {
-      if (rooms < 1 || rooms > 10)         return alert("Rooms must be 1–10.");
-      if (beds < 1 || beds > 10)           return alert("Beds must be 1–10.");
-      if (bathrooms < 1 || bathrooms > 10) return alert("Bathrooms must be 1–10.");
+      if (rooms < 1 || rooms > 10) return alert("Rooms must be 1–10.");
+      if (beds < 1 || beds > 10) return alert("Beds must be 1–10.");
+      if (bathrooms < 1 || bathrooms > 10)
+        return alert("Bathrooms must be 1–10.");
     }
     if (currentStep === 2) {
-      if (!hasSelectedLocation) return alert("Please pin your location on the map.");
+      if (!hasSelectedLocation)
+        return alert("Please pin your location on the map.");
     }
     if (currentStep === 3) {
-      if (photos.length === 0)      return alert("Please upload at least one photo.");
-      if (!title.trim())            return alert("Title cannot be empty.");
-      if (title.length > 50)        return alert("Title cannot exceed 50 characters.");
-      if (!description.trim())      return alert("Description cannot be empty.");
-      if (description.length > 200) return alert("Description cannot exceed 200 characters.");
+      if (photos.length === 0)
+        return alert("Please upload at least one photo.");
+      if (!title.trim()) return alert("Title cannot be empty.");
+      if (title.length > 50) return alert("Title cannot exceed 50 characters.");
+      if (!description.trim()) return alert("Description cannot be empty.");
+      if (description.length > 200)
+        return alert("Description cannot exceed 200 characters.");
     }
-    setCurrentStep(s => s + 1);
+    setCurrentStep((s) => s + 1);
   };
 
-  const handlePreviousStep = () => setCurrentStep(s => s - 1);
+  const handlePreviousStep = () => setCurrentStep((s) => s - 1);
 
   // ── Save ──────────────────────────────────────────────────────────────────
   const handleSaveListing = async () => {
     const numPrice = Number(price);
-    const numKey   = Number(keyDuration);
+    const numKey = Number(keyDuration);
 
-    if (!CURRENT_USER_ID)                    return alert("User not logged in. Please log in and try again.");
-    if (!hasSelectedLocation)                return alert("Please select a location.");
-    if (photos.length === 0)                 return alert("Please upload at least one photo.");
-    if (!title.trim())                       return alert("Title cannot be empty.");
-    if (!address.trim())                     return alert("Address cannot be empty.");
-    if (numPrice < 5000 || numPrice > 50000) return alert("Price must be LKR 5,000–50,000.");
-    if (numKey < 0 || numKey > 3)            return alert("Key money duration must be 0–3 months.");
-    if (!isVerified || !isAgreed)            return alert("Please confirm accuracy and agree to terms.");
+    // Read fresh on every save attempt — not stale module-level value
+    const CURRENT_USER_ID = localStorage.getItem("CurrentUserId") ?? "";
+    if (!CURRENT_USER_ID)
+      return alert("User not logged in. Please log in and try again.");
+    if (!hasSelectedLocation) return alert("Please select a location.");
+    if (photos.length === 0) return alert("Please upload at least one photo.");
+    if (!title.trim()) return alert("Title cannot be empty.");
+    if (!address.trim()) return alert("Address cannot be empty.");
+    if (numPrice < 5000 || numPrice > 50000)
+      return alert("Price must be LKR 5,000–50,000.");
+    if (numKey < 0 || numKey > 3)
+      return alert("Key money duration must be 0–3 months.");
+    if (!isVerified || !isAgreed)
+      return alert("Please confirm accuracy and agree to terms.");
 
     setIsSaving(true);
 
@@ -194,40 +248,40 @@ const AddAccommodation = () => {
       }
     }
 
-  const getYesterday = () => {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return d.toISOString();
-};
+    const getYesterday = () => {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      return d.toISOString();
+    };
 
     // Send BOTH field name variants to cover whichever the backend requires
     const payload = {
-      owner:             CURRENT_USER_ID,
-      title:             title.trim(),
-      description:       description.trim(),
-      address:           address.trim(),
+      owner: CURRENT_USER_ID,
+      title: title.trim(),
+      description: description.trim(),
+      address: address.trim(),
       location: {
-        type:        "Point",
+        type: "Point",
         coordinates: [selectedLocation.lng, selectedLocation.lat],
       },
-      distance:          getFormattedDistance(),
-      price:             numPrice,
-      pricePerMonth:     numPrice,
-      type:              accType,
+      distance: getFormattedDistance(),
+      price: numPrice,
+      pricePerMonth: numPrice,
+      type: accType,
       accommodationType: accType,
-      keyMoneyDuration:  numKey,
-      genderPreference:  genderPref,
-      bedrooms:          Number(rooms),
-      beds:              Number(beds),
-      bathrooms:         Number(bathrooms),
-      amenities:         amenities,
-      rules:             otherRules ? [...rules, otherRules] : rules,
+      keyMoneyDuration: numKey,
+      genderPreference: genderPref,
+      bedrooms: Number(rooms),
+      beds: Number(beds),
+      bathrooms: Number(bathrooms),
+      amenities: amenities,
+      rules: otherRules ? [...rules, otherRules] : rules,
       utilityBills: {
         electricityIncluded: utilities.electricity,
-        waterIncluded:       utilities.water,
+        waterIncluded: utilities.water,
       },
-      images:            imageIds,
-      isAvailable:       true,
+      images: imageIds,
+      isAvailable: true,
       expireDate: getYesterday(),
     };
 
@@ -239,7 +293,12 @@ const AddAccommodation = () => {
       }
     } catch (err) {
       console.error("Save error:", err.response?.data);
-      alert("Error: " + (err.response?.data?.message || JSON.stringify(err.response?.data) || "Check required fields."));
+      alert(
+        "Error: " +
+          (err.response?.data?.message ||
+            JSON.stringify(err.response?.data) ||
+            "Check required fields."),
+      );
     } finally {
       setIsSaving(false);
     }
@@ -251,14 +310,14 @@ const AddAccommodation = () => {
     if (!files.length) return;
     const remaining = 5 - photos.length;
     const toAdd = files.slice(0, remaining);
-    toAdd.forEach(file => {
-      setPhotos(p => [...p, { file, preview: URL.createObjectURL(file) }]);
+    toAdd.forEach((file) => {
+      setPhotos((p) => [...p, { file, preview: URL.createObjectURL(file) }]);
     });
     e.target.value = null;
   };
 
   const handleDeletePhoto = (index) => {
-    setPhotos(p => p.filter((_, i) => i !== index));
+    setPhotos((p) => p.filter((_, i) => i !== index));
   };
 
   const triggerUpdate = (index) => {
@@ -277,20 +336,26 @@ const AddAccommodation = () => {
   };
 
   // ── Map handlers ──────────────────────────────────────────────────────────
-  const onMapLoad          = useCallback(m => setMap(m), []);
+  const onMapLoad = useCallback((m) => setMap(m), []);
   const onAutocompleteLoad = (ac) => setAutocomplete(ac);
 
   const onPlaceChanged = () => {
     if (!autocomplete) return;
     const place = autocomplete.getPlace();
     if (place.geometry?.location) {
-      const loc = { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() };
+      const loc = {
+        lat: place.geometry.location.lat(),
+        lng: place.geometry.location.lng(),
+      };
       setSelectedLocation(loc);
       setHasSelectedLocation(true);
       const addr = place.formatted_address || place.name;
       setAddress(addr);
       setSearchInput(addr);
-      if (map) { map.panTo(loc); map.setZoom(17); }
+      if (map) {
+        map.panTo(loc);
+        map.setZoom(17);
+      }
     }
   };
 
@@ -298,27 +363,36 @@ const AddAccommodation = () => {
     const loc = { lat: e.latLng.lat(), lng: e.latLng.lng() };
     setSelectedLocation(loc);
     setHasSelectedLocation(true);
-    new window.google.maps.Geocoder().geocode({ location: loc }, (results, status) => {
-      if (status === "OK" && results[0]) {
-        setAddress(results[0].formatted_address);
-        setSearchInput(results[0].formatted_address);
-      }
-    });
-  };
-
-  const handleUseCurrentLocation = () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(pos => {
-      const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      setSelectedLocation(loc);
-      setHasSelectedLocation(true);
-      new window.google.maps.Geocoder().geocode({ location: loc }, (results, status) => {
+    new window.google.maps.Geocoder().geocode(
+      { location: loc },
+      (results, status) => {
         if (status === "OK" && results[0]) {
           setAddress(results[0].formatted_address);
           setSearchInput(results[0].formatted_address);
         }
-      });
-      if (map) { map.panTo(loc); map.setZoom(17); }
+      },
+    );
+  };
+
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      setSelectedLocation(loc);
+      setHasSelectedLocation(true);
+      new window.google.maps.Geocoder().geocode(
+        { location: loc },
+        (results, status) => {
+          if (status === "OK" && results[0]) {
+            setAddress(results[0].formatted_address);
+            setSearchInput(results[0].formatted_address);
+          }
+        },
+      );
+      if (map) {
+        map.panTo(loc);
+        map.setZoom(17);
+      }
     });
   };
 
@@ -327,32 +401,51 @@ const AddAccommodation = () => {
     setHasSelectedLocation(true);
     setAddress("SLIIT University, Malabe, Sri Lanka");
     setSearchInput("SLIIT University, Malabe, Sri Lanka");
-    if (map) { map.panTo(SLIIT_LOCATION); map.setZoom(17); }
+    if (map) {
+      map.panTo(SLIIT_LOCATION);
+      map.setZoom(17);
+    }
   };
 
   const Counter = ({ label, value, setter, min = 1, max = 10 }) => (
     <div className="aac-counter">
       <span className="aac-counter__label">{label}</span>
       <div className="aac-counter__controls">
-        <button type="button" className="aac-counter__btn"
-          onClick={() => setter(v => Math.max(min, Number(v) - 1))}
-          disabled={Number(value) <= min}>−</button>
+        <button
+          type="button"
+          className="aac-counter__btn"
+          onClick={() => setter((v) => Math.max(min, Number(v) - 1))}
+          disabled={Number(value) <= min}
+        >
+          −
+        </button>
         <span className="aac-counter__val">{value}</span>
-        <button type="button" className="aac-counter__btn"
-          onClick={() => setter(v => Math.min(max, Number(v) + 1))}
-          disabled={Number(value) >= max}>+</button>
+        <button
+          type="button"
+          className="aac-counter__btn"
+          onClick={() => setter((v) => Math.min(max, Number(v) + 1))}
+          disabled={Number(value) >= max}
+        >
+          +
+        </button>
       </div>
     </div>
   );
 
   return (
     <div className="aac-root">
-
       <div className={`aac-topbar${!showForm ? " dark" : ""}`}>
-        <div className="aac-topbar__brand">
-          <div className="aac-topbar__dot"><Home size={15} /></div>
-          Add<span>Accommodation</span>
+        <div className="hn-nav__logo-wrap">
+          {/* ── logo6 on hero screen · logo2 on form steps ── */}
+          <a href="/Listings" className="hn-nav__logo">
+            <img
+              src={showForm ? "/images/logo2.png" : "/images/logo6.png"}
+              alt="Unisewana Logo"
+              style={{ height: "32px", width: "auto", display: "block" }}
+            />
+          </a>
         </div>
+
         <button className="aac-exit-btn" onClick={handleExit}>
           <IoClose size={14} /> Exit
         </button>
@@ -364,9 +457,14 @@ const AddAccommodation = () => {
           <div className="aac-hero__overlay" />
           <div className="aac-hero__content">
             <p className="aac-hero__eyebrow">List your space on Uni Sewana</p>
-            <h1 className="aac-hero__title">Host students.<br /><em>Earn every month.</em></h1>
+            <h1 className="aac-hero__title">
+              Host students.
+              <br />
+              <em>Earn every month.</em>
+            </h1>
             <p className="aac-hero__sub">
-              List your boarding, apartment, or private room and connect directly with SLIIT students looking for accommodation nearby.
+              List your boarding, apartment, or private room and connect
+              directly with SLIIT students looking for accommodation nearby.
             </p>
             <button className="aac-hero__cta" onClick={handleGetStarted}>
               Get started <ChevronRight size={17} />
@@ -380,11 +478,13 @@ const AddAccommodation = () => {
           <div className="aac-progress-wrapper">
             <div className="aac-progress-steps">
               {STEPS.map((step, idx) => {
-                const done   = currentStep > step.num;
+                const done = currentStep > step.num;
                 const active = currentStep === step.num;
                 return (
                   <React.Fragment key={step.num}>
-                    <div className={`aac-progress-step${active ? " active" : ""}${done ? " done" : ""}`}>
+                    <div
+                      className={`aac-progress-step${active ? " active" : ""}${done ? " done" : ""}`}
+                    >
                       <div className="aac-progress-bubble">
                         {done ? <CheckCircle size={16} /> : step.num}
                       </div>
@@ -392,7 +492,10 @@ const AddAccommodation = () => {
                     </div>
                     {idx < STEPS.length - 1 && (
                       <div className="aac-progress-line">
-                        <div className="aac-progress-line-fill" style={{ width: done ? "100%" : "0%" }} />
+                        <div
+                          className="aac-progress-line-fill"
+                          style={{ width: done ? "100%" : "0%" }}
+                        />
                       </div>
                     )}
                   </React.Fragment>
@@ -402,23 +505,31 @@ const AddAccommodation = () => {
           </div>
 
           <div className="aac-layout">
-
             {/* STEP 1 */}
             {currentStep === 1 && (
               <div className="aac-card">
                 <div className="aac-card__title">About your accommodation</div>
-                <div className="aac-card__subtitle">Basic details students will see on your listing</div>
+                <div className="aac-card__subtitle">
+                  Basic details students will see on your listing
+                </div>
 
                 <div className="aac-field">
-                  <label className="aac-label">Accommodation type <span>*</span></label>
+                  <label className="aac-label">
+                    Accommodation type <span>*</span>
+                  </label>
                   <div className="aac-type-grid">
-                    {ACC_TYPES.map(t => {
+                    {ACC_TYPES.map((t) => {
                       const Icon = t.icon;
                       return (
-                        <button key={t.key} type="button"
+                        <button
+                          key={t.key}
+                          type="button"
                           className={`aac-type-card${accType === t.key ? " selected" : ""}`}
-                          onClick={() => setAccType(t.key)}>
-                          <div className="aac-type-icon"><Icon size={18} /></div>
+                          onClick={() => setAccType(t.key)}
+                        >
+                          <div className="aac-type-icon">
+                            <Icon size={18} />
+                          </div>
                           <span className="aac-type-name">{t.key}</span>
                           <span className="aac-type-desc">{t.desc}</span>
                         </button>
@@ -428,19 +539,29 @@ const AddAccommodation = () => {
                 </div>
 
                 <div className="aac-field">
-                  <label className="aac-label">Accommodation for <span>*</span></label>
+                  <label className="aac-label">
+                    Accommodation for <span>*</span>
+                  </label>
                   <div className="aac-option-row">
-                    {GENDER_OPTIONS.map(g => (
-                      <button key={g.key} type="button"
+                    {GENDER_OPTIONS.map((g) => (
+                      <button
+                        key={g.key}
+                        type="button"
                         className={`aac-option-card${genderPref === g.key ? " active" : ""}`}
-                        onClick={() => setGenderPref(g.key)}>
-                        <div className="aac-option-icon-box"><Users size={16} /></div>
+                        onClick={() => setGenderPref(g.key)}
+                      >
+                        <div className="aac-option-icon-box">
+                          <Users size={16} />
+                        </div>
                         <div className="aac-option-info">
                           <span className="aac-option-name">{g.label}</span>
                           <span className="aac-option-desc">{g.desc}</span>
                         </div>
                         {genderPref === g.key && (
-                          <CheckCircle size={16} style={{ color: "#e67e22", flexShrink: 0 }} />
+                          <CheckCircle
+                            size={16}
+                            style={{ color: "#e67e22", flexShrink: 0 }}
+                          />
                         )}
                       </button>
                     ))}
@@ -450,11 +571,17 @@ const AddAccommodation = () => {
                 <div className="aac-divider" />
 
                 <div className="aac-field">
-                  <label className="aac-label">Capacity <span>(1–10 each)</span></label>
+                  <label className="aac-label">
+                    Capacity <span>(1–10 each)</span>
+                  </label>
                   <div className="aac-counters-row">
-                    <Counter label="Bedrooms"  value={rooms}     setter={setRooms}     />
-                    <Counter label="Beds"      value={beds}      setter={setBeds}      />
-                    <Counter label="Bathrooms" value={bathrooms} setter={setBathrooms} />
+                    <Counter label="Bedrooms" value={rooms} setter={setRooms} />
+                    <Counter label="Beds" value={beds} setter={setBeds} />
+                    <Counter
+                      label="Bathrooms"
+                      value={bathrooms}
+                      setter={setBathrooms}
+                    />
                   </div>
                 </div>
 
@@ -463,21 +590,36 @@ const AddAccommodation = () => {
                 <div className="aac-field">
                   <label className="aac-label">Utilities included</label>
                   <div className="aac-utility-row">
-                    <button type="button"
+                    <button
+                      type="button"
                       className={`aac-utility-card${utilities.electricity ? " active" : ""}`}
-                      onClick={() => setUtilities(u => ({ ...u, electricity: !u.electricity }))}>
+                      onClick={() =>
+                        setUtilities((u) => ({
+                          ...u,
+                          electricity: !u.electricity,
+                        }))
+                      }
+                    >
                       <Zap size={18} />
                       <span>Electricity</span>
-                      <span className={`aac-badge${utilities.electricity ? " on" : " off"}`}>
+                      <span
+                        className={`aac-badge${utilities.electricity ? " on" : " off"}`}
+                      >
                         {utilities.electricity ? "Included" : "Not incl."}
                       </span>
                     </button>
-                    <button type="button"
+                    <button
+                      type="button"
                       className={`aac-utility-card${utilities.water ? " active" : ""}`}
-                      onClick={() => setUtilities(u => ({ ...u, water: !u.water }))}>
+                      onClick={() =>
+                        setUtilities((u) => ({ ...u, water: !u.water }))
+                      }
+                    >
                       <Droplets size={18} />
                       <span>Water</span>
-                      <span className={`aac-badge${utilities.water ? " on" : " off"}`}>
+                      <span
+                        className={`aac-badge${utilities.water ? " on" : " off"}`}
+                      >
                         {utilities.water ? "Included" : "Not incl."}
                       </span>
                     </button>
@@ -487,17 +629,27 @@ const AddAccommodation = () => {
                 <div className="aac-divider" />
 
                 <div className="aac-field">
-                  <label className="aac-label">Amenities <span>select all that apply</span></label>
+                  <label className="aac-label">
+                    Amenities <span>select all that apply</span>
+                  </label>
                   <div className="aac-amenities-grid">
                     {AMENITY_LIST.map(({ key, icon: Icon }) => {
                       const active = amenities.includes(key);
                       return (
-                        <button key={key} type="button"
+                        <button
+                          key={key}
+                          type="button"
                           className={`aac-amenity-item${active ? " active" : ""}`}
-                          onClick={() => toggleAmenity(key)}>
+                          onClick={() => toggleAmenity(key)}
+                        >
                           <Icon size={15} />
                           <span>{key}</span>
-                          {active && <CheckCircle size={12} className="aac-amenity-check" />}
+                          {active && (
+                            <CheckCircle
+                              size={12}
+                              className="aac-amenity-check"
+                            />
+                          )}
                         </button>
                       );
                     })}
@@ -517,26 +669,44 @@ const AddAccommodation = () => {
             {currentStep === 2 && (
               <div className="aac-card">
                 <div className="aac-card__title">Set your location</div>
-                <div className="aac-card__subtitle">Click the map or search to pin your exact position</div>
+                <div className="aac-card__subtitle">
+                  Click the map or search to pin your exact position
+                </div>
 
                 <LoadScript
                   googleMapsApiKey={GOOGLE_MAPS_API_KEY}
                   libraries={LIBRARIES}
                   loadingElement={
-                    <div style={{
-                      height: 420, display: "flex", alignItems: "center",
-                      justifyContent: "center", background: "#f5f5f5",
-                      borderRadius: 10, border: "1px solid #e8e8e8",
-                      color: "#aaa", fontSize: 14, gap: 10,
-                    }}>
+                    <div
+                      style={{
+                        height: 420,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "#f5f5f5",
+                        borderRadius: 10,
+                        border: "1px solid #e8e8e8",
+                        color: "#aaa",
+                        fontSize: 14,
+                        gap: 10,
+                      }}
+                    >
                       <Loader2 size={18} className="aac-spin" /> Loading map…
                     </div>
                   }
                 >
                   <div className="aac-field">
-                    <Autocomplete onLoad={onAutocompleteLoad} onPlaceChanged={onPlaceChanged}>
-                      <input type="text" className="aac-input" placeholder="Search near SLIIT…"
-                        value={searchInput} onChange={e => setSearchInput(e.target.value)} />
+                    <Autocomplete
+                      onLoad={onAutocompleteLoad}
+                      onPlaceChanged={onPlaceChanged}
+                    >
+                      <input
+                        type="text"
+                        className="aac-input"
+                        placeholder="Search near SLIIT…"
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                      />
                     </Autocomplete>
                   </div>
 
@@ -549,7 +719,11 @@ const AddAccommodation = () => {
                       onLoad={onMapLoad}
                       onClick={onMapClick}
                     >
-                      <Marker position={selectedLocation} draggable onDragEnd={onMapClick} />
+                      <Marker
+                        position={selectedLocation}
+                        draggable
+                        onDragEnd={onMapClick}
+                      />
                     </GoogleMap>
                   </div>
                 </LoadScript>
@@ -558,7 +732,10 @@ const AddAccommodation = () => {
                   <button className="aac-map-btn" onClick={handleSLIITLocation}>
                     <MapPin size={14} /> SLIIT University
                   </button>
-                  <button className="aac-map-btn" onClick={handleUseCurrentLocation}>
+                  <button
+                    className="aac-map-btn"
+                    onClick={handleUseCurrentLocation}
+                  >
                     <Crosshair size={14} /> Use my location
                   </button>
                 </div>
@@ -571,20 +748,30 @@ const AddAccommodation = () => {
                         {distanceFromSLIIT < 1
                           ? `${Math.round(distanceFromSLIIT * 1000)}m`
                           : `${distanceFromSLIIT.toFixed(2)}km`}
-                      </strong> from SLIIT University
+                      </strong>{" "}
+                      from SLIIT University
                     </span>
                   </div>
                 )}
 
                 <div className="aac-field" style={{ marginTop: 16 }}>
-                  <label className="aac-label">Address <span>*</span></label>
-                  <textarea className="aac-textarea" rows="2" value={address}
-                    onChange={e => setAddress(e.target.value)}
-                    placeholder="Full address will auto-fill after clicking the map…" />
+                  <label className="aac-label">
+                    Address <span>*</span>
+                  </label>
+                  <textarea
+                    className="aac-textarea"
+                    rows="2"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Full Address…"
+                  />
                 </div>
 
                 <div className="aac-nav">
-                  <button className="aac-btn-secondary" onClick={handlePreviousStep}>
+                  <button
+                    className="aac-btn-secondary"
+                    onClick={handlePreviousStep}
+                  >
                     <ChevronLeft size={15} /> Previous
                   </button>
                   <button className="aac-btn-primary" onClick={handleNextStep}>
@@ -598,80 +785,131 @@ const AddAccommodation = () => {
             {currentStep === 3 && (
               <div className="aac-card">
                 <div className="aac-card__title">Make it stand out</div>
-                <div className="aac-card__subtitle">Add photos — they'll be uploaded when you save your listing</div>
+                <div className="aac-card__subtitle">
+                  Add photos — they'll be uploaded when you save your listing
+                </div>
 
-                <input type="file" accept="image/*" ref={updateInputRef}
-                  style={{ display: "none" }} onChange={handlePhotoUpdate} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={updateInputRef}
+                  style={{ display: "none" }}
+                  onChange={handlePhotoUpdate}
+                />
 
                 <div className="aac-field">
-                  <label className="aac-label">Photos <span>* at least 1 required</span></label>
-                  <div className="aac-upload-zone"
-                    onClick={() => document.getElementById("acc-photo-upload").click()}>
-                    <input type="file" multiple accept="image/*" id="acc-photo-upload"
-                      style={{ display: "none" }} onChange={handlePhotoUpload} />
-                    <div className="aac-upload-icon"><Upload size={20} /></div>
+                  <label className="aac-label">
+                    Photos <span>* at least 1 required</span>
+                  </label>
+                  <div
+                    className="aac-upload-zone"
+                    onClick={() =>
+                      document.getElementById("acc-photo-upload").click()
+                    }
+                  >
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      id="acc-photo-upload"
+                      style={{ display: "none" }}
+                      onChange={handlePhotoUpload}
+                    />
+                    <div className="aac-upload-icon">
+                      <Upload size={20} />
+                    </div>
                     <div className="aac-upload-text">Click to add photos</div>
-                    <div className="aac-upload-hint">PNG, JPG — up to 5 photos · uploaded on save</div>
+                    <div className="aac-upload-hint">
+                      PNG, JPG — up to 5 photos · uploaded on save
+                    </div>
                   </div>
                 </div>
 
-                {photos.length > 0 && (
-                  <div className="aac-photo-grid">
-                    {[0, 1, 2, 3, 4].map(index => (
-                      <div key={index} className="aac-photo-box">
-                        {photos[index] ? (
-                          <div className="aac-photo-box__inner">
-                            <img src={photos[index].preview} alt={`photo-${index}`} />
-                            <div className="aac-photo-box__actions">
-                              <button type="button" className="aac-icon-btn del"
-                                onClick={() => handleDeletePhoto(index)}>
-                                <FaTrash size={11} />
-                              </button>
-                              <button type="button" className="aac-icon-btn upd"
-                                onClick={() => triggerUpdate(index)}>
-                                <FaSyncAlt size={11} />
-                              </button>
-                            </div>
+                {/* ── 5 photo slots always on one row ── */}
+                <div className="aac-photo-grid">
+                  {[0, 1, 2, 3, 4].map((index) => (
+                    <div key={index} className="aac-photo-box">
+                      {photos[index] ? (
+                        <div className="aac-photo-box__inner">
+                          <img
+                            src={photos[index].preview}
+                            alt={`photo-${index}`}
+                          />
+                          <div className="aac-photo-box__actions">
+                            <button
+                              type="button"
+                              className="aac-icon-btn del"
+                              onClick={() => handleDeletePhoto(index)}
+                            >
+                              <FaTrash size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              className="aac-icon-btn upd"
+                              onClick={() => triggerUpdate(index)}
+                            >
+                              <FaSyncAlt size={11} />
+                            </button>
                           </div>
-                        ) : (
-                          <div className="aac-photo-box__empty">
-                            <ImageIcon size={18} />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                        </div>
+                      ) : (
+                        <div className="aac-photo-box__empty">
+                          <ImageIcon size={18} />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
 
                 <div className="aac-divider" />
 
                 <div className="aac-field">
-                  <label className="aac-label">Title <span>* max 50 characters</span></label>
-                  <input className="aac-input" type="text" value={title}
-                    onChange={e => setTitle(e.target.value)}
-                    placeholder="e.g. Cozy private room near SLIIT" maxLength={50} />
+                  <label className="aac-label">
+                    Title <span>* max 50 characters</span>
+                  </label>
+                  <input
+                    className="aac-input"
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Cozy private room near SLIIT"
+                    maxLength={50}
+                  />
                   <div className="aac-field-footer">
-                    <span className={`aac-char-count${title.length > 40 ? " warn" : ""}`}>
+                    <span
+                      className={`aac-char-count${title.length > 40 ? " warn" : ""}`}
+                    >
                       {title.length}/50
                     </span>
                   </div>
                 </div>
 
                 <div className="aac-field">
-                  <label className="aac-label">Description <span>* max 200 characters</span></label>
-                  <textarea className="aac-textarea" rows="4" value={description}
-                    onChange={e => setDescription(e.target.value)}
+                  <label className="aac-label">
+                    Description <span>* max 200 characters</span>
+                  </label>
+                  <textarea
+                    className="aac-textarea"
+                    rows="4"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
                     placeholder="Describe what makes your place great — location, vibe, what's nearby…"
-                    maxLength={200} />
+                    maxLength={200}
+                  />
                   <div className="aac-field-footer">
-                    <span className={`aac-char-count${description.length > 170 ? " warn" : ""}`}>
+                    <span
+                      className={`aac-char-count${description.length > 170 ? " warn" : ""}`}
+                    >
                       {description.length}/200
                     </span>
                   </div>
                 </div>
 
                 <div className="aac-nav">
-                  <button className="aac-btn-secondary" onClick={handlePreviousStep}>
+                  <button
+                    className="aac-btn-secondary"
+                    onClick={handlePreviousStep}
+                  >
                     <ChevronLeft size={15} /> Previous
                   </button>
                   <button className="aac-btn-primary" onClick={handleNextStep}>
@@ -685,22 +923,44 @@ const AddAccommodation = () => {
             {currentStep === 4 && (
               <div className="aac-card">
                 <div className="aac-card__title">Finish up and save</div>
-                <div className="aac-card__subtitle">Set your price, house rules, and confirm your listing</div>
+                <div className="aac-card__subtitle">
+                  Set your price, house rules, and confirm your listing
+                </div>
 
                 <div className="aac-row">
                   <div className="aac-field">
-                    <label className="aac-label">Price / month (LKR) <span>* 5,000–50,000</span></label>
-                    <input className="aac-input" type="number" value={price}
-                      onChange={e => setPrice(e.target.value)}
-                      onBlur={e => clampValue(e.target.value, 5000, 50000, setPrice)}
-                      placeholder="15000" min="5000" max="50000" />
+                    <label className="aac-label">
+                      Price / month (LKR) <span>* 5,000–50,000</span>
+                    </label>
+                    <input
+                      className="aac-input"
+                      type="number"
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
+                      onBlur={(e) =>
+                        clampValue(e.target.value, 5000, 50000, setPrice)
+                      }
+                      placeholder="15000"
+                      min="5000"
+                      max="50000"
+                    />
                   </div>
                   <div className="aac-field">
-                    <label className="aac-label">Key money <span>* 0–3 months</span></label>
-                    <input className="aac-input" type="number" value={keyDuration}
-                      onChange={e => setKeyDuration(e.target.value)}
-                      onBlur={e => clampValue(e.target.value, 0, 3, setKeyDuration)}
-                      placeholder="0" min="0" max="3" />
+                    <label className="aac-label">
+                      Key money <span>* 0–3 months</span>
+                    </label>
+                    <input
+                      className="aac-input"
+                      type="number"
+                      value={keyDuration}
+                      onChange={(e) => setKeyDuration(e.target.value)}
+                      onBlur={(e) =>
+                        clampValue(e.target.value, 0, 3, setKeyDuration)
+                      }
+                      placeholder="0"
+                      min="0"
+                      max="3"
+                    />
                   </div>
                 </div>
 
@@ -719,12 +979,17 @@ const AddAccommodation = () => {
                     {RULE_LIST.map(({ key, icon: Icon }) => {
                       const active = rules.includes(key);
                       return (
-                        <button key={key} type="button"
+                        <button
+                          key={key}
+                          type="button"
                           className={`aac-rule-item${active ? " active" : ""}`}
-                          onClick={() => toggleRule(key)}>
+                          onClick={() => toggleRule(key)}
+                        >
                           <Icon size={15} />
                           <span>{key}</span>
-                          {active && <CheckCircle size={12} className="aac-rule-check" />}
+                          {active && (
+                            <CheckCircle size={12} className="aac-rule-check" />
+                          )}
                         </button>
                       );
                     })}
@@ -732,10 +997,16 @@ const AddAccommodation = () => {
                 </div>
 
                 <div className="aac-field">
-                  <label className="aac-label">Other rules <span>optional</span></label>
-                  <textarea className="aac-textarea" rows="2" value={otherRules}
-                    onChange={e => setOtherRules(e.target.value)}
-                    placeholder="e.g. No loud music after 11 PM, no overnight guests…" />
+                  <label className="aac-label">
+                    Other rules <span>optional</span>
+                  </label>
+                  <textarea
+                    className="aac-textarea"
+                    rows="2"
+                    value={otherRules}
+                    onChange={(e) => setOtherRules(e.target.value)}
+                    placeholder="e.g. No loud music after 11 PM, no overnight guests…"
+                  />
                 </div>
 
                 <div className="aac-divider" />
@@ -743,43 +1014,71 @@ const AddAccommodation = () => {
                 <div className="aac-verify-section">
                   <div className="aac-verify-section__title">Confirmation</div>
                   <label className="aac-check-label">
-                    <input type="checkbox" checked={isVerified}
-                      onChange={e => setIsVerified(e.target.checked)} />
-                    I confirm that all information provided is accurate and up to date.
+                    <input
+                      type="checkbox"
+                      checked={isVerified}
+                      onChange={(e) => setIsVerified(e.target.checked)}
+                    />
+                    I confirm that all information provided is accurate and up
+                    to date.
                   </label>
                   <label className="aac-check-label" style={{ marginTop: 4 }}>
-                    <input type="checkbox" checked={isAgreed}
-                      onChange={e => setIsAgreed(e.target.checked)} />
-                    I agree to the Terms of Service and Bodima hosting guidelines.
+                    <input
+                      type="checkbox"
+                      checked={isAgreed}
+                      onChange={(e) => setIsAgreed(e.target.checked)}
+                    />
+                    I agree to the Terms of Service and Bodima hosting
+                    guidelines.
                   </label>
                 </div>
 
                 {isSaving && (
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    background: "#fff4ec", border: "1px solid rgba(230,126,34,0.3)",
-                    borderRadius: 10, padding: "12px 16px", marginTop: 16,
-                    fontSize: 13, color: "#c0641a",
-                  }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      background: "#fff4ec",
+                      border: "1px solid rgba(230,126,34,0.3)",
+                      borderRadius: 10,
+                      padding: "12px 16px",
+                      marginTop: 16,
+                      fontSize: 13,
+                      color: "#c0641a",
+                    }}
+                  >
                     <Loader2 size={15} className="aac-spin" />
                     Uploading photos and saving your listing…
                   </div>
                 )}
 
                 <div className="aac-nav">
-                  <button className="aac-btn-secondary" onClick={handlePreviousStep} disabled={isSaving}>
+                  <button
+                    className="aac-btn-secondary"
+                    onClick={handlePreviousStep}
+                    disabled={isSaving}
+                  >
                     <ChevronLeft size={15} /> Previous
                   </button>
-                  <button className="aac-btn-save" onClick={handleSaveListing}
-                    disabled={isSaving || !isVerified || !isAgreed}>
-                    {isSaving
-                      ? <><Loader2 size={15} className="aac-spin" /> Saving…</>
-                      : <><CheckCircle size={15} /> Save listing</>}
+                  <button
+                    className="aac-btn-save"
+                    onClick={handleSaveListing}
+                    disabled={isSaving || !isVerified || !isAgreed}
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 size={15} className="aac-spin" /> Saving…
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle size={15} /> Save listing
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
             )}
-
           </div>
         </>
       )}
