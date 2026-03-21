@@ -1,22 +1,40 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { GoogleMap, LoadScript, Marker } from "@react-google-maps/api";
+import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
 import axios from "axios";
 import "./AccommodationEdit.css";
 import {
-  ArrowLeft, Pencil, X, Home, MapPin, Bed, Bath,
-  Zap, Droplets, Wifi, Car, Wind, Tv, Dumbbell, Waves,
-  Camera, UtensilsCrossed, Trash2, Plus, Users, User,
-  ImagePlus, Upload, RefreshCw, CheckCircle, Loader2,
+  X, Home, MapPin, Bed, Bath, Zap, Droplets, Wifi, Car,
+  Wind, Tv, Dumbbell, Waves, Camera, UtensilsCrossed,
+  Trash2, Plus, Users, User, Upload, RefreshCw,
+  CheckCircle, Loader2, ChevronRight, ChevronLeft,
+  Crosshair, AlertCircle, Pencil, ImagePlus, Key,
 } from "lucide-react";
+import { MdApartment, MdHouse, MdBedroomParent, MdKey } from "react-icons/md";
 
+// ─── Config ───────────────────────────────────────────────────────────────────
 const GOOGLE_MAPS_API_KEY = "AIzaSyDKKnxSMEUkZyZiLT83DXCJhR4eplblzKA";
-const SLIIT_LOCATION = { lat: 6.9147, lng: 79.9727 };
-const mapContainerStyle = { width: "100%", height: "100%" };
-const defaultOptions = {
+const BASE_URL            = "http://localhost:8000";
+const SLIIT_LOCATION      = { lat: 6.9147, lng: 79.9727 };
+const LIBRARIES           = ["places"];
+const mapContainerStyle   = { width: "100%", height: "420px", borderRadius: "10px" };
+const defaultOptions      = {
   zoomControl: true, mapTypeControl: false, scaleControl: false,
   streetViewControl: false, rotateControl: false, fullscreenControl: true,
 };
+
+const ACCOMMODATION_TYPES = [
+  { key: "Apartment",    icon: MdApartment,    desc: "Flat or apartment unit"  },
+  { key: "House",        icon: MdHouse,        desc: "Full house or annex"     },
+  { key: "Shared Room",  icon: MdBedroomParent,desc: "Room shared with others" },
+  { key: "Private Room", icon: MdKey,          desc: "Your own private room"   },
+];
+
+const GENDER_OPTIONS = [
+  { key: "boys",  label: "Boys Only",  icon: User  },
+  { key: "girls", label: "Girls Only", icon: User  },
+  { key: "mixed", label: "Mixed",      icon: Users },
+];
 
 const AMENITY_LIST = [
   { key: "WiFi",    icon: Wifi            },
@@ -30,114 +48,142 @@ const AMENITY_LIST = [
   { key: "Pool",    icon: Waves           },
 ];
 
+const STEPS = [
+  { num: 1, label: "Details"   },
+  { num: 2, label: "Location"  },
+  { num: 3, label: "Photos"    },
+  { num: 4, label: "Amenities" },
+  { num: 5, label: "Review"    },
+];
 
-const AccommodationEdit = () => {
-  const { id } = useParams();
+// ─── Component ────────────────────────────────────────────────────────────────
+function AccommodationEdit() {
   const navigate = useNavigate();
+  const { id }   = useParams();
 
-  const [loading,       setLoading]       = useState(true);
-  const [editMode,      setEditMode]      = useState({});
-  const [newRule,       setNewRule]       = useState("");
-  const [isUploading,   setIsUploading]   = useState(false);
-  const [updatingIndex, setUpdatingIndex] = useState(null);
-  const [isSaving,      setIsSaving]      = useState(false);
-  const [map,           setMap]           = useState(null);
-
-  const fileInputRef   = useRef(null);
-  const updateInputRef = useRef(null);
-
-  const [photos,           setPhotos]           = useState([]);
-  const [uploadedImageIds, setUploadedImageIds] = useState([]);
-
-  const [formData, setFormData] = useState({
-    title: "", description: "", address: "",
-    accommodationType: "Apartment", genderPreference: "mixed",
-    bedrooms: 1, beds: 1, bathrooms: 1,
-    pricePerMonth: 0, keyMoneyDuration: 0,
-    utilityBills: { electricityIncluded: false, waterIncluded: false },
-    location: { type: "Point", coordinates: [79.9727, 6.9147] },
-    amenities: [], rules: [],
-    distance: "Distance not available",
-    images: [], isAvailable: true,
+  const { isLoaded: mapIsLoaded, loadError: mapLoadError } = useJsApiLoader({
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: LIBRARIES,
   });
 
-  // Derived lat/lng for Google Maps (Mongoose stores [lng, lat])
-  const markerPos = {
-    lat: formData.location.coordinates[1] ?? SLIIT_LOCATION.lat,
-    lng: formData.location.coordinates[0] ?? SLIIT_LOCATION.lng,
-  };
+  const [isLoading,   setIsLoading]   = useState(true);
+  const [loadError,   setLoadError]   = useState(null);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isSaving,    setIsSaving]    = useState(false);
 
-  // ── Fetch ─────────────────────────────────────────────────────────────────
+  // Step 1 – Details
+  const [title,               setTitle]               = useState("");
+  const [description,         setDescription]         = useState("");
+  const [accommodationType,   setAccommodationType]   = useState("Apartment");
+  const [genderPreference,    setGenderPreference]    = useState("mixed");
+  const [bedrooms,            setBedrooms]            = useState(1);
+  const [beds,                setBeds]                = useState(1);
+  const [bathrooms,           setBathrooms]           = useState(1);
+  const [pricePerMonth,       setPricePerMonth]       = useState("");
+  const [keyMoneyDuration,    setKeyMoneyDuration]    = useState(0);
+  const [electricityIncluded, setElectricityIncluded] = useState(false);
+  const [waterIncluded,       setWaterIncluded]       = useState(false);
+  const [newRule,             setNewRule]             = useState("");
+  const [rules,               setRules]               = useState([]);
+
+  // Step 2 – Location
+  const [map,                 setMap]                 = useState(null);
+  const [selectedLocation,    setSelectedLocation]    = useState(SLIIT_LOCATION);
+  const [address,             setAddress]             = useState("");
+  const [hasSelectedLocation, setHasSelectedLocation] = useState(false);
+  const [distance,            setDistance]            = useState("Distance not available");
+
+  // Step 3 – Photos
+  const fileInputRef   = useRef(null);
+  const updateInputRef = useRef(null);
+  const [photos,           setPhotos]           = useState([]);
+  const [uploadedImageIds, setUploadedImageIds] = useState([]);
+  const [isUploading,      setIsUploading]      = useState(false);
+  const [updatingIndex,    setUpdatingIndex]    = useState(null);
+
+  // Step 4 – Amenities
+  const [amenities, setAmenities] = useState([]);
+
+  // Step 5 – Review
+  const [isVerified, setIsVerified] = useState(false);
+  const [isAgreed,   setIsAgreed]   = useState(false);
+
+  // ── Load data ────────────────────────────────────────────────────────────
   useEffect(() => {
-    const fetchAccommodation = async () => {
+    if (!id) { setLoadError("No accommodation ID provided."); setIsLoading(false); return; }
+    const fetchData = async () => {
       try {
-        const res = await axios.get(`http://localhost:8000/accommodation/${id}`);
-        if (res.data.success) {
-          const data = res.data.data;
-          setFormData({ ...data });
-          if (data.images) {
-            setUploadedImageIds(data.images);
-            setPhotos(data.images.map(imgId => `http://localhost:8000/photo/${imgId}`));
-          }
+        const res  = await axios.get(`${BASE_URL}/accommodation/${id}`);
+        const data = res.data.data;
+        setTitle(data.title || "");
+        setDescription(data.description || "");
+        setAccommodationType(data.accommodationType || "Apartment");
+        setGenderPreference(data.genderPreference || "mixed");
+        setBedrooms(data.bedrooms || 1);
+        setBeds(data.beds || 1);
+        setBathrooms(data.bathrooms || 1);
+        setPricePerMonth(data.pricePerMonth?.toString() || "");
+        setKeyMoneyDuration(data.keyMoneyDuration || 0);
+        setElectricityIncluded(data.utilityBills?.electricityIncluded ?? false);
+        setWaterIncluded(data.utilityBills?.waterIncluded ?? false);
+        setRules(data.rules || []);
+        setAddress(data.address || "");
+        setAmenities(data.amenities || []);
+        if (data.location?.coordinates) {
+          const [lng, lat] = data.location.coordinates;
+          setSelectedLocation({ lat, lng });
+          setHasSelectedLocation(true);
         }
-      } catch { alert("Could not load listing data."); }
-      finally { setLoading(false); }
+        if (data.images?.length) {
+          setUploadedImageIds(data.images);
+          setPhotos(data.images.map(imgId => `${BASE_URL}/photo/${imgId}`));
+        }
+        setIsLoading(false);
+      } catch {
+        setLoadError("Failed to load accommodation data. Please try again.");
+        setIsLoading(false);
+      }
     };
-    fetchAccommodation();
+    fetchData();
   }, [id]);
 
-  // ── Distance (coordinates stored as [lng, lat]) ───────────────────────────
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371e3;
+  // ── Distance ──────────────────────────────────────────────────────────────
+  const calcDistance = (lat1, lon1, lat2, lon2) => {
+    const R    = 6371e3;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-    const d = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return d > 1000 ? (d / 1000).toFixed(2) + " km" : Math.round(d) + " meters";
+    const a    = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+    const d    = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return d > 1000 ? (d / 1000).toFixed(2) + " km" : Math.round(d) + " m";
   };
 
   useEffect(() => {
-    if (!loading) {
-      const [lng, lat] = formData.location.coordinates;
-      setFormData(p => ({
-        ...p,
-        distance: calculateDistance(SLIIT_LOCATION.lat, SLIIT_LOCATION.lng, lat, lng),
-      }));
-    }
-  }, [formData.location.coordinates, loading]);
+    setDistance(calcDistance(SLIIT_LOCATION.lat, SLIIT_LOCATION.lng, selectedLocation.lat, selectedLocation.lng));
+  }, [selectedLocation]);
 
-  // ── Google Maps handlers ──────────────────────────────────────────────────
-  const onMapLoad = useCallback(m => setMap(m), []);
-
+  // ── Map ───────────────────────────────────────────────────────────────────
+  const onMapLoad  = useCallback(m => setMap(m), []);
   const onMapClick = (e) => {
-    if (!editMode.loc) return;
-    const lat = e.latLng.lat();
-    const lng = e.latLng.lng();
-    update("location", { ...formData.location, coordinates: [lng, lat] });
-    // Reverse geocode for address
-    new window.google.maps.Geocoder().geocode({ location: { lat, lng } }, (results, status) => {
-      if (status === "OK" && results[0]) update("address", results[0].formatted_address);
+    const loc = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+    setSelectedLocation(loc); setHasSelectedLocation(true);
+    new window.google.maps.Geocoder().geocode({ location: loc }, (results, status) => {
+      if (status === "OK" && results[0]) setAddress(results[0].formatted_address);
     });
   };
-
-  const onMarkerDragEnd = (e) => {
-    const lat = e.latLng.lat();
-    const lng = e.latLng.lng();
-    update("location", { ...formData.location, coordinates: [lng, lat] });
-    new window.google.maps.Geocoder().geocode({ location: { lat, lng } }, (results, status) => {
-      if (status === "OK" && results[0]) update("address", results[0].formatted_address);
+  const handleCurrentLocation = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(pos => {
+      const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      setSelectedLocation(loc); setHasSelectedLocation(true);
+      if (map) { map.panTo(loc); map.setZoom(17); }
+      new window.google.maps.Geocoder().geocode({ location: loc }, (results, status) => {
+        if (status === "OK" && results[0]) setAddress(results[0].formatted_address);
+      });
     });
   };
-
-  // ── Save ──────────────────────────────────────────────────────────────────
-  const handleUpdate = async () => {
-    setIsSaving(true);
-    try {
-      const updateData = { ...formData, images: uploadedImageIds };
-      const res = await axios.put(`http://localhost:8000/accommodation/${id}`, updateData);
-      if (res.data.success) { alert("Updated successfully!"); navigate(-1); }
-    } catch { alert("Update failed."); }
-    finally { setIsSaving(false); }
+  const handleSLIIT = () => {
+    setSelectedLocation(SLIIT_LOCATION); setHasSelectedLocation(true);
+    if (map) { map.panTo(SLIIT_LOCATION); map.setZoom(17); }
   };
 
   // ── Photos ────────────────────────────────────────────────────────────────
@@ -148,7 +194,7 @@ const AccommodationEdit = () => {
     for (const file of files) {
       const fd = new FormData(); fd.append("photo", file);
       try {
-        const res = await axios.post("http://localhost:8000/photo", fd);
+        const res = await axios.post(`${BASE_URL}/photo`, fd);
         if (res.data.success) {
           setPhotos(p => [...p, URL.createObjectURL(file)]);
           setUploadedImageIds(p => [...p, res.data.data._id]);
@@ -157,419 +203,534 @@ const AccommodationEdit = () => {
     }
     setIsUploading(false);
   };
-
   const handleDeletePhoto = async (index) => {
     if (!window.confirm("Delete this photo?")) return;
     try {
-      await axios.delete(`http://localhost:8000/photo/${uploadedImageIds[index]}`);
+      await axios.delete(`${BASE_URL}/photo/${uploadedImageIds[index]}`);
       setPhotos(p => p.filter((_, i) => i !== index));
       setUploadedImageIds(p => p.filter((_, i) => i !== index));
     } catch { alert("Delete failed."); }
   };
-
   const triggerUpdate = (index) => { setUpdatingIndex(index); updateInputRef.current.click(); };
-
   const handlePhotoUpdate = async (e) => {
     const file = e.target.files[0]; if (!file) return;
     setIsUploading(true);
     const fd = new FormData(); fd.append("photo", file);
     try {
-      const res = await axios.put(`http://localhost:8000/photo/${uploadedImageIds[updatingIndex]}`, fd);
+      const res = await axios.put(`${BASE_URL}/photo/${uploadedImageIds[updatingIndex]}`, fd);
       if (res.data.success) {
-        const updated = [...photos]; updated[updatingIndex] = URL.createObjectURL(file);
-        setPhotos(updated);
+        const updated = [...photos]; updated[updatingIndex] = URL.createObjectURL(file); setPhotos(updated);
       }
     } catch { alert("Update failed."); }
     finally { setIsUploading(false); }
   };
 
-  const toggleEdit   = (s) => setEditMode(p => ({ ...p, [s]: !p[s] }));
-  const update       = (field, val) => setFormData(p => ({ ...p, [field]: val }));
-  const toggleAmenity = (name) => {
-    const updated = formData.amenities.includes(name)
-      ? formData.amenities.filter(a => a !== name)
-      : [...formData.amenities, name];
-    update("amenities", updated);
+  // ── Amenities ─────────────────────────────────────────────────────────────
+  const toggleAmenity = (key) =>
+    setAmenities(prev => prev.includes(key) ? prev.filter(a => a !== key) : [...prev, key]);
+
+  // ── Navigation ────────────────────────────────────────────────────────────
+  const handleNext = () => {
+    if (currentStep === 1) {
+      if (!title.trim())       return alert("Property title is required.");
+      if (!description.trim()) return alert("Description is required.");
+      if (!pricePerMonth || Number(pricePerMonth) < 1) return alert("Please enter a valid monthly rent.");
+    }
+    if (currentStep === 2) {
+      if (!hasSelectedLocation) return alert("Please pin your property location on the map.");
+      if (!address.trim())      return alert("Please enter the address.");
+    }
+    if (currentStep === 3) {
+      if (uploadedImageIds.length === 0) return alert("Please upload at least one photo.");
+    }
+    setCurrentStep(s => s + 1);
+  };
+  const handlePrev = () => setCurrentStep(s => s - 1);
+  const handleExit = () => navigate(-1);
+
+  // ── Save ──────────────────────────────────────────────────────────────────
+  const handleSave = async () => {
+    if (!isVerified || !isAgreed) return alert("Please confirm accuracy and agree to terms.");
+    setIsSaving(true);
+    try {
+      await axios.put(`${BASE_URL}/accommodation/${id}`, {
+        title, description, address,
+        accommodationType, genderPreference,
+        bedrooms: Number(bedrooms), beds: Number(beds), bathrooms: Number(bathrooms),
+        pricePerMonth: Number(pricePerMonth), keyMoneyDuration: Number(keyMoneyDuration),
+        utilityBills: { electricityIncluded, waterIncluded },
+        location: { type: "Point", coordinates: [selectedLocation.lng, selectedLocation.lat] },
+        distance, amenities, rules, images: uploadedImageIds,
+      });
+      alert("Accommodation updated successfully!");
+      navigate(-1);
+    } catch (err) {
+      alert("Error: " + (err.response?.data?.message || "Something went wrong."));
+    } finally { setIsSaving(false); }
   };
 
-  const genderIcon = (g) => g === "boys" ? <User size={13} /> : g === "girls" ? <User size={13} /> : <Users size={13} />;
-  const genderLabel = (g) => g === "boys" ? "Boys Only" : g === "girls" ? "Girls Only" : "Mixed";
-
-  if (loading) return (
-    <div className="ae-loading">
-      <Loader2 size={28} className="ae-spin" />
-      <span>Loading listing…</span>
+  // ── Loading / Error states ────────────────────────────────────────────────
+  if (isLoading) return (
+    <div className="ae-root">
+      <div className="ae-topbar">
+        <div className="ae-topbar-brand">
+          <div className="ae-topbar-brand-dot"><Home size={15} /></div>
+          Manage <span>Listing</span>
+        </div>
+        <button className="ae-exit-btn" onClick={handleExit}><X size={14} /> Exit</button>
+      </div>
+      <div className="ae-state-screen">
+        <Loader2 size={32} className="ae-spin" color="#e67e22" />
+        <p>Loading accommodation data…</p>
+      </div>
     </div>
   );
 
+  if (loadError) return (
+    <div className="ae-root">
+      <div className="ae-topbar">
+        <div className="ae-topbar-brand">
+          <div className="ae-topbar-brand-dot"><Home size={15} /></div>
+          Manage <span>Listing</span>
+        </div>
+        <button className="ae-exit-btn" onClick={handleExit}><X size={14} /> Exit</button>
+      </div>
+      <div className="ae-state-screen">
+        <AlertCircle size={32} color="#c0392b" />
+        <p style={{ color: "#c0392b", fontWeight: 500 }}>{loadError}</p>
+        <button className="ae-btn-back" onClick={handleExit}>Go Back</button>
+      </div>
+    </div>
+  );
+
+  // ── Main render ───────────────────────────────────────────────────────────
   return (
     <div className="ae-root">
 
       {/* ── Top Bar ── */}
       <div className="ae-topbar">
-        <div className="ae-topbar__left">
-          <button className="ae-back-btn" onClick={() => navigate(-1)}>
-            <ArrowLeft size={15} /> Back
-          </button>
-          <div className="ae-topbar__brand">
-            <div className="ae-topbar__dot"><Home size={14} /></div>
-            Manage <span>Listing</span>
-          </div>
+        <div className="ae-topbar-brand">
+          <div className="ae-topbar-brand-dot"><Home size={15} /></div>
+          Manage <span>Listing</span>
         </div>
-        <button className="ae-btn-save" onClick={handleUpdate} disabled={isSaving || isUploading}>
-          {isSaving
-            ? <><Loader2 size={14} className="ae-spin" /> Saving…</>
-            : <><CheckCircle size={14} /> Update listing</>}
-        </button>
+        <div className="ae-topbar-center">
+          <Pencil size={13} />
+          <span>Editing listing</span>
+          <div className="ae-topbar-center-dot" />
+          <span style={{ color: "#1c1c1e", fontWeight: 700 }}>{title || "…"}</span>
+        </div>
+        <button className="ae-exit-btn" onClick={handleExit}><X size={14} /> Exit</button>
+      </div>
+
+      {/* ── Progress Bar ── */}
+      <div className="ae-progress-wrapper">
+        <div className="ae-progress-steps">
+          {STEPS.map((step, idx) => {
+            const done   = currentStep > step.num;
+            const active = currentStep === step.num;
+            return (
+              <React.Fragment key={step.num}>
+                <div className={`ae-progress-step ${active ? "active" : ""} ${done ? "done" : ""}`}>
+                  <div className="ae-progress-bubble">
+                    {done ? <CheckCircle size={16} /> : step.num}
+                  </div>
+                  <span className="ae-progress-label">{step.label}</span>
+                </div>
+                {idx < STEPS.length - 1 && (
+                  <div className="ae-progress-line">
+                    <div className="ae-progress-line-fill" style={{ width: done ? "100%" : "0%" }} />
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
       </div>
 
       <div className="ae-layout">
 
-        {/* ── Section: Property Info ── */}
-        <div className="ae-card">
-          <div className="ae-card__header">
-            <div className="ae-card__header-left">
-              <div className="ae-section-icon"><Home size={15} /></div>
-              <span className="ae-card__title">Property Info</span>
-            </div>
-            <button className="ae-edit-btn" onClick={() => toggleEdit("basic")}>
-              {editMode.basic ? <><X size={13} /> Cancel</> : <><Pencil size={13} /> Edit</>}
-            </button>
-          </div>
+        {/* ══ STEP 1 — Details ══ */}
+        {currentStep === 1 && (
+          <div className="ae-card">
+            <div className="ae-card-title">Property details</div>
+            <div className="ae-card-subtitle">Update the basic information about your accommodation</div>
 
-          {editMode.basic ? (
-            <div className="ae-form">
-              <div className="ae-field">
-                <label className="ae-label">Title</label>
-                <input className="ae-input" value={formData.title} onChange={e => update("title", e.target.value)} placeholder="Listing title" />
+            <div className="ae-field">
+              <label className="ae-label">Property title <span>*</span></label>
+              <input className="ae-input" type="text" value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="e.g. Cozy 2-Bedroom Apartment near SLIIT" maxLength={80} />
+              <div className="ae-field-footer">
+                <span className={`ae-char-count ${title.length > 65 ? "warn" : ""}`}>{title.length}/80</span>
               </div>
-              <div className="ae-field">
-                <label className="ae-label">Address</label>
-                <input className="ae-input" value={formData.address} onChange={e => update("address", e.target.value)} placeholder="Full address" />
+            </div>
+
+            <div className="ae-field">
+              <label className="ae-label">Description <span>*</span></label>
+              <textarea className="ae-textarea" value={description}
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Describe your property — location perks, room quality, nearby facilities…"
+                maxLength={400} />
+              <div className="ae-field-footer">
+                <span className={`ae-char-count ${description.length > 320 ? "warn" : ""}`}>{description.length}/400</span>
               </div>
-              <div className="ae-row">
-                <div className="ae-field">
-                  <label className="ae-label">Type</label>
-                  <select className="ae-select" value={formData.accommodationType} onChange={e => update("accommodationType", e.target.value)}>
-                    <option value="Apartment">Apartment</option>
-                    <option value="House">House</option>
-                    <option value="Shared Room">Shared Room</option>
-                    <option value="Private Room">Private Room</option>
-                  </select>
-                </div>
-                <div className="ae-field">
-                  <label className="ae-label">Gender preference</label>
-                  <select className="ae-select" value={formData.genderPreference} onChange={e => update("genderPreference", e.target.value)}>
-                    <option value="boys">Boys Only</option>
-                    <option value="girls">Girls Only</option>
-                    <option value="mixed">Mixed</option>
-                  </select>
-                </div>
+            </div>
+
+            <div className="ae-field">
+              <label className="ae-label">Accommodation type <span>*</span></label>
+              <div className="ae-type-grid">
+                {ACCOMMODATION_TYPES.map(t => {
+                  const TypeIcon = t.icon;
+                  return (
+                  <button key={t.key} type="button"
+                    className={`ae-type-card ${accommodationType === t.key ? "selected" : ""}`}
+                    onClick={() => setAccommodationType(t.key)}>
+                    <div className="ae-type-icon-box"><TypeIcon size={24} /></div>
+                    <span className="ae-type-name">{t.key}</span>
+                    <span className="ae-type-desc">{t.desc}</span>
+                  </button>
+                  );
+                })}
               </div>
-              <div className="ae-field">
-                <label className="ae-label">Description</label>
-                <textarea className="ae-textarea" rows="3" value={formData.description} onChange={e => update("description", e.target.value)} placeholder="Describe your place…" />
+            </div>
+
+            <div className="ae-field">
+              <label className="ae-label">Gender preference <span>*</span></label>
+              <div className="ae-option-row">
+                {GENDER_OPTIONS.map(g => {
+                  const Icon   = g.icon;
+                  const active = genderPreference === g.key;
+                  return (
+                    <button key={g.key} type="button"
+                      className={`ae-option-card ${active ? "active" : ""}`}
+                      onClick={() => setGenderPreference(g.key)}>
+                      <div className="ae-option-icon-box"><Icon size={18} /></div>
+                      <span className="ae-option-name">{g.label}</span>
+                      <span className={`ae-badge ${active ? "on" : "off"}`}>{active ? "✓" : "—"}</span>
+                    </button>
+                  );
+                })}
               </div>
+            </div>
+
+            <div className="ae-divider" />
+
+            <div className="ae-field">
+              <label className="ae-label">Room configuration</label>
               <div className="ae-three-cols">
-                <div className="ae-field">
-                  <label className="ae-label">Bedrooms</label>
-                  <input className="ae-input" type="number" min="1" max="10" value={formData.bedrooms} onChange={e => update("bedrooms", e.target.value)} />
+                <div>
+                  <label className="ae-sub-label">Bedrooms</label>
+                  <input className="ae-input" type="number" min="1" max="10"
+                    value={bedrooms} onChange={e => setBedrooms(e.target.value)} />
                 </div>
-                <div className="ae-field">
-                  <label className="ae-label">Beds</label>
-                  <input className="ae-input" type="number" min="1" max="10" value={formData.beds} onChange={e => update("beds", e.target.value)} />
+                <div>
+                  <label className="ae-sub-label">Beds</label>
+                  <input className="ae-input" type="number" min="1" max="10"
+                    value={beds} onChange={e => setBeds(e.target.value)} />
                 </div>
-                <div className="ae-field">
-                  <label className="ae-label">Bathrooms</label>
-                  <input className="ae-input" type="number" min="1" max="10" value={formData.bathrooms} onChange={e => update("bathrooms", e.target.value)} />
+                <div>
+                  <label className="ae-sub-label">Bathrooms</label>
+                  <input className="ae-input" type="number" min="1" max="10"
+                    value={bathrooms} onChange={e => setBathrooms(e.target.value)} />
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="ae-view">
-              <h3 className="ae-view__title">{formData.title || "Untitled Listing"}</h3>
-              <p className="ae-view__address"><MapPin size={13} /> {formData.address}</p>
-              <div className="ae-badge-row">
-                <span className="ae-badge type">{formData.accommodationType}</span>
-                <span className={`ae-badge gender ${formData.genderPreference}`}>
-                  {genderIcon(formData.genderPreference)} {genderLabel(formData.genderPreference)}
-                </span>
+
+            <div className="ae-divider" />
+
+            <div className="ae-field">
+              <label className="ae-label">Pricing</label>
+              <div className="ae-row">
+                <div>
+                  <label className="ae-sub-label">Rent / month (LKR) <span>*</span></label>
+                  <input className="ae-input" type="number" value={pricePerMonth}
+                    onChange={e => setPricePerMonth(e.target.value)} placeholder="e.g. 25000" />
+                </div>
+                <div>
+                  <label className="ae-sub-label">Key money (months)</label>
+                  <input className="ae-input" type="number" min="0" max="6"
+                    value={keyMoneyDuration} onChange={e => setKeyMoneyDuration(e.target.value)} />
+                </div>
               </div>
-              {formData.description && <p className="ae-view__desc">{formData.description}</p>}
-              <div className="ae-stats-row">
-                <div className="ae-stat"><Home size={15} /><span>{formData.bedrooms} Bedrooms</span></div>
-                <div className="ae-stat"><Bed size={15} /><span>{formData.beds} Beds</span></div>
-                <div className="ae-stat"><Bath size={15} /><span>{formData.bathrooms} Bathrooms</span></div>
+            </div>
+
+            <div className="ae-field">
+              <label className="ae-label">Utility bills included</label>
+              <div className="ae-option-row">
+                <button type="button"
+                  className={`ae-option-card ${electricityIncluded ? "active" : ""}`}
+                  onClick={() => setElectricityIncluded(p => !p)}>
+                  <div className="ae-option-icon-box"><Zap size={18} /></div>
+                  <span className="ae-option-name">Electricity</span>
+                  <span className={`ae-badge ${electricityIncluded ? "on" : "off"}`}>{electricityIncluded ? "Incl." : "Excl."}</span>
+                </button>
+                <button type="button"
+                  className={`ae-option-card ${waterIncluded ? "active" : ""}`}
+                  onClick={() => setWaterIncluded(p => !p)}>
+                  <div className="ae-option-icon-box"><Droplets size={18} /></div>
+                  <span className="ae-option-name">Water</span>
+                  <span className={`ae-badge ${waterIncluded ? "on" : "off"}`}>{waterIncluded ? "Incl." : "Excl."}</span>
+                </button>
               </div>
             </div>
-          )}
-        </div>
 
-        {/* ── Section: Photos ── */}
-        <div className="ae-card">
-          <div className="ae-card__header">
-            <div className="ae-card__header-left">
-              <div className="ae-section-icon"><ImagePlus size={15} /></div>
-              <span className="ae-card__title">Photos</span>
-              <span className="ae-card__count">{uploadedImageIds.length}/5</span>
-              {isUploading && <Loader2 size={14} className="ae-spin ae-uploading-indicator" />}
-            </div>
-          </div>
+            <div className="ae-divider" />
 
-          <input type="file" multiple accept="image/*" ref={fileInputRef} hidden onChange={handlePhotoUpload} />
-          <input type="file" accept="image/*" ref={updateInputRef} hidden onChange={handlePhotoUpdate} />
-
-          <div className="ae-upload-zone" onClick={() => fileInputRef.current.click()}>
-            <div className="ae-upload-icon">
-              {isUploading ? <Loader2 size={18} className="ae-spin" /> : <Upload size={18} />}
-            </div>
-            <span className="ae-upload-text">{isUploading ? "Uploading…" : "Click to upload photos"}</span>
-            <span className="ae-upload-hint">PNG, JPG — up to 5 photos</span>
-          </div>
-
-          <div className="ae-photo-grid">
-            {[0, 1, 2, 3, 4].map(index => (
-              <div key={index} className="ae-photo-box">
-                {photos[index] ? (
-                  <div className="ae-photo-box__inner">
-                    <img src={photos[index]} alt={`photo-${index}`} />
-                    <div className="ae-photo-box__actions">
-                      <button type="button" className="ae-icon-btn del" onClick={() => handleDeletePhoto(index)}>
-                        <Trash2 size={12} />
-                      </button>
-                      <button type="button" className="ae-icon-btn upd" onClick={() => triggerUpdate(index)}>
-                        <RefreshCw size={12} />
+            <div className="ae-field">
+              <label className="ae-label">House rules <span>(optional)</span></label>
+              <div className="ae-rule-input-row">
+                <input className="ae-input" placeholder="e.g. No smoking, No pets…"
+                  value={newRule} onChange={e => setNewRule(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && newRule.trim()) {
+                      setRules(p => [...p, newRule.trim()]); setNewRule("");
+                    }
+                  }} />
+                <button className="ae-add-rule-btn" type="button" onClick={() => {
+                  if (newRule.trim()) { setRules(p => [...p, newRule.trim()]); setNewRule(""); }
+                }}><Plus size={16} /></button>
+              </div>
+              {rules.length > 0 && (
+                <div className="ae-rules-list">
+                  {rules.map((rule, i) => (
+                    <div key={i} className="ae-rule-chip">
+                      <CheckCircle size={12} />
+                      <span>{rule}</span>
+                      <button type="button" className="ae-rule-del"
+                        onClick={() => setRules(p => p.filter((_, idx) => idx !== i))}>
+                        <X size={12} />
                       </button>
                     </div>
-                  </div>
-                ) : (
-                  <div className="ae-photo-box__empty" onClick={() => fileInputRef.current.click()}>
-                    <Plus size={18} />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Section: Amenities ── */}
-        <div className="ae-card">
-          <div className="ae-card__header">
-            <div className="ae-card__header-left">
-              <div className="ae-section-icon"><Wifi size={15} /></div>
-              <span className="ae-card__title">Amenities</span>
+                  ))}
+                </div>
+              )}
             </div>
-            <button className="ae-edit-btn" onClick={() => toggleEdit("amenities")}>
-              {editMode.amenities ? <><X size={13} /> Cancel</> : <><Pencil size={13} /> Edit</>}
-            </button>
-          </div>
 
-          {editMode.amenities ? (
+            <div className="ae-nav">
+              <div />
+              <button className="ae-btn-primary" onClick={handleNext}>Next <ChevronRight size={15} /></button>
+            </div>
+          </div>
+        )}
+
+        {/* ══ STEP 2 — Location ══ */}
+        {currentStep === 2 && (
+          <div className="ae-card">
+            <div className="ae-card-title">Property location</div>
+            <div className="ae-card-subtitle">Click the map to pin your property's exact position</div>
+
+            {mapLoadError ? (
+              <div className="ae-map-error">
+                <MapPin size={22} />
+                <div>
+                  <div style={{ fontWeight: 600, marginBottom: 4 }}>Map failed to load</div>
+                  <div style={{ fontSize: 12, color: "#aaa" }}>Check your internet connection and reload.</div>
+                </div>
+              </div>
+            ) : !mapIsLoaded ? (
+              <div className="ae-map-loading">
+                <Loader2 size={22} className="ae-spin" />
+                <span>Loading map…</span>
+              </div>
+            ) : (
+              <div className="ae-map-wrapper">
+                <GoogleMap mapContainerStyle={mapContainerStyle} center={selectedLocation}
+                  zoom={16} options={defaultOptions} onLoad={onMapLoad} onClick={onMapClick}>
+                  <Marker position={selectedLocation} draggable onDragEnd={onMapClick} />
+                </GoogleMap>
+              </div>
+            )}
+
+            <div className="ae-map-actions">
+              <button className="ae-map-btn" onClick={handleSLIIT}><MapPin size={14} /> SLIIT University</button>
+              <button className="ae-map-btn" onClick={handleCurrentLocation}><Crosshair size={14} /> Use my location</button>
+            </div>
+
+            {hasSelectedLocation && (
+              <div className="ae-distance-badge">
+                <MapPin size={13} />
+                <span><strong>{distance}</strong> from SLIIT University</span>
+              </div>
+            )}
+
+            <div className="ae-field" style={{ marginTop: 16 }}>
+              <label className="ae-label">Address <span>*</span></label>
+              <textarea className="ae-textarea" rows="2" value={address}
+                onChange={e => setAddress(e.target.value)} placeholder="Full address…" />
+            </div>
+
+            <div className="ae-nav">
+              <button className="ae-btn-secondary" onClick={handlePrev}><ChevronLeft size={15} /> Previous</button>
+              <button className="ae-btn-primary" onClick={handleNext}>Next <ChevronRight size={15} /></button>
+            </div>
+          </div>
+        )}
+
+        {/* ══ STEP 3 — Photos ══ */}
+        {currentStep === 3 && (
+          <div className="ae-card">
+            <div className="ae-card-title">Property photos</div>
+            <div className="ae-card-subtitle">Upload up to 5 photos — the first photo is used as the cover</div>
+
+            <input type="file" multiple accept="image/*" ref={fileInputRef} hidden onChange={handlePhotoUpload} />
+            <input type="file" accept="image/*" ref={updateInputRef} hidden onChange={handlePhotoUpdate} />
+
+            <div className="ae-upload-zone" onClick={() => fileInputRef.current.click()}>
+              <div className="ae-upload-icon">
+                {isUploading ? <Loader2 size={18} className="ae-spin" /> : <Upload size={18} />}
+              </div>
+              <div className="ae-upload-text">{isUploading ? "Uploading…" : "Click to upload photos"}</div>
+              <div className="ae-upload-hint">PNG, JPG — up to 5 photos · {uploadedImageIds.length}/5 uploaded</div>
+            </div>
+
+            <div className="ae-photo-grid">
+              {[0, 1, 2, 3, 4].map(index => (
+                <div key={index} className="ae-photo-box">
+                  {photos[index] ? (
+                    <div className="ae-photo-box-inner">
+                      {index === 0 && <div className="ae-photo-cover-badge">Cover</div>}
+                      <img src={photos[index]} alt={`photo-${index}`} />
+                      <div className="ae-photo-box-actions">
+                        <button type="button" className="ae-icon-btn del" onClick={() => handleDeletePhoto(index)}>
+                          <Trash2 size={12} />
+                        </button>
+                        <button type="button" className="ae-icon-btn upd" onClick={() => triggerUpdate(index)}>
+                          <RefreshCw size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="ae-photo-box-empty" onClick={() => fileInputRef.current.click()}>
+                      <Plus size={18} />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="ae-nav">
+              <button className="ae-btn-secondary" onClick={handlePrev}><ChevronLeft size={15} /> Previous</button>
+              <button className="ae-btn-primary" onClick={handleNext}>Next <ChevronRight size={15} /></button>
+            </div>
+          </div>
+        )}
+
+        {/* ══ STEP 4 — Amenities ══ */}
+        {currentStep === 4 && (
+          <div className="ae-card">
+            <div className="ae-card-title">Amenities</div>
+            <div className="ae-card-subtitle">Select all facilities available at your property</div>
+
             <div className="ae-amenities-grid">
               {AMENITY_LIST.map(({ key, icon: Icon }) => {
-                const active = formData.amenities.includes(key);
+                const active = amenities.includes(key);
                 return (
                   <button key={key} type="button"
-                    className={`ae-amenity-item${active ? " active" : ""}`}
+                    className={`ae-amenity-item ${active ? "active" : ""}`}
                     onClick={() => toggleAmenity(key)}>
-                    <Icon size={15} />
+                    <div className="ae-amenity-icon-box"><Icon size={16} /></div>
                     <span>{key}</span>
-                    {active && <CheckCircle size={12} className="ae-amenity-check" />}
+                    {active && <CheckCircle size={13} className="ae-amenity-check" />}
                   </button>
                 );
               })}
             </div>
-          ) : (
-            <div className="ae-tags-row">
-              {formData.amenities.length > 0
-                ? formData.amenities.map(a => <span key={a} className="ae-tag">{a}</span>)
-                : <p className="ae-no-data">No amenities listed</p>}
-            </div>
-          )}
-        </div>
 
-        {/* ── Section: Location ── */}
-        <div className="ae-card">
-          <div className="ae-card__header">
-            <div className="ae-card__header-left">
-              <div className="ae-section-icon"><MapPin size={15} /></div>
-              <span className="ae-card__title">Location</span>
+            <div className="ae-nav">
+              <button className="ae-btn-secondary" onClick={handlePrev}><ChevronLeft size={15} /> Previous</button>
+              <button className="ae-btn-primary" onClick={handleNext}>Next <ChevronRight size={15} /></button>
             </div>
-            <button className="ae-edit-btn" onClick={() => toggleEdit("loc")}>
-              {editMode.loc ? <><X size={13} /> Cancel</> : <><Pencil size={13} /> Edit</>}
-            </button>
           </div>
+        )}
 
-          <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
-            <div className="ae-map-wrapper">
-              <GoogleMap
-                mapContainerStyle={mapContainerStyle}
-                center={markerPos}
-                zoom={16}
-                options={defaultOptions}
-                onLoad={onMapLoad}
-                onClick={onMapClick}
-              >
-                <Marker
-                  position={markerPos}
-                  draggable={!!editMode.loc}
-                  onDragEnd={onMarkerDragEnd}
-                />
-              </GoogleMap>
-            </div>
-          </LoadScript>
+        {/* ══ STEP 5 — Review ══ */}
+        {currentStep === 5 && (
+          <div className="ae-card">
+            <div className="ae-card-title">Review & save</div>
+            <div className="ae-card-subtitle">Confirm everything looks right before saving changes</div>
 
-          {editMode.loc && (
-            <p className="ae-map-hint">Drag the marker to update your exact location.</p>
-          )}
-
-          <div className="ae-distance-badge">
-            <MapPin size={13} />
-            <span><strong>{formData.distance}</strong> from SLIIT University</span>
-          </div>
-        </div>
-
-        {/* ── Section: Pricing & Utilities ── */}
-        <div className="ae-card">
-          <div className="ae-card__header">
-            <div className="ae-card__header-left">
-              <div className="ae-section-icon"><Zap size={15} /></div>
-              <span className="ae-card__title">Pricing & Utilities</span>
-            </div>
-            <button className="ae-edit-btn" onClick={() => toggleEdit("price")}>
-              {editMode.price ? <><X size={13} /> Cancel</> : <><Pencil size={13} /> Edit</>}
-            </button>
-          </div>
-
-          {editMode.price ? (
-            <div className="ae-form">
-              <div className="ae-row">
-                <div className="ae-field">
-                  <label className="ae-label">Rent / month (LKR)</label>
-                  <input className="ae-input" type="number" value={formData.pricePerMonth}
-                    onChange={e => update("pricePerMonth", e.target.value)} />
+            {/* Preview card */}
+            <div className="ae-section-label">Listing preview</div>
+            <div className="ae-preview-card">
+              {photos[0]
+                ? <img src={photos[0]} alt="cover" className="ae-preview-cover" />
+                : <div className="ae-preview-cover-placeholder"><ImagePlus size={28} color="#555" /></div>
+              }
+              <div className="ae-preview-body">
+                <div className="ae-preview-name">{title || "Your Property Title"}</div>
+                <div className="ae-preview-meta">
+                  <span><MapPin size={12} /> {address ? address.split(",")[0] : "Location not set"}</span>
+                  <span><Zap size={12} /> LKR {Number(pricePerMonth || 0).toLocaleString()} / month</span>
                 </div>
-                <div className="ae-field">
-                  <label className="ae-label">Key money (months)</label>
-                  <input className="ae-input" type="number" min="0" max="3" value={formData.keyMoneyDuration}
-                    onChange={e => update("keyMoneyDuration", e.target.value)} />
-                </div>
-              </div>
-              <div className="ae-field">
-                <label className="ae-label">Included in rent</label>
-                <div className="ae-utility-row">
-                  <button type="button"
-                    className={`ae-utility-card${formData.utilityBills.electricityIncluded ? " active" : ""}`}
-                    onClick={() => update("utilityBills", { ...formData.utilityBills, electricityIncluded: !formData.utilityBills.electricityIncluded })}>
-                    <Zap size={16} />
-                    <span>Electricity</span>
-                    <span className={`ae-badge-sm${formData.utilityBills.electricityIncluded ? " on" : " off"}`}>
-                      {formData.utilityBills.electricityIncluded ? "Incl." : "Excl."}
-                    </span>
-                  </button>
-                  <button type="button"
-                    className={`ae-utility-card${formData.utilityBills.waterIncluded ? " active" : ""}`}
-                    onClick={() => update("utilityBills", { ...formData.utilityBills, waterIncluded: !formData.utilityBills.waterIncluded })}>
-                    <Droplets size={16} />
-                    <span>Water</span>
-                    <span className={`ae-badge-sm${formData.utilityBills.waterIncluded ? " on" : " off"}`}>
-                      {formData.utilityBills.waterIncluded ? "Incl." : "Excl."}
-                    </span>
-                  </button>
+                <div className="ae-preview-chips">
+                  <span className="ae-chip orange">{accommodationType}</span>
+                  <span className="ae-chip dark">{genderPreference === "boys" ? "Boys Only" : genderPreference === "girls" ? "Girls Only" : "Mixed"}</span>
+                  {electricityIncluded && <span className="ae-chip dark"><Zap size={11} /> Electricity incl.</span>}
+                  {waterIncluded      && <span className="ae-chip dark"><Droplets size={11} /> Water incl.</span>}
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="ae-view">
-              <div className="ae-price-row">
-                <span className="ae-price-main">LKR {Number(formData.pricePerMonth).toLocaleString()}</span>
-                <span className="ae-price-unit">/ month</span>
-              </div>
-              {formData.keyMoneyDuration > 0 && (
-                <div className="ae-key-money-info">
-                  🔑 Key money: <strong>LKR {(formData.pricePerMonth * formData.keyMoneyDuration).toLocaleString()}</strong>
-                  <span className="ae-key-months">({formData.keyMoneyDuration} months)</span>
-                </div>
-              )}
-              <div className="ae-utility-chips">
-                <span className={`ae-utility-chip${formData.utilityBills.electricityIncluded ? " inc" : " exc"}`}>
-                  <Zap size={12} /> Electricity {formData.utilityBills.electricityIncluded ? "Included" : "Excluded"}
-                </span>
-                <span className={`ae-utility-chip${formData.utilityBills.waterIncluded ? " inc" : " exc"}`}>
-                  <Droplets size={12} /> Water {formData.utilityBills.waterIncluded ? "Included" : "Excluded"}
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
 
-        {/* ── Section: House Rules ── */}
-        <div className="ae-card">
-          <div className="ae-card__header">
-            <div className="ae-card__header-left">
-              <div className="ae-section-icon"><CheckCircle size={15} /></div>
-              <span className="ae-card__title">House Rules</span>
-            </div>
-            <button className="ae-edit-btn" onClick={() => toggleEdit("rules")}>
-              {editMode.rules ? <><X size={13} /> Cancel</> : <><Pencil size={13} /> Edit</>}
-            </button>
-          </div>
+            <div className="ae-divider" />
 
-          {editMode.rules ? (
-            <div className="ae-rules-edit">
-              <div className="ae-rule-input-row">
-                <input className="ae-input" placeholder="Add a rule (e.g. No pets)"
-                  value={newRule} onChange={e => setNewRule(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === "Enter" && newRule.trim()) {
-                      update("rules", [...formData.rules, newRule.trim()]);
-                      setNewRule("");
-                    }
-                  }} />
-                <button className="ae-btn-add-rule" type="button" onClick={() => {
-                  if (newRule.trim()) { update("rules", [...formData.rules, newRule.trim()]); setNewRule(""); }
-                }}><Plus size={16} /></button>
-              </div>
-              <div className="ae-rules-list">
-                {formData.rules.map((rule, i) => (
-                  <div key={i} className="ae-rule-item-edit">
-                    <span>{rule}</span>
-                    <button type="button" className="ae-rule-delete"
-                      onClick={() => update("rules", formData.rules.filter((_, idx) => idx !== i))}>
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="ae-view">
-              {formData.rules.length > 0 ? (
-                <div className="ae-rules-view">
-                  {formData.rules.map((r, i) => (
-                    <div key={i} className="ae-rule-chip">
-                      <CheckCircle size={12} /> {r}
-                    </div>
+            {/* Summary table */}
+            <div style={{ marginBottom: 24 }}>
+              <div className="ae-section-label">Property details</div>
+              <table className="ae-summary-table">
+                <tbody>
+                  {[
+                    ["Title",      title],
+                    ["Type",       accommodationType],
+                    ["Gender",     genderPreference === "boys" ? "Boys Only" : genderPreference === "girls" ? "Girls Only" : "Mixed"],
+                    ["Bedrooms",   bedrooms],
+                    ["Beds",       beds],
+                    ["Bathrooms",  bathrooms],
+                    ["Rent",       `LKR ${Number(pricePerMonth || 0).toLocaleString()} / month`],
+                    ["Key money",  keyMoneyDuration > 0 ? `${keyMoneyDuration} month(s)` : "None"],
+                    ["Distance",   distance],
+                    ["Address",    address],
+                    ["Amenities",  amenities.length > 0 ? amenities.join(", ") : "None selected"],
+                    ["Rules",      rules.length > 0 ? rules.join(", ") : "None"],
+                    ["Photos",     `${uploadedImageIds.length} uploaded`],
+                  ].map(([k, v]) => (
+                    <tr key={k}><td>{k}</td><td>{v}</td></tr>
                   ))}
-                </div>
-              ) : <p className="ae-no-data">No specific house rules listed</p>}
+                </tbody>
+              </table>
             </div>
-          )}
-        </div>
 
-        {/* ── Footer Actions ── */}
-        <div className="ae-footer-actions">
-          <button className="ae-btn-cancel" onClick={() => navigate(-1)}>Cancel changes</button>
-          <button className="ae-btn-save-lg" onClick={handleUpdate} disabled={isSaving || isUploading}>
-            {isSaving
-              ? <><Loader2 size={15} className="ae-spin" /> Saving…</>
-              : <><CheckCircle size={15} /> Update listing</>}
-          </button>
-        </div>
+            <div className="ae-divider" />
+
+            {/* Confirmation */}
+            <div style={{ marginBottom: 20 }}>
+              <div className="ae-section-label">Confirmation</div>
+              <label className="ae-check-label">
+                <input type="checkbox" checked={isVerified} onChange={e => setIsVerified(e.target.checked)} />
+                I confirm all updated information is accurate and up to date.
+              </label>
+              <label className="ae-check-label" style={{ marginTop: 4 }}>
+                <input type="checkbox" checked={isAgreed} onChange={e => setIsAgreed(e.target.checked)} />
+                I agree to the Terms of Service and listing guidelines.
+              </label>
+            </div>
+
+            <div className="ae-nav">
+              <button className="ae-btn-secondary" onClick={handlePrev} disabled={isSaving}>
+                <ChevronLeft size={15} /> Previous
+              </button>
+              <button className="ae-btn-save-final" onClick={handleSave} disabled={isSaving || !isVerified || !isAgreed}>
+                {isSaving
+                  ? <><Loader2 size={15} className="ae-spin" /> Saving…</>
+                  : <><CheckCircle size={15} /> Save changes</>
+                }
+              </button>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
   );
-};
+}
 
 export default AccommodationEdit;
