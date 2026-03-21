@@ -12,20 +12,19 @@ import Footer from "../NavBar/Footer/Footer";
 import { usePhotoCache, CachedImg, prefetchPhotos } from "../Image_Cache/usePhotoCache";
 import "./HostListings.css";
 
-const BASE_URL        = "http://localhost:8000";
-const CURRENT_USER_ID = localStorage.getItem("CurrentUserId") ?? "";
+const BASE_URL = "http://localhost:8000";
 
 // ─── ListingCard ──────────────────────────────────────────────────────────────
 function ListingCard({ item, type, onClick }) {
   const { cachedUrl, photoStatus } = usePhotoCache();
 
-  const coverPhotoId = type === "food" ? item.BackgroundImage : item.images?.[0];
+  const coverPhotoId = type === "food" ? item.iconImage : item.images?.[0];
   const coverUrl     = cachedUrl(coverPhotoId);
   const status       = photoStatus(coverPhotoId);
   const imgLoading   = status === "loading";
 
   const isAvailable = item.isAvailable;
-  const isOpen      = isAvailable; // alias for display
+  const isOpen      = isAvailable;
   const title       = type === "food" ? item.kitchenName : item.title;
   const typeLabel   = type === "food" ? item.serviceType : (item.accommodationType || "Accommodation");
   const rating      = item.ratingAverage ?? 0;
@@ -46,20 +45,15 @@ function ListingCard({ item, type, onClick }) {
 
   return (
     <div className="lc" onClick={() => onClick(item, type)}>
-      {/* ── Cover image ── */}
       <div className="lc__img-wrap">
         {coverUrl
           ? <img src={coverUrl} alt={title} className="lc__img" />
           : <div className="lc__img-placeholder" />
         }
-
-        {/* Open / Closed badge — top left */}
         <div className={`lc__status ${isOpen ? "lc__status--open" : "lc__status--closed"}`}>
           <span className="lc__status-dot" />
           {isOpen ? "Listed" : "Unlisted"}
         </div>
-
-        {/* Delivery / Pickup chips — bottom left, overlaid on image */}
         <div className="lc__img-chips">
           {type === "food" && item.deliveryAvailable && (
             <span className="lc__img-chip lc__img-chip--delivery"><FaMotorcycle /> Delivery</span>
@@ -75,9 +69,7 @@ function ListingCard({ item, type, onClick }) {
         </div>
       </div>
 
-      {/* ── Card body ── */}
       <div className="lc__body">
-        {/* Title row with rating */}
         <div className="lc__title-row">
           <h3 className="lc__title">{title || "Untitled listing"}</h3>
           {rating > 0 && (
@@ -86,15 +78,10 @@ function ListingCard({ item, type, onClick }) {
             </span>
           )}
         </div>
-
-        {/* Subtitle: type icon · type · address */}
         <p className="lc__subtitle">
-          
           {typeLabel}
           {item.address && <> · <span className="lc__addr">{item.address}</span></>}
         </p>
-
-        {/* Bottom row: reviews left, hours right */}
         <div className="lc__meta-row">
           <span className="lc__reviews">
             {reviewCount > 0
@@ -126,7 +113,6 @@ function MenuItemRow({ menuItemId, cachedData, onUpdate }) {
         const data = r.data?.data || r.data;
         setMenuItem(data);
         onUpdate?.(menuItemId, data);
-        // Pre-warm the image cache for this menu item
         const imgId = data?.image || data?.imageId || data?.photo;
         if (imgId) prefetchPhotos([imgId]);
       })
@@ -387,24 +373,16 @@ function CreateListingModal({ onClose, onSelect }) {
       key: "accommodation",
       label: "Accommodation",
       icon: (
-        <img
-          src="/images/icon2.jpg"
-          alt="Accommodation"
-          className="cl-option__img"
-          onError={e => { e.currentTarget.style.display="none"; }}
-        />
+        <img src="/images/icon2.jpg" alt="Accommodation" className="cl-option__img"
+          onError={e => { e.currentTarget.style.display="none"; }} />
       ),
     },
     {
       key: "food",
       label: "Food Service",
       icon: (
-        <img
-          src="/images/icon3.jpg"
-          alt="Food Service"
-          className="cl-option__img"
-          onError={e => { e.currentTarget.style.display="none"; }}
-        />
+        <img src="/images/icon3.jpg" alt="Food Service" className="cl-option__img"
+          onError={e => { e.currentTarget.style.display="none"; }} />
       ),
     },
   ];
@@ -413,7 +391,6 @@ function CreateListingModal({ onClose, onSelect }) {
     <div className="cl-overlay" onClick={onClose}>
       <div className="cl-modal" onClick={e => e.stopPropagation()}>
         <h2 className="cl-title">What would you like to host?</h2>
-
         <div className="cl-options">
           {options.map(opt => (
             <div
@@ -426,7 +403,6 @@ function CreateListingModal({ onClose, onSelect }) {
             </div>
           ))}
         </div>
-
         <button
           className={`cl-next${selected ? " cl-next--active" : ""}`}
           disabled={!selected}
@@ -447,6 +423,7 @@ export default function HostListings() {
   const [foodServices,   setFoodServices]   = useState([]);
   const [accommodations, setAccommodations] = useState([]);
   const [loading,        setLoading]        = useState(true);
+  const [error,          setError]          = useState(null);
   const [deleteTarget,   setDeleteTarget]   = useState(null);
   const [showCreate,     setShowCreate]     = useState(false);
   const [selectedItem,   setSelectedItem]   = useState(null);
@@ -460,42 +437,83 @@ export default function HostListings() {
   };
 
   useEffect(() => {
-    if (!CURRENT_USER_ID) { setLoading(false); return; }
-    const fetchAll = async () => {
-      setLoading(true);
-      const [fsRes, acRes] = await Promise.allSettled([
-        axios.get(`${BASE_URL}/Foodservice`),
-        axios.get(`${BASE_URL}/accommodation`),
+    const currentUserId = localStorage.getItem("CurrentUserId") ?? "";
+    if (!currentUserId) { setLoading(false); return; }
+
+    const CACHE_KEY_FS = `hl_fs_${currentUserId}`;
+    const CACHE_KEY_AC = `hl_ac_${currentUserId}`;
+
+    // ── 1. Serve cached data instantly so the page feels immediate ────────
+    const cachedFs = sessionStorage.getItem(CACHE_KEY_FS);
+    const cachedAc = sessionStorage.getItem(CACHE_KEY_AC);
+    if (cachedFs || cachedAc) {
+      if (cachedFs) setFoodServices(JSON.parse(cachedFs));
+      if (cachedAc) setAccommodations(JSON.parse(cachedAc));
+      setLoading(false); // show cached content right away
+    }
+
+    // ── Helper: fetch one collection, filter by owner, update state ───────
+    const fetchCollection = async (url, setter, cacheKey, getPhotoIds) => {
+      try {
+        // Try owner-filtered endpoint first (much smaller payload if backend supports it)
+        let mine = [];
+        try {
+          const res = await axios.get(`${url}?owner=${currentUserId}`);
+          const data = res.data?.data || res.data || [];
+          // If backend ignored the filter it returns everything — detect and re-filter
+          mine = Array.isArray(data)
+            ? data.filter(i => !i.owner || String(i.owner) === String(currentUserId) || String(i.owner?._id) === String(currentUserId))
+            : [];
+        } catch {
+          // Fallback: fetch all and filter client-side
+          const res = await axios.get(url);
+          const all = res.data?.data || res.data || [];
+          mine = Array.isArray(all)
+            ? all.filter(i => String(i.owner) === String(currentUserId) || String(i.owner?._id) === String(currentUserId))
+            : [];
+        }
+
+        setter(mine);
+        sessionStorage.setItem(cacheKey, JSON.stringify(mine));
+
+        // Pre-warm photo cache
+        const photoIds = mine.flatMap(getPhotoIds).filter(Boolean);
+        if (photoIds.length) prefetchPhotos(photoIds);
+      } catch (err) {
+        // Only set error if we have no cached fallback to show
+        if (!sessionStorage.getItem(cacheKey)) {
+          setError(err.message ?? "Connection error");
+        }
+      }
+    };
+
+    // ── 2. Fetch both independently so each updates the UI as it arrives ──
+    const run = async () => {
+      if (!cachedFs && !cachedAc) {
+        setLoading(true);
+        setError(null);
+      }
+
+      await Promise.all([
+        fetchCollection(
+          `${BASE_URL}/Foodservice`,
+          setFoodServices,
+          CACHE_KEY_FS,
+          f => [f.iconImage, f.BackgroundImage],
+        ),
+        fetchCollection(
+          `${BASE_URL}/accommodation`,
+          setAccommodations,
+          CACHE_KEY_AC,
+          a => [a.images?.[0]],
+        ),
       ]);
 
-      let allPhotoIds = [];
-
-      if (fsRes.status === "fulfilled") {
-        const all = fsRes.value.data?.data || [];
-        const mine = all.filter(f => String(f.owner) === String(CURRENT_USER_ID));
-        setFoodServices(mine);
-        // Collect all photo IDs to pre-warm the cache
-        mine.forEach(f => {
-          if (f.BackgroundImage) allPhotoIds.push(f.BackgroundImage);
-          if (f.iconImage)       allPhotoIds.push(f.iconImage);
-        });
-      }
-
-      if (acRes.status === "fulfilled") {
-        const all = acRes.value.data?.data || [];
-        const mine = all.filter(a => String(a.owner) === String(CURRENT_USER_ID));
-        setAccommodations(mine);
-        mine.forEach(a => {
-          if (a.images?.[0]) allPhotoIds.push(a.images[0]);
-        });
-      }
-
-      // Fire-and-forget: fetch all images in parallel so they're ready when needed
-      prefetchPhotos(allPhotoIds);
       setLoading(false);
     };
-    fetchAll();
-  }, []);
+
+    run();
+  }, []); // runs once on mount — userId is read fresh inside
 
   const handleEdit = (id, type) => {
     setSelectedItem(null);
@@ -503,14 +521,23 @@ export default function HostListings() {
   };
 
   const handleToggle = async (id, val, type) => {
+    const currentUserId = localStorage.getItem("CurrentUserId") ?? "";
     try {
       if (type === "food") {
         await axios.put(`${BASE_URL}/Foodservice/${id}`, { isAvailable: val });
-        setFoodServices(p => p.map(f => f._id === id ? { ...f, isAvailable: val } : f));
+        setFoodServices(p => {
+          const updated = p.map(f => f._id === id ? { ...f, isAvailable: val } : f);
+          sessionStorage.setItem(`hl_fs_${currentUserId}`, JSON.stringify(updated));
+          return updated;
+        });
         setSelectedItem(s => s && s.item._id === id ? { ...s, item: { ...s.item, isAvailable: val } } : s);
       } else {
         await axios.put(`${BASE_URL}/accommodation/${id}`, { isAvailable: val });
-        setAccommodations(p => p.map(a => a._id === id ? { ...a, isAvailable: val } : a));
+        setAccommodations(p => {
+          const updated = p.map(a => a._id === id ? { ...a, isAvailable: val } : a);
+          sessionStorage.setItem(`hl_ac_${currentUserId}`, JSON.stringify(updated));
+          return updated;
+        });
         setSelectedItem(s => s && s.item._id === id ? { ...s, item: { ...s.item, isAvailable: val } } : s);
       }
     } catch { alert("Failed to update status."); }
@@ -540,13 +567,22 @@ export default function HostListings() {
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     const { id, type } = deleteTarget;
+    const currentUserId = localStorage.getItem("CurrentUserId") ?? "";
     try {
       if (type === "food") {
         await axios.delete(`${BASE_URL}/Foodservice/${id}`);
-        setFoodServices(p => p.filter(f => f._id !== id));
+        setFoodServices(p => {
+          const updated = p.filter(f => f._id !== id);
+          sessionStorage.setItem(`hl_fs_${currentUserId}`, JSON.stringify(updated));
+          return updated;
+        });
       } else {
         await axios.delete(`${BASE_URL}/accommodation/${id}`);
-        setAccommodations(p => p.filter(a => a._id !== id));
+        setAccommodations(p => {
+          const updated = p.filter(a => a._id !== id);
+          sessionStorage.setItem(`hl_ac_${currentUserId}`, JSON.stringify(updated));
+          return updated;
+        });
       }
     } catch { alert("Failed to delete."); }
     finally  { setDeleteTarget(null); }
@@ -563,7 +599,7 @@ export default function HostListings() {
         <div className="page-header-inner">
           <div className="page-header-left">
             <h1 className="page-title">Your listings</h1>
-            {!loading && (
+            {!loading && !error && (
               <span className="listings-count">
                 {foodServices.length + accommodations.length} listing{foodServices.length + accommodations.length !== 1 ? "s" : ""}
               </span>
@@ -596,6 +632,14 @@ export default function HostListings() {
                 </div>
               </div>
             ))}
+          </div>
+        ) : error ? (
+          /* ── Connection error state ── */
+          <div className="hl-error">
+            <img src="/images/icon7.jpg" alt="Connection error" className="hl-error__img" />
+            <div className="hl-error__title">Connection Error</div>
+            <div className="hl-error__msg">Something went wrong. Please check your connection and try again.</div>
+            <button className="hl-error__btn" onClick={() => window.location.reload()}>Retry</button>
           </div>
         ) : currentList.length === 0 ? (
           <EmptyState

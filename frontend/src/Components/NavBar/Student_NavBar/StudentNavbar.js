@@ -7,6 +7,7 @@ import {
   FaEnvelope,
   FaBell,
   FaReceipt,
+  FaHeart,
 } from "react-icons/fa";
 import "./StudentNavbar.css";
 import { useNotifications } from "../../../hooks/useNotifications";
@@ -42,7 +43,7 @@ function LogoutModal({ onConfirm, onCancel }) {
 // ─────────────────────────────────────────
 // STUDENT NAVBAR
 // Props:
-//   activeTab  — "Boardings" | "Foods" | "Orders" | ""
+//   activeTab  — "Boardings" | "Foods" | ""
 // ─────────────────────────────────────────
 export default function StudentNavbar({ activeTab = "" }) {
   const navigate  = useNavigate();
@@ -52,8 +53,7 @@ export default function StudentNavbar({ activeTab = "" }) {
     notifications,
     unreadCount,
     markRead,
-    markAllRead,
-    deleteOne:     deleteNotification,
+    deleteOne: deleteNotification,
     clearAll,
   } = useNotifications(userId);
 
@@ -66,9 +66,9 @@ export default function StudentNavbar({ activeTab = "" }) {
   );
   const [dropdown,   setDropdown]   = useState(false);
   const [showLogout, setShowLogout] = useState(false);
+  const [showBell,   setShowBell]   = useState(false);
   const dropRef = useRef(null);
-  const bellRef  = useRef(null);
-  const [showBell, setShowBell] = useState(false);
+  const bellRef = useRef(null);
 
   // Fetch user profile + cache avatar as data URL
   useEffect(() => {
@@ -117,10 +117,8 @@ export default function StudentNavbar({ activeTab = "" }) {
   // Close dropdowns on outside click
   useEffect(() => {
     const h = (e) => {
-      if (dropRef.current && !dropRef.current.contains(e.target))
-        setDropdown(false);
-      if (bellRef.current && !bellRef.current.contains(e.target))
-        setShowBell(false);
+      if (dropRef.current && !dropRef.current.contains(e.target)) setDropdown(false);
+      if (bellRef.current && !bellRef.current.contains(e.target)) setShowBell(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
@@ -145,8 +143,6 @@ export default function StudentNavbar({ activeTab = "" }) {
     { label: "Foods",     href: "/Foods"     },
   ];
 
-  // Derive active state from the URL path so it works regardless of
-  // what string the parent passes as activeTab.
   const currentPath = window.location.pathname;
 
   return (
@@ -167,7 +163,6 @@ export default function StudentNavbar({ activeTab = "" }) {
         {/* Centre — tabs */}
         <div className="snav__tabs">
           {TABS.map(({ label, href }) => {
-            // Match by URL path OR by the activeTab prop (whichever works)
             const active = currentPath === href || activeTab === label;
             return (
               <a key={label} href={href}
@@ -208,7 +203,7 @@ export default function StudentNavbar({ activeTab = "" }) {
               <div className="snav__bell-dropdown">
                 <div className="snav__bell-dropdown__header">
                   <span className="snav__bell-dropdown__title">Notifications</span>
-                  <div style={{ display:"flex", gap:6 }}>
+                  <div style={{ display: "flex", gap: 6 }}>
                     {unreadCount > 0 && (
                       <span className="snav__bell-count">{unreadCount} new</span>
                     )}
@@ -238,7 +233,7 @@ export default function StudentNavbar({ activeTab = "" }) {
                           <div className="snav__bell-item__msg">{n.message}</div>
                           <div className="snav__bell-item__time">
                             {new Date(n.createdAt).toLocaleString("en-GB", {
-                              day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"
+                              day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"
                             })}
                           </div>
                         </div>
@@ -263,6 +258,7 @@ export default function StudentNavbar({ activeTab = "" }) {
                     onError={() => setUserAvatarSrc(null)} />
                 : <span className="snav__user-icon-wrap"><FaUser className="snav__user-icon" /></span>}
             </button>
+
             {dropdown && (
               <div className="snav__dropdown-menu">
                 {isLoggedIn && currentUser && (
@@ -277,24 +273,35 @@ export default function StudentNavbar({ activeTab = "" }) {
                     <div className="snav__dropdown-divider" />
                   </>
                 )}
+
                 {(isStudent || isHost) && (
                   <div className="snav__dropdown-item"
                     onClick={() => { setDropdown(false); navigate("/Profile"); }}>
                     <FaUser style={{ opacity: 0.7 }} /> Profile
                   </div>
                 )}
+
+                {isStudent && (
+                  <div className="snav__dropdown-item"
+                    onClick={() => { setDropdown(false); navigate("/Favourites"); }}>
+                    <FaHeart style={{ opacity: 0.7 }} /> Favourites
+                  </div>
+                )}
+
                 {isStudent && (
                   <div className="snav__dropdown-item"
                     onClick={() => { setDropdown(false); navigate("/Messages"); }}>
                     <FaEnvelope style={{ opacity: 0.7 }} /> Messages
                   </div>
                 )}
+
                 {isStudent && (
                   <div className="snav__dropdown-item"
                     onClick={() => { setDropdown(false); navigate("/StudentOrders"); }}>
                     <FaReceipt style={{ opacity: 0.7 }} /> My Orders
                   </div>
                 )}
+
                 {isLoggedIn && (isStudent || isHost) && (
                   <>
                     <div className="snav__dropdown-divider" />

@@ -37,10 +37,10 @@ const BG_CYCLE = [
 ];
 
 const CAT_ICON = {
-  Breakfast: <FaEgg />,
-  Lunch:     <FaAppleAlt />,
-  Dinner:    <FaDrumstickBite />,
-  Snacks:    <FaBreadSlice />,
+  Breakfast: <FaBreadSlice />,
+  Lunch:     <FaDrumstickBite />,
+  Dinner:    <FaEgg />,
+  Snacks:    <FaAppleAlt />,
   Drinks:    <FaGlassWhiskey />,
   Dessert:   <FaIceCream />,
 };
@@ -134,7 +134,6 @@ function isServiceOpenNow(operatingHours) {
   return nowMin >= openMin || nowMin < closeMin;
 }
 
-// Recalculate average rating from a list of reviews
 function calcRatingStats(reviewList) {
   if (!reviewList.length) return { avg: 0, count: 0 };
   const sum = reviewList.reduce((s, r) => s + (r.rating ?? 0), 0);
@@ -319,7 +318,6 @@ function ReviewCard({ review, index, total, expanded, onToggle, isOwn, onEdit, o
               {yearsOn > 0 ? `${yearsOn} year${yearsOn !== 1 ? "s" : ""} on Bodima` : "New member"}
             </div>
           </div>
-          {/* Edit / Delete buttons for own reviews */}
           {isOwn && (
             <div style={{ display:"flex", gap:6, marginLeft:"auto", flexShrink:0 }}>
               <button className="fs-review-action-btn fs-review-action-btn--edit" onClick={onEdit} title="Edit review">
@@ -429,13 +427,17 @@ export default function FoodService() {
   const [menuItems, setMenuItems] = useState([]);
   const [reviews,   setReviews]   = useState([]);
 
-  // ── Derived rating state (updates live) ──
+  // ── Derived rating state ──────────────
   const [liveRatingAvg,   setLiveRatingAvg]   = useState(0);
   const [liveRatingCount, setLiveRatingCount] = useState(0);
 
   // ── Auth state ────────────────────────
   const [currentUser,       setCurrentUser]       = useState(null);
   const [showLoginRequired, setShowLoginRequired] = useState(false);
+
+  // ── Favourite state ───────────────────
+  const [isFavourited, setIsFavourited] = useState(false);
+  const [favPending,   setFavPending]   = useState(false);
 
   // ── Loading / error ───────────────────
   const [loadingService, setLoadingService] = useState(true);
@@ -455,7 +457,6 @@ export default function FoodService() {
   const [showReviewModal,  setShowReviewModal]  = useState(false);
   const [showAllReviews,   setShowAllReviews]   = useState(false);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
-  const [isFavourited,     setIsFavourited]     = useState(false);
   const [showActionMenu,   setShowActionMenu]   = useState(false);
 
   // ── Edit / Delete review state ────────
@@ -471,7 +472,6 @@ export default function FoodService() {
   const actionMenuRef        = useRef(null);
   const activeCategoriesRef  = useRef([]);
 
-  // Derived role helpers
   const userId     = localStorage.getItem("CurrentUserId");
   const isLoggedIn = !!userId;
   const userRole   = currentUser?.role ?? null;
@@ -486,8 +486,6 @@ export default function FoodService() {
         const user = unwrap(raw);
         setCurrentUser(user);
         const photoId = user?.profileImage ?? null;
-
-        // Patch already-loaded reviews that belong to this user
         setReviews(prev => prev.map(r => {
           const reviewerId = r.reviewer?._id ?? r.reviewer;
           if (String(reviewerId) !== String(userId)) return r;
@@ -507,6 +505,36 @@ export default function FoodService() {
       .catch(() => { setCurrentUser(null); });
   }, []);
 
+  // ── Fetch existing favourite status ───────────────────────────────────
+  useEffect(() => {
+    if (!userId || !FOOD_SERVICE_ID) return;
+    fetch(`${API_BASE}/favourite/check/${userId}/${FOOD_SERVICE_ID}/FoodService`)
+      .then(r => r.json())
+      .then(raw => { setIsFavourited(raw?.isFavourited === true); })
+      .catch(() => {});
+  }, [userId, FOOD_SERVICE_ID]);
+
+  // ── Toggle favourite ──────────────────────────────────────────────────
+  const handleToggleFavourite = async () => {
+    if (!userId || !isStudent) { setShowLoginRequired(true); return; }
+    if (favPending) return;
+    setFavPending(true);
+    const method = isFavourited ? "DELETE" : "POST";
+    try {
+      await fetch(`${API_BASE}/favourite`, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user: userId, itemId: FOOD_SERVICE_ID, itemType: "FoodService" }),
+      });
+      setIsFavourited(p => !p);
+      showToast(isFavourited ? "Removed from favourites" : "Saved to favourites!");
+    } catch {
+      showToast("Failed to update favourites.");
+    } finally {
+      setFavPending(false);
+    }
+  };
+
   // ── Fetch: FoodService ────────────────────────────────────────────────
   useEffect(() => {
     if (!FOOD_SERVICE_ID) { setLoadingService(false); return; }
@@ -520,8 +548,6 @@ export default function FoodService() {
         setLiveRatingAvg(data.ratingAverage ?? 0);
         setLiveRatingCount(data.ratingCount ?? 0);
         if (!data.deliveryAvailable && data.pickupAvailable) setOrderType("pickup");
-
-        // Fetch the food service owner's profile
         const ownerId = data.owner?._id ?? data.owner;
         if (ownerId) {
           fetch(`${API_BASE}/User/${ownerId}`)
@@ -555,7 +581,6 @@ export default function FoodService() {
     const loadReviews = async () => {
       const reviewIds = service.reviews ?? [];
       if (!reviewIds.length) { setReviews([]); setLoadingReviews(false); return; }
-
       let list = [];
       try {
         const results = await Promise.all(
@@ -568,7 +593,6 @@ export default function FoodService() {
         );
         list = results.filter(Boolean);
       } catch (_) { list = []; }
-
       const enriched = await Promise.all(
         list.map(async (rv) => {
           const reviewerId = rv.reviewer?._id ?? rv.reviewer;
@@ -651,7 +675,7 @@ export default function FoodService() {
     sectionRefs.current[`cat-${cat}`]?.scrollIntoView({ behavior:"smooth", block:"start" });
   };
 
-  // ── Outside click (action menu only) ─────────────────────────────────
+  // ── Outside click ─────────────────────────────────────────────────────
   useEffect(() => {
     const h = (e) => {
       if (actionMenuRef.current && !actionMenuRef.current.contains(e.target)) setShowActionMenu(false);
@@ -662,10 +686,7 @@ export default function FoodService() {
 
   // ── Write Review guard ────────────────────────────────────────────────
   const handleWriteReviewClick = () => {
-    if (!isLoggedIn || !isStudent) {
-      setShowLoginRequired(true);
-      return;
-    }
+    if (!isLoggedIn || !isStudent) { setShowLoginRequired(true); return; }
     setShowReviewModal(true);
   };
 
@@ -708,11 +729,8 @@ export default function FoodService() {
       });
       setShowReviewModal(false);
       showToast("Thanks for your review!");
-    } catch (err) {
-      showToast("Failed to submit — please try again.");
-    } finally {
-      setReviewSubmitting(false);
-    }
+    } catch { showToast("Failed to submit — please try again."); }
+    finally { setReviewSubmitting(false); }
   };
 
   // ── Edit review ───────────────────────────────────────────────────────
@@ -723,9 +741,7 @@ export default function FoodService() {
       await apiPut(`/review/${editingReview._id}`, { rating: stars, comment: text });
       setReviews(prev => {
         const updated = prev.map(r =>
-          r._id === editingReview._id
-            ? { ...r, rating: stars, comment: text }
-            : r
+          r._id === editingReview._id ? { ...r, rating: stars, comment: text } : r
         );
         const { avg, count } = calcRatingStats(updated);
         setLiveRatingAvg(avg);
@@ -734,11 +750,8 @@ export default function FoodService() {
       });
       setEditingReview(null);
       showToast("Review updated.");
-    } catch {
-      showToast("Failed to update — please try again.");
-    } finally {
-      setReviewActionLoading(false);
-    }
+    } catch { showToast("Failed to update — please try again."); }
+    finally { setReviewActionLoading(false); }
   };
 
   // ── Delete review ─────────────────────────────────────────────────────
@@ -756,11 +769,8 @@ export default function FoodService() {
       });
       setDeletingReviewId(null);
       showToast("Review deleted.");
-    } catch {
-      showToast("Failed to delete — please try again.");
-    } finally {
-      setReviewActionLoading(false);
-    }
+    } catch { showToast("Failed to delete — please try again."); }
+    finally { setReviewActionLoading(false); }
   };
 
   // ── Derived ───────────────────────────────────────────────────────────
@@ -792,17 +802,30 @@ export default function FoodService() {
       </div>
     );
   }
+
+  // ── Error state — icon7.jpg ───────────────────────────────────────────
   if (errorService) {
     return (
-      <div style={{ display:"flex", flexDirection:"column", alignItems:"center",
-        justifyContent:"center", minHeight:"60vh", gap:16, fontFamily:FONT }}>
-        <FaExclamationTriangle style={{ fontSize:40, color:ORANGE }} />
-        <div style={{ fontSize:18, fontWeight:700 }}>Failed to load</div>
-        <div style={{ fontSize:14, color:"#757575" }}>{errorService}</div>
-        <button onClick={() => window.location.reload()} style={{
-          padding:"10px 24px", background:ORANGE, color:"#fff", border:"none",
-          borderRadius:10, fontFamily:FONT, fontSize:14, fontWeight:600, cursor:"pointer",
-        }}>Retry</button>
+      <div style={{ fontFamily:FONT }}>
+        <StudentNavbar activeTab="Foods" />
+        <div style={{
+          display:"flex", flexDirection:"column", alignItems:"center",
+          justifyContent:"center", minHeight:"60vh", gap:12,
+          padding:"40px 20px", textAlign:"center",
+        }}>
+          <img src="/images/icon7.jpg" alt="Connection error"
+            style={{ width:140, height:140, objectFit:"cover" }} />
+          <div style={{ fontSize:18, fontWeight:700, color:"#1b1b1b" }}>Connection Error</div>
+          <div style={{ fontSize:14, color:"#757575", maxWidth:300, lineHeight:1.6 }}>
+            Something went wrong. Please check your connection and try again.
+          </div>
+          <button onClick={() => window.location.reload()} style={{
+            padding:"10px 24px", background:ORANGE, color:"#fff",
+            border:"none", borderRadius:10, fontFamily:FONT,
+            fontSize:14, fontWeight:600, cursor:"pointer", marginTop:4,
+          }}>Retry</button>
+        </div>
+        <Footer />
       </div>
     );
   }
@@ -814,7 +837,7 @@ export default function FoodService() {
     <div style={{ fontFamily:FONT, background:"#fff", color:"#1b1b1b", fontSize:14, lineHeight:1.5 }}>
 
       {/* ══ NAVBAR ══ */}
-      <StudentNavbar />
+      <StudentNavbar activeTab="Foods" />
 
       {/* ══ HERO ══ */}
       <div style={{ padding:"0 24px" }}>
@@ -882,9 +905,14 @@ export default function FoodService() {
           </div>
 
           <div className="fs-restaurant-header__actions">
+            {/* Favourite heart button — connected to API */}
             <button
               className={`fs-action-btn${isFavourited ? " fs-action-btn--favourited" : ""}`}
-              onClick={() => { setIsFavourited(p => !p); showToast(isFavourited ? "Removed from favourites" : "Added to favourites."); }}>
+              onClick={handleToggleFavourite}
+              disabled={favPending}
+              style={{ opacity: favPending ? 0.6 : 1 }}
+              title={isFavourited ? "Remove from favourites" : "Save to favourites"}
+            >
               {isFavourited
                 ? <FaHeart    style={{ color:ORANGE, fontSize:16 }} />
                 : <FaRegHeart style={{ color:"#444",  fontSize:16 }} />}
@@ -908,9 +936,7 @@ export default function FoodService() {
                     </div>
                     <div>
                       <div className="fs-action-dropdown__host-label">Hosted by</div>
-                      <div className="fs-action-dropdown__host-name">
-                        {ownerUser?.name ?? "Host"}
-                      </div>
+                      <div className="fs-action-dropdown__host-name">{ownerUser?.name ?? "Host"}</div>
                       <div className="fs-action-dropdown__host-since">
                         {ownerUser?.createdAt
                           ? `Member since ${new Date(ownerUser.createdAt).getFullYear()}`
@@ -1074,12 +1100,8 @@ export default function FoodService() {
                     } else {
                       navigate(`/FoodCheckout/${FOOD_SERVICE_ID}`, {
                         state: {
-                          cartItems,
-                          cartTotal,
-                          orderType,
-                          deliveryFee,
-                          orderTotal,
-                          service,
+                          cartItems, cartTotal, orderType,
+                          deliveryFee, orderTotal, service,
                           foodServiceId: FOOD_SERVICE_ID,
                         },
                       });
@@ -1260,45 +1282,20 @@ export default function FoodService() {
         </div>
       )}
 
-      {/* ══ WRITE REVIEW MODAL ══ */}
       {showReviewModal && (
-        <ReviewModal
-          onClose={() => setShowReviewModal(false)}
-          onSubmit={handleReviewSubmit}
-          submitting={reviewSubmitting}
-        />
+        <ReviewModal onClose={() => setShowReviewModal(false)} onSubmit={handleReviewSubmit} submitting={reviewSubmitting} />
       )}
-
-      {/* ══ EDIT REVIEW MODAL ══ */}
       {editingReview && (
-        <ReviewModal
-          isEdit
-          initialStars={editingReview.rating ?? 0}
-          initialText={editingReview.comment ?? ""}
-          onClose={() => setEditingReview(null)}
-          onSubmit={handleEditReviewSubmit}
-          submitting={reviewActionLoading}
-        />
+        <ReviewModal isEdit initialStars={editingReview.rating ?? 0} initialText={editingReview.comment ?? ""}
+          onClose={() => setEditingReview(null)} onSubmit={handleEditReviewSubmit} submitting={reviewActionLoading} />
       )}
-
-      {/* ══ DELETE REVIEW CONFIRM ══ */}
       {deletingReviewId && (
-        <DeleteReviewModal
-          onConfirm={handleDeleteReviewConfirm}
-          onCancel={() => setDeletingReviewId(null)}
-          deleting={reviewActionLoading}
-        />
+        <DeleteReviewModal onConfirm={handleDeleteReviewConfirm} onCancel={() => setDeletingReviewId(null)} deleting={reviewActionLoading} />
       )}
-
-      {/* ══ LOGIN REQUIRED ══ */}
       {showLoginRequired && (
-        <LoginRequiredModal
-          onClose={() => setShowLoginRequired(false)}
-          onLogin={() => { setShowLoginRequired(false); navigate("/Login"); }}
-        />
+        <LoginRequiredModal onClose={() => setShowLoginRequired(false)} onLogin={() => { setShowLoginRequired(false); navigate("/Login"); }} />
       )}
 
-      {/* ══ TOAST ══ */}
       <div className={`fs-toast${toast.show ? " fs-toast--visible" : ""}`}>{toast.msg}</div>
 
       <style>{`

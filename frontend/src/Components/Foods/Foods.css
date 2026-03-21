@@ -520,12 +520,14 @@ body {
 /* ══ EMPTY / ERROR ══ */
 .fsl-empty { grid-column: 1/-1; text-align: center; padding: 60px 0; }
 .fsl-empty__icon  { font-size: 48px; color: var(--orange); margin-bottom: 16px; display: flex; justify-content: center; }
+.fsl-empty__img   { width: 140px; height: 140px; object-fit: cover; }
 .fsl-empty__title { font-size: 18px; font-weight: 700; color: var(--dark); margin-bottom: 8px; }
 .fsl-empty__sub   { font-size: 14px; color: var(--mid); }
 
 .fsl-error { grid-column: 1/-1; text-align: center; padding: 60px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.fsl-error__icon { font-size: 40px; }
-.fsl-error__msg  { font-size: 15px; color: var(--mid); }
+.fsl-error__img   { width: 140px; height: 140px; object-fit: cover; }
+.fsl-error__title { font-size: 18px; font-weight: 700; color: var(--dark); }
+.fsl-error__msg   { font-size: 14px; color: var(--mid); max-width: 300px; line-height: 1.6; }
 .fsl-error__btn  {
   padding: 10px 24px;
   background: var(--orange);
