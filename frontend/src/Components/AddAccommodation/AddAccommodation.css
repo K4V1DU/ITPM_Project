@@ -179,7 +179,8 @@
   padding: 0 32px;
 }
 .aac-progress-steps {
-  max-width: 680px;
+  /* ↑ widened to match new card width */
+  max-width: 860px;
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -247,10 +248,10 @@
 }
 
 /* ══════════════════════════════════════════════════════════
-   LAYOUT
+   LAYOUT  ← wider body
 ══════════════════════════════════════════════════════════ */
 .aac-layout {
-  max-width: 740px;
+  max-width: 900px;   /* ↑ was 740px */
   margin: 0 auto;
   padding: 32px 24px 80px;
 }
@@ -262,7 +263,7 @@
   background: #fff;
   border-radius: 16px;
   border: 1px solid #ebebeb;
-  padding: 36px 32px;
+  padding: 36px 40px;  /* ↑ horizontal padding slightly more */
   margin-bottom: 16px;
   box-shadow: 0 1px 6px rgba(0,0,0,0.04);
 }
@@ -603,22 +604,20 @@
 .aac-upload-hint { font-size: 12px; color: #aaa; margin-top: 5px; }
 
 /* ══════════════════════════════════════════════════════════
-   PHOTO GRID
+   PHOTO GRID  ← always one row of 5
 ══════════════════════════════════════════════════════════ */
 .aac-photo-grid {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr); /* ↑ 5 equal columns, one row */
   gap: 10px;
-  flex-wrap: wrap;
   margin-bottom: 16px;
 }
 .aac-photo-box {
-  width: 120px;
-  height: 120px;
+  aspect-ratio: 1 / 1;   /* square boxes that scale with grid */
   border-radius: 10px;
   overflow: hidden;
   border: 1.5px solid #e8e8e8;
   background: #f5f5f5;
-  flex-shrink: 0;
 }
 .aac-photo-box__inner {
   position: relative;
@@ -834,6 +833,11 @@
 /* ══════════════════════════════════════════════════════════
    RESPONSIVE
 ══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .aac-layout          { max-width: 100%; }
+  .aac-progress-steps  { max-width: 100%; }
+}
+
 @media (max-width: 640px) {
   .aac-topbar          { padding: 0 16px; }
   .aac-progress-wrapper { padding: 0 12px; }
@@ -846,7 +850,8 @@
   .aac-amenities-grid  { grid-template-columns: 1fr 1fr; }
   .aac-rules-grid      { grid-template-columns: 1fr; }
   .aac-row, .aac-three-cols { grid-template-columns: 1fr; }
-  .aac-photo-box       { width: 90px; height: 90px; }
+  /* on small screens keep the grid but allow scroll rather than squash */
+  .aac-photo-grid      { grid-template-columns: repeat(5, minmax(60px, 1fr)); }
   .aac-nav             { flex-wrap: wrap; }
   .aac-btn-primary, .aac-btn-save { margin-left: 0; flex: 1; justify-content: center; }
   .aac-hero__content   { padding: 0 20px; }
