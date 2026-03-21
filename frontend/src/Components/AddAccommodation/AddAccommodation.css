@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────
-   AddAccommodation.css  (also imported by AccommodationEdit)
+   AddAccommodation.css
    DM Sans + DM Mono · Orange #e67e22 · Dark #1c1c1e · bg #f5f5f5
    ───────────────────────────────────────────────────────────────────────── */
 
@@ -7,7 +7,7 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── Spin animation ── */
+/* ── Spin ── */
 .aac-spin { animation: aac-spin 0.8s linear infinite; display: inline-block; flex-shrink: 0; }
 @keyframes aac-spin { to { transform: rotate(360deg); } }
 
@@ -38,7 +38,7 @@
   justify-content: space-between;
 }
 
-/* Dark variant — used on hero screen */
+/* dark variant — used on hero screen */
 .aac-topbar.dark {
   background: transparent;
   border-bottom: 1px solid rgba(255,255,255,0.12);
@@ -98,7 +98,7 @@
 .aac-exit-btn:hover { background: #1c1c1e; color: #fff; border-color: #1c1c1e; }
 
 /* ══════════════════════════════════════════════════════════
-   HERO SECTION (landing / get-started screen)
+   HERO SECTION
 ══════════════════════════════════════════════════════════ */
 .aac-hero {
   position: relative;
@@ -108,20 +108,17 @@
   justify-content: center;
   overflow: hidden;
 }
-
 .aac-hero__bg {
   position: absolute;
   inset: 0;
   background: url('https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1600&q=80') center/cover no-repeat;
   transform: scale(1.04);
 }
-
 .aac-hero__overlay {
   position: absolute;
   inset: 0;
   background: linear-gradient(160deg, rgba(14,14,16,0.82) 0%, rgba(28,28,30,0.70) 100%);
 }
-
 .aac-hero__content {
   position: relative;
   z-index: 2;
@@ -129,7 +126,6 @@
   padding: 0 32px;
   text-align: center;
 }
-
 .aac-hero__eyebrow {
   font-size: 13px;
   font-weight: 600;
@@ -138,7 +134,6 @@
   color: #e67e22;
   margin-bottom: 20px;
 }
-
 .aac-hero__title {
   font-size: clamp(36px, 5vw, 58px);
   font-weight: 800;
@@ -147,11 +142,7 @@
   letter-spacing: -1.2px;
   margin-bottom: 20px;
 }
-.aac-hero__title em {
-  font-style: normal;
-  color: #e67e22;
-}
-
+.aac-hero__title em { font-style: normal; color: #e67e22; }
 .aac-hero__sub {
   font-size: 16px;
   color: rgba(255,255,255,0.65);
@@ -161,7 +152,6 @@
   margin-left: auto;
   margin-right: auto;
 }
-
 .aac-hero__cta {
   display: inline-flex;
   align-items: center;
@@ -178,7 +168,7 @@
   transition: all 0.2s;
   box-shadow: 0 4px 20px rgba(230,126,34,0.4);
 }
-.aac-hero__cta:hover { background: #d35400; transform: translateY(-2px); box-shadow: 0 6px 28px rgba(230,126,34,0.45); }
+.aac-hero__cta:hover { background: #d35400; transform: translateY(-2px); }
 
 /* ══════════════════════════════════════════════════════════
    PROGRESS BAR
@@ -220,15 +210,11 @@
   box-shadow: 0 0 0 5px #f5f5f5;
 }
 .aac-progress-step.active .aac-progress-bubble {
-  border-color: #e67e22;
-  background: #e67e22;
-  color: #fff;
+  border-color: #e67e22; background: #e67e22; color: #fff;
   box-shadow: 0 0 0 5px rgba(230,126,34,0.14);
 }
 .aac-progress-step.done .aac-progress-bubble {
-  border-color: #1c1c1e;
-  background: #1c1c1e;
-  color: #fff;
+  border-color: #1c1c1e; background: #1c1c1e; color: #fff;
   box-shadow: 0 0 0 5px rgba(28,28,30,0.07);
 }
 .aac-progress-label {
@@ -253,8 +239,7 @@
 }
 .aac-progress-line-fill {
   position: absolute;
-  left: 0;
-  top: 0;
+  left: 0; top: 0;
   height: 100%;
   background: #1c1c1e;
   transition: width 0.4s ease;
@@ -330,8 +315,8 @@
 }
 .aac-textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
 
-.aac-row         { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.aac-three-cols  { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.aac-row        { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.aac-three-cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
 
 .aac-field-footer { display: flex; justify-content: flex-end; margin-top: 5px; }
 .aac-char-count   { font-size: 11px; font-family: 'DM Mono', monospace; color: #ddd; }
@@ -360,7 +345,7 @@
   transition: all 0.15s;
   text-align: center;
 }
-.aac-type-card:hover   { border-color: #e67e22; background: #fff4ec; }
+.aac-type-card:hover    { border-color: #e67e22; background: #fff4ec; }
 .aac-type-card.selected {
   border-color: #e67e22;
   background: #fff4ec;
@@ -418,7 +403,7 @@
 .aac-option-desc { font-size: 12px; color: #aaa; }
 
 /* ══════════════════════════════════════════════════════════
-   COUNTER (bedrooms / beds / bathrooms)
+   COUNTERS (bedrooms / beds / bathrooms)
 ══════════════════════════════════════════════════════════ */
 .aac-counters-row {
   display: grid;
@@ -462,11 +447,7 @@
   transition: all 0.15s;
   font-family: inherit;
 }
-.aac-counter__btn:hover:not(:disabled) {
-  background: #e67e22;
-  color: #fff;
-  border-color: #e67e22;
-}
+.aac-counter__btn:hover:not(:disabled) { background: #e67e22; color: #fff; border-color: #e67e22; }
 .aac-counter__btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .aac-counter__val {
   font-size: 15px;
@@ -672,7 +653,7 @@
   font-size: 20px;
 }
 
-/* Icon buttons (delete / update) */
+/* Icon buttons */
 .aac-icon-btn {
   width: 32px;
   height: 32px;
@@ -746,7 +727,7 @@
 .aac-rule-check { margin-left: auto; color: #e67e22; flex-shrink: 0; }
 
 /* ══════════════════════════════════════════════════════════
-   VERIFICATION SECTION
+   VERIFY SECTION
 ══════════════════════════════════════════════════════════ */
 .aac-verify-section {
   background: #fafafa;
@@ -794,8 +775,6 @@
   border-top: 1px solid #f0f0f0;
   gap: 12px;
 }
-
-/* Secondary — Previous */
 .aac-btn-secondary {
   display: flex;
   align-items: center;
@@ -814,7 +793,6 @@
 .aac-btn-secondary:hover:not(:disabled) { background: #1c1c1e; color: #fff; border-color: #1c1c1e; }
 .aac-btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* Primary — Next */
 .aac-btn-primary {
   display: flex;
   align-items: center;
@@ -834,7 +812,6 @@
 .aac-btn-primary:hover:not(:disabled) { background: #d35400; transform: translateY(-1px); }
 .aac-btn-primary:disabled { background: #ccc; cursor: not-allowed; }
 
-/* Save — final submit */
 .aac-btn-save {
   display: flex;
   align-items: center;
@@ -862,7 +839,6 @@
   .aac-progress-wrapper { padding: 0 12px; }
   .aac-layout          { padding: 16px 12px 60px; }
   .aac-card            { padding: 22px 16px; }
-
   .aac-type-grid       { grid-template-columns: 1fr 1fr; }
   .aac-option-row      { flex-direction: column; }
   .aac-counters-row    { grid-template-columns: 1fr; }
@@ -870,12 +846,9 @@
   .aac-amenities-grid  { grid-template-columns: 1fr 1fr; }
   .aac-rules-grid      { grid-template-columns: 1fr; }
   .aac-row, .aac-three-cols { grid-template-columns: 1fr; }
-
   .aac-photo-box       { width: 90px; height: 90px; }
   .aac-nav             { flex-wrap: wrap; }
-  .aac-btn-primary,
-  .aac-btn-save        { margin-left: 0; flex: 1; justify-content: center; }
-
+  .aac-btn-primary, .aac-btn-save { margin-left: 0; flex: 1; justify-content: center; }
   .aac-hero__content   { padding: 0 20px; }
   .aac-hero__cta       { width: 100%; justify-content: center; }
 }
