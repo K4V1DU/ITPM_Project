@@ -1,19 +1,17 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FaAirbnb, FaBars, FaUser,
+  FaBars, FaUser,
   FaSignOutAlt, FaEnvelope, FaCreditCard,
   FaBell,
 } from "react-icons/fa";
+import { fetchPhoto } from "../../Image_Cache/usePhotoCache";
+import { useNotifications } from "../../../hooks/useNotifications";
 import "./HostNavbar.css";
 
 const API_BASE = "http://localhost:8000";
-const photoSrc = (id) => id ? `${API_BASE}/Photo/${id}` : null;
 function unwrap(raw) { return raw?.data ?? raw?.result ?? raw; }
 
-// ─────────────────────────────────────────
-// LOGOUT MODAL
-// ─────────────────────────────────────────
 function LogoutModal({ onConfirm, onCancel }) {
   return (
     <div className="hn-modal-overlay" onClick={onCancel}>
@@ -29,35 +27,32 @@ function LogoutModal({ onConfirm, onCancel }) {
   );
 }
 
-// ─────────────────────────────────────────
-// NAV TABS
-// ─────────────────────────────────────────
 const NAV_TABS = [
   { label: "Bookings", href: "/Bookings"   },
   { label: "Orders",   href: "/HostOrders" },
   { label: "Listings", href: "/Listings"   },
 ];
 
-// ─────────────────────────────────────────
-// HOSTNAV COMPONENT
-// Props:
-//   activeHref      — href of the active tab, e.g. "/Listings"
-//   pendingCount    — number shown on the bell badge (0 = hidden)
-//   notifications   — array of { id, message, time, unread }
-// ─────────────────────────────────────────
-export default function HostNavbar({
-  activeHref    = "",
-  pendingCount  = 0,
-  notifications = [],
-}) {
+export default function HostNavbar({ activeHref = "" }) {
   const navigate = useNavigate();
   const userId   = localStorage.getItem("CurrentUserId");
 
+  const {
+    notifications,
+    unreadCount,
+    markRead,
+    markAllRead,
+    deleteOne: deleteNotification,
+    clearAll,
+  } = useNotifications(userId);
+
   const [currentUser,   setCurrentUser]   = useState(null);
-  const [userAvatarSrc, setUserAvatarSrc] = useState(null);
-  const [showDropdown,  setShowDropdown]  = useState(false);
-  const [showBell,      setShowBell]      = useState(false);
-  const [showLogout,    setShowLogout]    = useState(false);
+  const [userAvatarSrc, setUserAvatarSrc] = useState(
+    () => sessionStorage.getItem("hostAvatarDataUrl") || null
+  );
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [showBell,     setShowBell]     = useState(false);
+  const [showLogout,   setShowLogout]   = useState(false);
 
   const dropdownRef = useRef(null);
   const bellRef     = useRef(null);
@@ -66,11 +61,34 @@ export default function HostNavbar({
     if (!userId) return;
     fetch(`${API_BASE}/User/${userId}`)
       .then(r => r.ok ? r.json() : null)
-      .then(raw => {
+      .then(async raw => {
         if (!raw) return;
         const user = unwrap(raw);
         setCurrentUser(user);
-        if (user?.profileImage) setUserAvatarSrc(photoSrc(user.profileImage));
+        if (user?.profileImage) {
+          const photoId  = String(user.profileImage);
+          const storedId = sessionStorage.getItem("hostAvatarPhotoId");
+          if (storedId !== photoId) sessionStorage.removeItem("hostAvatarDataUrl");
+          sessionStorage.setItem("hostAvatarPhotoId", photoId);
+          const stored = sessionStorage.getItem("hostAvatarDataUrl");
+          if (stored) {
+            setUserAvatarSrc(stored);
+          } else {
+            try {
+              const res = await fetch(`${API_BASE}/Photo/${photoId}`);
+              if (res.ok) {
+                const blob   = await res.blob();
+                const reader = new FileReader();
+                reader.onload = () => {
+                  const dataUrl = reader.result;
+                  sessionStorage.setItem("hostAvatarDataUrl", dataUrl);
+                  setUserAvatarSrc(dataUrl);
+                };
+                reader.readAsDataURL(blob);
+              }
+            } catch { /* silent */ }
+          }
+        }
       })
       .catch(() => {});
   }, [userId]);
@@ -88,6 +106,8 @@ export default function HostNavbar({
 
   const handleLogoutConfirm = () => {
     localStorage.removeItem("CurrentUserId");
+    sessionStorage.removeItem("hostAvatarDataUrl");
+    sessionStorage.removeItem("hostAvatarPhotoId");
     navigate("/Login");
   };
 
@@ -95,47 +115,35 @@ export default function HostNavbar({
     <>
       <nav className="hn-nav">
 
-        {/* ── Logo ── */}
         <div className="hn-nav__logo-wrap">
           <a href="/" className="hn-nav__logo">
-            <FaAirbnb /> Unisewana
+            <img src="/images/logo2.png" alt="Unisewana Logo"
+              style={{ height: "32px", width: "auto", display: "block" }} />
           </a>
         </div>
 
-        {/* ── Center tabs ── */}
         <div className="hn-nav__center">
           {NAV_TABS.map(({ label, href }) => (
-            <a
-              key={label}
-              href={href}
-              className={`hn-nav__tab${href === activeHref ? " hn-nav__tab--active" : ""}`}
-            >
+            <a key={label} href={href}
+              className={`hn-nav__tab${href === activeHref ? " hn-nav__tab--active" : ""}`}>
               {label}
               {href === activeHref && <span className="hn-nav__tab-underline" />}
             </a>
           ))}
         </div>
 
-        {/* ── Right side ── */}
         <div className="hn-nav__right">
 
-          {/* Switch to exploring */}
-          <a href="/Boardings" className="hn-switch-link">
-            Switch to exploring
-          </a>
+          <a href="/Boardings" className="hn-switch-link">Switch to exploring</a>
 
           {/* Bell */}
           <div className="hn-bell-wrap" ref={bellRef}>
-            <button
-              className="hn-bell-btn"
+            <button className="hn-bell-btn"
               onClick={() => { setShowBell(p => !p); setShowDropdown(false); }}
-              aria-label="Notifications"
-            >
+              aria-label="Notifications">
               <FaBell className="hn-bell-icon" />
-              {pendingCount > 0 && (
-                <span className="hn-bell-badge">
-                  {pendingCount > 9 ? "9+" : pendingCount}
-                </span>
+              {unreadCount > 0 && (
+                <span className="hn-bell-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
               )}
             </button>
 
@@ -143,9 +151,14 @@ export default function HostNavbar({
               <div className="hn-bell-dropdown">
                 <div className="hn-bell-dropdown__header">
                   <span className="hn-bell-dropdown__title">Notifications</span>
-                  {pendingCount > 0 && (
-                    <span className="hn-bell-dropdown__count">{pendingCount} new</span>
-                  )}
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {unreadCount > 0 && (
+                      <span className="hn-bell-dropdown__count">{unreadCount} new</span>
+                    )}
+                    {notifications.length > 0 && (
+                      <button className="hn-bell-clear" onClick={clearAll}>Clear all</button>
+                    )}
+                  </div>
                 </div>
                 <div className="hn-bell-dropdown__divider" />
                 {notifications.length === 0 ? (
@@ -156,13 +169,27 @@ export default function HostNavbar({
                 ) : (
                   <ul className="hn-bell-list">
                     {notifications.map((n) => (
-                      <li key={n.id}
-                        className={`hn-bell-item${n.unread ? " hn-bell-item--unread" : ""}`}>
+                      <li key={n._id}
+                        className={`hn-bell-item${!n.read ? " hn-bell-item--unread" : ""}`}
+                        onClick={() => {
+                          if (!n.read) markRead(n._id);
+                          if (n.link) { setShowBell(false); navigate(n.link); }
+                        }}>
                         <div className="hn-bell-item__dot" />
                         <div className="hn-bell-item__body">
+                          <div className="hn-bell-item__title">{n.title}</div>
                           <div className="hn-bell-item__msg">{n.message}</div>
-                          <div className="hn-bell-item__time">{n.time}</div>
+                          <div className="hn-bell-item__time">
+                            {new Date(n.createdAt).toLocaleString("en-GB", {
+                              day: "numeric", month: "short",
+                              hour: "2-digit", minute: "2-digit",
+                            })}
+                          </div>
                         </div>
+                        <button className="hn-bell-item__del"
+                          onClick={e => { e.stopPropagation(); deleteNotification(n._id); }}>
+                          ×
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -173,17 +200,13 @@ export default function HostNavbar({
 
           {/* Hamburger + avatar pill */}
           <div className="hn-dropdown" ref={dropdownRef}>
-            <button
-              className="hn-nav__menu-btn"
-              onClick={() => { setShowDropdown(p => !p); setShowBell(false); }}
-            >
+            <button className="hn-nav__menu-btn"
+              onClick={() => { setShowDropdown(p => !p); setShowBell(false); }}>
               <FaBars className="hn-menu-icon" />
               {userAvatarSrc
                 ? <img src={userAvatarSrc} alt="Profile" className="hn-user-avatar"
                     onError={() => setUserAvatarSrc(null)} />
-                : <span className="hn-user-icon-wrap">
-                    <FaUser className="hn-user-icon" />
-                  </span>}
+                : <span className="hn-user-icon-wrap"><FaUser className="hn-user-icon" /></span>}
             </button>
 
             {showDropdown && (
@@ -202,8 +225,8 @@ export default function HostNavbar({
                   <FaUser style={{ opacity: 0.55 }} /> Profile
                 </div>
                 <div className="hn-dropdown__item"
-                  onClick={() => { setShowDropdown(false); navigate("/Payment"); }}>
-                  <FaCreditCard style={{ opacity: 0.55 }} /> Payment
+                  onClick={() => { setShowDropdown(false); navigate("/PaymentHistory"); }}>
+                  <FaCreditCard style={{ opacity: 0.55 }} /> Payments
                 </div>
                 <div className="hn-dropdown__item"
                   onClick={() => { setShowDropdown(false); navigate("/Messages"); }}>
@@ -222,10 +245,7 @@ export default function HostNavbar({
       </nav>
 
       {showLogout && (
-        <LogoutModal
-          onConfirm={handleLogoutConfirm}
-          onCancel={() => setShowLogout(false)}
-        />
+        <LogoutModal onConfirm={handleLogoutConfirm} onCancel={() => setShowLogout(false)} />
       )}
     </>
   );
