@@ -42,7 +42,7 @@ function LogoutModal({ onConfirm, onCancel }) {
 // ─────────────────────────────────────────
 // STUDENT NAVBAR
 // Props:
-//   activeTab  — "Boardings" | "Food Services" | "Orders" | ""
+//   activeTab  — "Boardings" | "Foods" | "Orders" | ""
 // ─────────────────────────────────────────
 export default function StudentNavbar({ activeTab = "" }) {
   const navigate  = useNavigate();
@@ -58,11 +58,9 @@ export default function StudentNavbar({ activeTab = "" }) {
   } = useNotifications(userId);
 
   const [currentUser,   setCurrentUser]   = useState(null);
-  // Read persisted data URL from sessionStorage — available instantly, no flicker
   const [userAvatarSrc, setUserAvatarSrc] = useState(
     () => sessionStorage.getItem("studentAvatarDataUrl") || null
   );
-  // Persist role so Login/Host Page button doesn't flicker on re-mount
   const [cachedRole, setCachedRole] = useState(
     () => sessionStorage.getItem("studentUserRole") || null
   );
@@ -90,16 +88,13 @@ export default function StudentNavbar({ activeTab = "" }) {
           const photoId  = String(user.profileImage);
           const storedId = sessionStorage.getItem("studentAvatarPhotoId");
 
-          // Clear stale data URL if user changed their photo
           if (storedId !== photoId) sessionStorage.removeItem("studentAvatarDataUrl");
           sessionStorage.setItem("studentAvatarPhotoId", photoId);
 
-          // Use stored data URL if already available
           const stored = sessionStorage.getItem("studentAvatarDataUrl");
           if (stored) {
             setUserAvatarSrc(stored);
           } else {
-            // Fetch and convert to data URL for persistent storage
             try {
               const res = await fetch(`${API_BASE}/Photo/${photoId}`);
               if (res.ok) {
@@ -119,7 +114,7 @@ export default function StudentNavbar({ activeTab = "" }) {
       .catch(() => {});
   }, [userId]);
 
-  // Close dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     const h = (e) => {
       if (dropRef.current && !dropRef.current.contains(e.target))
@@ -146,9 +141,13 @@ export default function StudentNavbar({ activeTab = "" }) {
   const isStudent     = userRole === "student";
 
   const TABS = [
-    { label: "Boardings",     href: "/Boardings" },
-    { label: "Food Services", href: "/Foods"      },
+    { label: "Boardings", href: "/Boardings" },
+    { label: "Foods",     href: "/Foods"     },
   ];
+
+  // Derive active state from the URL path so it works regardless of
+  // what string the parent passes as activeTab.
+  const currentPath = window.location.pathname;
 
   return (
     <>
@@ -168,7 +167,8 @@ export default function StudentNavbar({ activeTab = "" }) {
         {/* Centre — tabs */}
         <div className="snav__tabs">
           {TABS.map(({ label, href }) => {
-            const active = activeTab === label;
+            // Match by URL path OR by the activeTab prop (whichever works)
+            const active = currentPath === href || activeTab === label;
             return (
               <a key={label} href={href}
                 className={`snav__tab${active ? " snav__tab--active" : ""}`}>
@@ -179,7 +179,7 @@ export default function StudentNavbar({ activeTab = "" }) {
           })}
         </div>
 
-        {/* Right — avatar + menu */}
+        {/* Right — bell + avatar */}
         <div className="snav__right">
           {!isLoggedIn && (
             <button className="snav__host-btn" onClick={() => navigate("/Login")}>
@@ -254,7 +254,7 @@ export default function StudentNavbar({ activeTab = "" }) {
             )}
           </div>
 
-          {/* Combined burger + avatar pill (matches HostNavbar style) */}
+          {/* Combined burger + avatar pill */}
           <div ref={dropRef} className="snav__dropdown">
             <button className="snav__menu-btn" onClick={() => setDropdown((p) => !p)}>
               <FaBars className="snav__menu-icon" />
