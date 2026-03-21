@@ -22,22 +22,11 @@ body {
   overflow-x: hidden;
 }
 
-/* Page wrapper — leaves room for fixed footer */
-.fsl-page {
-  min-height: 100vh;
-  padding-bottom: 60px;
-}
-
 /* Page wrapper — stretches to full viewport height so footer always sits at bottom */
 .fsl-page {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-}
-
-/* Section grows to fill available space, pushing footer down */
-.fsl-section {
-  flex: 1;
 }
 
 /* ══ NAVBAR ══ */
@@ -361,8 +350,8 @@ body {
 }
 .fsl-active-filters__clear:hover { background: #f5f5f5; }
 
-/* ══ SECTION ══ */
-.fsl-section { padding: 0 40px 60px; animation: fadeUp 0.5s ease 0.2s both; flex: 1; }
+/* ══ SECTION — grows to fill space, pushing footer down ══ */
+.fsl-section { flex: 1; padding: 0 40px 60px; animation: fadeUp 0.5s ease 0.2s both; }
 
 .fsl-section__header {
   display: flex;
@@ -767,16 +756,11 @@ body {
 .fsl-modal__btn--danger  { background: #dc2626; color: #fff; }
 .fsl-modal__btn--danger:hover { background: #b91c1c; }
 
-/* ══ FOOTER — fixed to bottom ══ */
+/* ══ FOOTER — sits naturally at the bottom via flexbox ══ */
 .fsl-footer {
   background: var(--light);
   border-top: 1px solid var(--border);
   padding: 16px 40px;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
 }
 .fsl-footer__bottom {
   display: flex;

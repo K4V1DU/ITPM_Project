@@ -34,7 +34,6 @@
   overflow: visible;
 }
 
-
 .snav__left  { display: flex; align-items: center; }
 .snav__tabs  { align-self: stretch; }
 .snav__right { display: flex; gap: 14px; align-items: center; justify-content: flex-end; }
@@ -62,10 +61,10 @@
 .snav__tab {
   font-size: 13px;
   font-weight: 500;
-  color: #545454;
+  color: #1b1b1b;
   text-decoration: none;
   position: relative;
-  padding: 6px 14px;
+  padding: 0 14px;
   height: 100%;
   display: flex;
   align-items: center;
@@ -73,15 +72,19 @@
   white-space: nowrap;
   box-sizing: border-box;
 }
-.snav__tab:hover   { color: #1b1b1b; }
-.snav__tab--active { color: #1b1b1b; font-weight: 700; }
+.snav__tab:hover   { color: #FF6B2B; }
 
+/* Active tab — orange text */
+.snav__tab--active { color: #FF6B2B; font-weight: 700; }
+
+/* Underline — sits just beneath the tab text */
 .snav__tab-underline {
   display: block;
   position: absolute;
-  bottom: 0;
-  left: 14px;
-  right: 14px;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 28px);
   height: 2px;
   background: #FF6B2B;
   border-radius: 2px;
@@ -101,8 +104,6 @@
   white-space: nowrap;
 }
 .snav__host-btn:hover { background: #f7f7f7; }
-
-
 
 /* ── Dropdown ── */
 .snav__dropdown { position: relative; }
@@ -225,7 +226,7 @@
 }
 
 /* ════════════════════════════════════════
-   BELL ICON  (matches HostNavbar)
+   BELL ICON
 ════════════════════════════════════════ */
 .snav__bell-wrap {
   position: relative; display: flex; align-items: center;
@@ -263,7 +264,7 @@
 }
 
 /* ════════════════════════════════════════
-   HAMBURGER + AVATAR PILL  (matches HostNavbar)
+   HAMBURGER + AVATAR PILL
 ════════════════════════════════════════ */
 .snav__menu-btn {
   display: flex; align-items: center; gap: 8px;
