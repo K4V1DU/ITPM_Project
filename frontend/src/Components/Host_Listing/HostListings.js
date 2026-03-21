@@ -9,56 +9,90 @@ import {
 } from "react-icons/fa";
 import HostNavbar from "../NavBar/Host_NavBar/HostNavbar";
 import Footer from "../NavBar/Footer/Footer";
+import { usePhotoCache, CachedImg, prefetchPhotos } from "../Image_Cache/usePhotoCache";
 import "./HostListings.css";
 
-const BASE_URL        = "http://localhost:8000";
-const CURRENT_USER_ID = localStorage.getItem("CurrentUserId") ?? "";
-const photoUrl        = (id) => `${BASE_URL}/photo/${id}`;
+const BASE_URL = "http://localhost:8000";
 
+// ─── ListingCard ──────────────────────────────────────────────────────────────
 function ListingCard({ item, type, onClick }) {
-  const coverImg = type === "food"
-    ? (item.BackgroundImage ? photoUrl(item.BackgroundImage) : null)
-    : (item.images?.[0]     ? photoUrl(item.images[0])       : null);
+  const { cachedUrl, photoStatus } = usePhotoCache();
+
+  const coverPhotoId = type === "food" ? item.iconImage : item.images?.[0];
+  const coverUrl     = cachedUrl(coverPhotoId);
+  const status       = photoStatus(coverPhotoId);
+  const imgLoading   = status === "loading";
 
   const isAvailable = item.isAvailable;
+  const isOpen      = isAvailable;
   const title       = type === "food" ? item.kitchenName : item.title;
-  const subtitle    = type === "food" ? item.serviceType : (item.accommodationType || "Accommodation");
+  const typeLabel   = type === "food" ? item.serviceType : (item.accommodationType || "Accommodation");
+  const rating      = item.ratingAverage ?? 0;
+  const reviewCount = item.ratingCount   ?? item.reviews?.length ?? 0;
 
-  return (
-    <div className="listing-card" onClick={() => onClick(item, type)}>
-      <div className="card-cover">
-        {coverImg
-          ? <img src={coverImg} alt={title} className="cover-img" />
-          : <div className="cover-placeholder"><span>{type === "food" ? "🍽️" : "🏠"}</span></div>
-        }
-        <div className={`availability-pill ${isAvailable ? "on" : "off"}`}>
-          <span className="pill-dot" />
-          {isAvailable ? "Listed" : "Unlisted"}
+  if (imgLoading) {
+    return (
+      <div className="lc lc--skeleton">
+        <div className="lc__img-skeleton" />
+        <div className="lc__body">
+          <div className="lc__skel-line lc__skel-line--title" />
+          <div className="lc__skel-line lc__skel-line--sub" />
+          <div className="lc__skel-line lc__skel-line--meta" />
         </div>
       </div>
-      <div className="card-body">
-        <div className="card-top">
-          <div className="card-top-text">
-            <p className="card-subtitle">{subtitle}</p>
-            <h3 className="card-title">{title || "Untitled listing"}</h3>
-          </div>
+    );
+  }
+
+  return (
+    <div className="lc" onClick={() => onClick(item, type)}>
+      <div className="lc__img-wrap">
+        {coverUrl
+          ? <img src={coverUrl} alt={title} className="lc__img" />
+          : <div className="lc__img-placeholder" />
+        }
+        <div className={`lc__status ${isOpen ? "lc__status--open" : "lc__status--closed"}`}>
+          <span className="lc__status-dot" />
+          {isOpen ? "Listed" : "Unlisted"}
         </div>
-        <p className="card-address">
-          <FaMapMarkerAlt className="card-addr-icon" />
-          {item.address || <span className="no-address">No address set</span>}
-        </p>
-        {type === "food" && item.operatingHours && (
-          <p className="card-hours">
-            <FaClock className="card-addr-icon" />
-            {item.operatingHours.open} – {item.operatingHours.close}
-          </p>
-        )}
-        <div className="card-chips">
-          {type === "food" && item.deliveryAvailable && <span className="chip chip-blue"><FaMotorcycle /> Delivery</span>}
-          {type === "food" && item.pickupAvailable   && <span className="chip chip-orange"><FaShoppingBag /> Pickup</span>}
-          {type === "food" && item.menu?.length > 0  && <span className="chip chip-gray">{item.menu.length} menu items</span>}
+        <div className="lc__img-chips">
+          {type === "food" && item.deliveryAvailable && (
+            <span className="lc__img-chip lc__img-chip--delivery"><FaMotorcycle /> Delivery</span>
+          )}
+          {type === "food" && item.pickupAvailable && (
+            <span className="lc__img-chip lc__img-chip--pickup"><FaShoppingBag /> Pickup</span>
+          )}
           {type === "accommodation" && item.pricePerMonth && (
-            <span className="chip chip-green">LKR {Number(item.pricePerMonth).toLocaleString()} / month</span>
+            <span className="lc__img-chip lc__img-chip--delivery">
+              LKR {Number(item.pricePerMonth).toLocaleString()}/mo
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="lc__body">
+        <div className="lc__title-row">
+          <h3 className="lc__title">{title || "Untitled listing"}</h3>
+          {rating > 0 && (
+            <span className="lc__rating">
+              <FaStar className="lc__star" /> {rating.toFixed(1)}
+            </span>
+          )}
+        </div>
+        <p className="lc__subtitle">
+          {typeLabel}
+          {item.address && <> · <span className="lc__addr">{item.address}</span></>}
+        </p>
+        <div className="lc__meta-row">
+          <span className="lc__reviews">
+            {reviewCount > 0
+              ? `${reviewCount} review${reviewCount !== 1 ? "s" : ""}`
+              : "No reviews yet"}
+          </span>
+          {type === "food" && item.operatingHours && (
+            <span className="lc__hours">
+              <FaClock className="lc__clock-icon" />
+              {item.operatingHours.open} – {item.operatingHours.close}
+            </span>
           )}
         </div>
       </div>
@@ -66,9 +100,11 @@ function ListingCard({ item, type, onClick }) {
   );
 }
 
+// ─── MenuItemRow ──────────────────────────────────────────────────────────────
 function MenuItemRow({ menuItemId, cachedData, onUpdate }) {
   const [menuItem, setMenuItem] = useState(cachedData || null);
   const [toggling, setToggling] = useState(false);
+  const { cachedUrl } = usePhotoCache();
 
   useEffect(() => {
     if (cachedData) { setMenuItem(cachedData); return; }
@@ -77,6 +113,8 @@ function MenuItemRow({ menuItemId, cachedData, onUpdate }) {
         const data = r.data?.data || r.data;
         setMenuItem(data);
         onUpdate?.(menuItemId, data);
+        const imgId = data?.image || data?.imageId || data?.photo;
+        if (imgId) prefetchPhotos([imgId]);
       })
       .catch(() => {});
   }, [menuItemId, cachedData]);
@@ -104,13 +142,15 @@ function MenuItemRow({ menuItemId, cachedData, onUpdate }) {
     </div>
   );
 
-  const imgId = menuItem.image || menuItem.imageId || menuItem.photo;
+  const imgId  = menuItem.image || menuItem.imageId || menuItem.photo;
+  const imgUrl = cachedUrl(imgId);
+
   return (
     <div className="menu-item-row">
       <div className="mi-img-wrap">
-        {imgId
-          ? <img src={photoUrl(imgId)} alt={menuItem.name} className="mi-img" />
-          : <div className="mi-img-fallback">🍽</div>
+        {imgUrl
+          ? <img src={imgUrl} alt={menuItem.name} className="mi-img" />
+          : <div className="mi-img-fallback" />
         }
       </div>
       <div className="mi-info">
@@ -131,13 +171,15 @@ function MenuItemRow({ menuItemId, cachedData, onUpdate }) {
   );
 }
 
+// ─── ListingPopup ─────────────────────────────────────────────────────────────
 function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPayment, menuItemCache, onMenuItemCacheUpdate }) {
   const [toggling, setToggling] = useState(false);
+  const { cachedUrl } = usePhotoCache();
 
-  const coverImg    = type === "food"
-    ? (item.BackgroundImage ? photoUrl(item.BackgroundImage) : null)
-    : (item.images?.[0]     ? photoUrl(item.images[0])       : null);
-  const iconImg     = type === "food" && item.iconImage ? photoUrl(item.iconImage) : null;
+  const coverPhotoId = type === "food" ? item.BackgroundImage : item.images?.[0];
+  const coverUrl     = cachedUrl(coverPhotoId);
+  const iconUrl      = type === "food" ? cachedUrl(item.iconImage) : null;
+
   const isAvailable = item.isAvailable;
   const title       = type === "food" ? item.kitchenName : item.title;
   const subtitle    = type === "food" ? item.serviceType : (item.accommodationType || "Accommodation");
@@ -155,17 +197,18 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
     <div className="popup-overlay" onClick={onClose}>
       <div className="popup" onClick={e => e.stopPropagation()}>
         <div className="popup-cover">
-          {coverImg
-            ? <img src={coverImg} alt={title} className="popup-cover-img" />
-            : <div className="popup-cover-placeholder">{type === "food" ? "🍽️" : "🏠"}</div>
+          {coverUrl
+            ? <img src={coverUrl} alt={title} className="popup-cover-img" />
+            : <div className="popup-cover-placeholder">{type === "food" ? "Food Service" : "Accommodation"}</div>
           }
           <button className="popup-close" onClick={onClose}><FaTimes /></button>
           <div className={`popup-status-badge ${isAvailable ? "on" : "off"}`}>
             <span className="pill-dot" />{isAvailable ? "Listed" : "Unlisted"}
           </div>
-          {iconImg && (
+          {iconUrl && (
             <div className="popup-icon-wrap">
-              <img src={iconImg} alt="icon" className="popup-icon" onError={e => { e.currentTarget.style.display = "none"; }} />
+              <img src={iconUrl} alt="icon" className="popup-icon"
+                onError={e => { e.currentTarget.style.display = "none"; }} />
             </div>
           )}
         </div>
@@ -283,21 +326,29 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
   );
 }
 
+// ─── EmptyState ───────────────────────────────────────────────────────────────
 function EmptyState({ type, onAdd }) {
   return (
     <div className="empty-state">
-      <div className="empty-illustration">{type === "food" ? "🍳" : "🏡"}</div>
+      <div className="empty-illustration">
+        <img
+          src={type === "food" ? "/images/icon3.jpg" : "/images/icon2.jpg"}
+          alt={type === "food" ? "Food Service" : "Accommodation"}
+          className="empty-illustration__img"
+        />
+      </div>
       <h3>No {type === "food" ? "food services" : "accommodations"} yet</h3>
       <p>
         {type === "food"
           ? "List your kitchen, restaurant, or café to start receiving orders."
           : "List your property to start hosting guests."}
       </p>
-      <button className="btn-add-empty" onClick={onAdd}>+ Create a listing</button>
+      <button className="btn-add-empty" onClick={onAdd}>Create a listing</button>
     </div>
   );
 }
 
+// ─── DeleteModal ──────────────────────────────────────────────────────────────
 function DeleteModal({ onConfirm, onCancel }) {
   return (
     <div className="modal-overlay" onClick={onCancel}>
@@ -313,6 +364,58 @@ function DeleteModal({ onConfirm, onCancel }) {
   );
 }
 
+// ─── CreateListingModal ───────────────────────────────────────────────────────
+function CreateListingModal({ onClose, onSelect }) {
+  const [selected, setSelected] = useState(null);
+
+  const options = [
+    {
+      key: "accommodation",
+      label: "Accommodation",
+      icon: (
+        <img src="/images/icon2.jpg" alt="Accommodation" className="cl-option__img"
+          onError={e => { e.currentTarget.style.display="none"; }} />
+      ),
+    },
+    {
+      key: "food",
+      label: "Food Service",
+      icon: (
+        <img src="/images/icon3.jpg" alt="Food Service" className="cl-option__img"
+          onError={e => { e.currentTarget.style.display="none"; }} />
+      ),
+    },
+  ];
+
+  return (
+    <div className="cl-overlay" onClick={onClose}>
+      <div className="cl-modal" onClick={e => e.stopPropagation()}>
+        <h2 className="cl-title">What would you like to host?</h2>
+        <div className="cl-options">
+          {options.map(opt => (
+            <div
+              key={opt.key}
+              className={`cl-option${selected === opt.key ? " cl-option--selected" : ""}`}
+              onClick={() => setSelected(opt.key)}
+            >
+              <div className="cl-option__icon">{opt.icon}</div>
+              <span className="cl-option__label">{opt.label}</span>
+            </div>
+          ))}
+        </div>
+        <button
+          className={`cl-next${selected ? " cl-next--active" : ""}`}
+          disabled={!selected}
+          onClick={() => selected && onSelect(selected)}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── HostListings (main) ──────────────────────────────────────────────────────
 export default function HostListings() {
   const navigate = useNavigate();
 
@@ -320,7 +423,9 @@ export default function HostListings() {
   const [foodServices,   setFoodServices]   = useState([]);
   const [accommodations, setAccommodations] = useState([]);
   const [loading,        setLoading]        = useState(true);
+  const [error,          setError]          = useState(null);
   const [deleteTarget,   setDeleteTarget]   = useState(null);
+  const [showCreate,     setShowCreate]     = useState(false);
   const [selectedItem,   setSelectedItem]   = useState(null);
 
   const menuItemCacheRef = useRef({});
@@ -332,25 +437,83 @@ export default function HostListings() {
   };
 
   useEffect(() => {
-    if (!CURRENT_USER_ID) { setLoading(false); return; }
-    const fetchAll = async () => {
-      setLoading(true);
-      const [fsRes, acRes] = await Promise.allSettled([
-        axios.get(`${BASE_URL}/Foodservice`),
-        axios.get(`${BASE_URL}/accommodation`),
+    const currentUserId = localStorage.getItem("CurrentUserId") ?? "";
+    if (!currentUserId) { setLoading(false); return; }
+
+    const CACHE_KEY_FS = `hl_fs_${currentUserId}`;
+    const CACHE_KEY_AC = `hl_ac_${currentUserId}`;
+
+    // ── 1. Serve cached data instantly so the page feels immediate ────────
+    const cachedFs = sessionStorage.getItem(CACHE_KEY_FS);
+    const cachedAc = sessionStorage.getItem(CACHE_KEY_AC);
+    if (cachedFs || cachedAc) {
+      if (cachedFs) setFoodServices(JSON.parse(cachedFs));
+      if (cachedAc) setAccommodations(JSON.parse(cachedAc));
+      setLoading(false); // show cached content right away
+    }
+
+    // ── Helper: fetch one collection, filter by owner, update state ───────
+    const fetchCollection = async (url, setter, cacheKey, getPhotoIds) => {
+      try {
+        // Try owner-filtered endpoint first (much smaller payload if backend supports it)
+        let mine = [];
+        try {
+          const res = await axios.get(`${url}?owner=${currentUserId}`);
+          const data = res.data?.data || res.data || [];
+          // If backend ignored the filter it returns everything — detect and re-filter
+          mine = Array.isArray(data)
+            ? data.filter(i => !i.owner || String(i.owner) === String(currentUserId) || String(i.owner?._id) === String(currentUserId))
+            : [];
+        } catch {
+          // Fallback: fetch all and filter client-side
+          const res = await axios.get(url);
+          const all = res.data?.data || res.data || [];
+          mine = Array.isArray(all)
+            ? all.filter(i => String(i.owner) === String(currentUserId) || String(i.owner?._id) === String(currentUserId))
+            : [];
+        }
+
+        setter(mine);
+        sessionStorage.setItem(cacheKey, JSON.stringify(mine));
+
+        // Pre-warm photo cache
+        const photoIds = mine.flatMap(getPhotoIds).filter(Boolean);
+        if (photoIds.length) prefetchPhotos(photoIds);
+      } catch (err) {
+        // Only set error if we have no cached fallback to show
+        if (!sessionStorage.getItem(cacheKey)) {
+          setError(err.message ?? "Connection error");
+        }
+      }
+    };
+
+    // ── 2. Fetch both independently so each updates the UI as it arrives ──
+    const run = async () => {
+      if (!cachedFs && !cachedAc) {
+        setLoading(true);
+        setError(null);
+      }
+
+      await Promise.all([
+        fetchCollection(
+          `${BASE_URL}/Foodservice`,
+          setFoodServices,
+          CACHE_KEY_FS,
+          f => [f.iconImage, f.BackgroundImage],
+        ),
+        fetchCollection(
+          `${BASE_URL}/accommodation`,
+          setAccommodations,
+          CACHE_KEY_AC,
+          a => [a.images?.[0]],
+        ),
       ]);
-      if (fsRes.status === "fulfilled") {
-        const all = fsRes.value.data?.data || [];
-        setFoodServices(all.filter(f => String(f.owner) === String(CURRENT_USER_ID)));
-      }
-      if (acRes.status === "fulfilled") {
-        const all = acRes.value.data?.data || [];
-        setAccommodations(all.filter(a => String(a.owner) === String(CURRENT_USER_ID)));
-      }
+
       setLoading(false);
     };
-    fetchAll();
-  }, []);
+
+    run();
+  }, []); // runs once on mount — userId is read fresh inside
 
   const handleEdit = (id, type) => {
     setSelectedItem(null);
@@ -358,14 +521,23 @@ export default function HostListings() {
   };
 
   const handleToggle = async (id, val, type) => {
+    const currentUserId = localStorage.getItem("CurrentUserId") ?? "";
     try {
       if (type === "food") {
         await axios.put(`${BASE_URL}/Foodservice/${id}`, { isAvailable: val });
-        setFoodServices(p => p.map(f => f._id === id ? { ...f, isAvailable: val } : f));
+        setFoodServices(p => {
+          const updated = p.map(f => f._id === id ? { ...f, isAvailable: val } : f);
+          sessionStorage.setItem(`hl_fs_${currentUserId}`, JSON.stringify(updated));
+          return updated;
+        });
         setSelectedItem(s => s && s.item._id === id ? { ...s, item: { ...s.item, isAvailable: val } } : s);
       } else {
         await axios.put(`${BASE_URL}/accommodation/${id}`, { isAvailable: val });
-        setAccommodations(p => p.map(a => a._id === id ? { ...a, isAvailable: val } : a));
+        setAccommodations(p => {
+          const updated = p.map(a => a._id === id ? { ...a, isAvailable: val } : a);
+          sessionStorage.setItem(`hl_ac_${currentUserId}`, JSON.stringify(updated));
+          return updated;
+        });
         setSelectedItem(s => s && s.item._id === id ? { ...s, item: { ...s.item, isAvailable: val } } : s);
       }
     } catch { alert("Failed to update status."); }
@@ -395,13 +567,22 @@ export default function HostListings() {
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     const { id, type } = deleteTarget;
+    const currentUserId = localStorage.getItem("CurrentUserId") ?? "";
     try {
       if (type === "food") {
         await axios.delete(`${BASE_URL}/Foodservice/${id}`);
-        setFoodServices(p => p.filter(f => f._id !== id));
+        setFoodServices(p => {
+          const updated = p.filter(f => f._id !== id);
+          sessionStorage.setItem(`hl_fs_${currentUserId}`, JSON.stringify(updated));
+          return updated;
+        });
       } else {
         await axios.delete(`${BASE_URL}/accommodation/${id}`);
-        setAccommodations(p => p.filter(a => a._id !== id));
+        setAccommodations(p => {
+          const updated = p.filter(a => a._id !== id);
+          sessionStorage.setItem(`hl_ac_${currentUserId}`, JSON.stringify(updated));
+          return updated;
+        });
       }
     } catch { alert("Failed to delete."); }
     finally  { setDeleteTarget(null); }
@@ -412,21 +593,19 @@ export default function HostListings() {
   return (
     <div className="page">
 
-      {/* ══ NAVBAR ══ */}
       <HostNavbar activeHref="/Listings" />
 
-      {/* ══ PAGE HEADER ══ */}
       <div className="page-header">
         <div className="page-header-inner">
           <div className="page-header-left">
             <h1 className="page-title">Your listings</h1>
-            {!loading && (
+            {!loading && !error && (
               <span className="listings-count">
                 {foodServices.length + accommodations.length} listing{foodServices.length + accommodations.length !== 1 ? "s" : ""}
               </span>
             )}
           </div>
-          <button className="btn-create" onClick={() => navigate("/host")}>+ Create listing</button>
+          <button className="btn-create" onClick={() => setShowCreate(true)}>Create listing</button>
         </div>
         <div className="tabs">
           <button className={`tab ${activeTab === "food" ? "active" : ""}`} onClick={() => setActiveTab("food")}>
@@ -440,7 +619,6 @@ export default function HostListings() {
         </div>
       </div>
 
-      {/* ══ CONTENT ══ */}
       <div className="page-content">
         {loading ? (
           <div className="grid">
@@ -454,6 +632,14 @@ export default function HostListings() {
                 </div>
               </div>
             ))}
+          </div>
+        ) : error ? (
+          /* ── Connection error state ── */
+          <div className="hl-error">
+            <img src="/images/icon7.jpg" alt="Connection error" className="hl-error__img" />
+            <div className="hl-error__title">Connection Error</div>
+            <div className="hl-error__msg">Something went wrong. Please check your connection and try again.</div>
+            <button className="hl-error__btn" onClick={() => window.location.reload()}>Retry</button>
           </div>
         ) : currentList.length === 0 ? (
           <EmptyState
@@ -470,7 +656,6 @@ export default function HostListings() {
         )}
       </div>
 
-      {/* ══ FOOTER ══ */}
       <Footer />
 
       {selectedItem && (
@@ -489,6 +674,16 @@ export default function HostListings() {
 
       {deleteTarget && (
         <DeleteModal onConfirm={confirmDelete} onCancel={() => setDeleteTarget(null)} />
+      )}
+
+      {showCreate && (
+        <CreateListingModal
+          onClose={() => setShowCreate(false)}
+          onSelect={(type) => {
+            setShowCreate(false);
+            navigate(type === "food" ? "/AddFoodService" : "/add-accommodation");
+          }}
+        />
       )}
     </div>
   );

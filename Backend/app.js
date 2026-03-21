@@ -24,8 +24,8 @@ const FoodServiceRouter = require("../Backend/Routes/FoodService_Route");
 const PaymentRouter = require("../Backend/Routes/Payment_Route");
 const ContactRouter = require("../Backend/Routes/Contact_Route")
 const FoodOrderRouter = require("../Backend/Routes/FoodOrder_Route")
-
-
+const NotificationRouter = require("../Backend/Routes/Notification_Route")
+const favouriteRoute = require("../Backend/Routes/Favourite_Route");
 
 
 
@@ -39,6 +39,10 @@ app.use("/FoodService", FoodServiceRouter);
 app.use("/Payment", PaymentRouter);
 app.use("/contact", ContactRouter);
 app.use("/FoodOrder", FoodOrderRouter);
+app.use("/Notification", NotificationRouter);
+app.use("/favourite", favouriteRoute);
+
+
 
 
 
@@ -48,7 +52,7 @@ const connectWithRetry = () => {
   console.log("Attempting to connect to MongoDB...");
   
   mongoose.connect(MONGO_URI, {
-    serverSelectionTimeoutMS: 8000, 
+    serverSelectionTimeoutMS: 4000, 
     family: 4 
   })
     .then(() => {
@@ -59,10 +63,10 @@ const connectWithRetry = () => {
       });
     })
     .catch((err) => {
-      console.error("❌ MongoDB connection failed:", err.message);
-      console.log("Retrying in 5 seconds...");
+      console.error("MongoDB connection failed");
+      console.log("Retrying in 3 seconds...");
       // Wait 5 seconds before retrying
-      setTimeout(connectWithRetry, 8000);
+      setTimeout(connectWithRetry, 4000);
     });
 };
 

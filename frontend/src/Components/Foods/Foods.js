@@ -116,9 +116,9 @@ function CardSkeleton() {
 // ─────────────────────────────────────────
 // FOOD SERVICE CARD
 // ─────────────────────────────────────────
-function FoodServiceCard({ service, onNavigate }) {
-  const [favourited, setFavourited] = useState(false);
-  const [imgSrc,     setImgSrc]     = useState(null);
+function FoodServiceCard({ service, onNavigate, isFavourited, onToggleFavourite }) {
+  const [imgSrc,  setImgSrc]  = useState(null);
+  const [pending, setPending] = useState(false);
 
   useEffect(() => {
     const id = service.iconImage ?? service.BackgroundImage;
@@ -129,6 +129,14 @@ function FoodServiceCard({ service, onNavigate }) {
   const rateCount = service.ratingCount   ?? 0;
   const icon      = SERVICE_TYPE_ICON[service.serviceType] ?? <FaUtensils />;
   const open      = isCurrentlyOpen(service.operatingHours);
+
+  const handleHeart = async (e) => {
+    e.stopPropagation();
+    if (pending) return;
+    setPending(true);
+    await onToggleFavourite(service._id, isFavourited);
+    setPending(false);
+  };
 
   return (
     <div className="fs-card" onClick={() => onNavigate(service._id)}>
@@ -143,9 +151,13 @@ function FoodServiceCard({ service, onNavigate }) {
           {open ? "Open" : "Closed"}
         </div>
 
-        <button className="fs-card__heart"
-          onClick={e => { e.stopPropagation(); setFavourited(p => !p); }}>
-          {favourited
+        <button
+          className="fs-card__heart"
+          onClick={handleHeart}
+          disabled={pending}
+          style={{ opacity: pending ? 0.6 : 1 }}
+        >
+          {isFavourited
             ? <FaHeart    style={{ color:"var(--orange)", fontSize:15 }} />
             : <FaRegHeart style={{ color:"#333",          fontSize:15 }} />}
         </button>
@@ -285,26 +297,65 @@ export default function Foods() {
   const [appliedFilters, setAppliedFilters] = useState(DEFAULT_FILTERS);
   const [draftFilters,   setDraftFilters]   = useState(DEFAULT_FILTERS);
 
-  // ── Auth state ────────────────────────────────────────────────────────
+  // ── Auth ──────────────────────────────────────────────────────────────
   const [currentUser,       setCurrentUser]       = useState(null);
   const [showLoginRequired, setShowLoginRequired] = useState(false);
 
-  const activeCount = countActive(appliedFilters);
+  // ── Favourites — Set of favourited service IDs ────────────────────────
+  const [favouriteIds, setFavouriteIds] = useState(new Set());
 
-  // Derived role helpers
-  const userId     = localStorage.getItem("CurrentUserId");
-  const isLoggedIn = !!userId;
-  const userRole   = currentUser?.role ?? null;
-  const isStudent  = userRole === "student";
+  const activeCount = countActive(appliedFilters);
+  const userId      = localStorage.getItem("CurrentUserId");
+  const userRole    = currentUser?.role ?? null;
+  const isStudent   = userRole === "student";
 
   // ── Fetch current user ────────────────────────────────────────────────
   useEffect(() => {
     if (!userId) return;
     fetch(`${API_BASE}/User/${userId}`)
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-      .then(raw => { setCurrentUser(unwrap(raw)); })
+      .then(raw => setCurrentUser(unwrap(raw)))
       .catch(() => setCurrentUser(null));
   }, []);
+
+  // ── Fetch existing favourites ─────────────────────────────────────────
+  useEffect(() => {
+    if (!userId) return;
+    fetch(`${API_BASE}/favourite/${userId}?itemType=FoodService`)
+      .then(r => r.json())
+      .then(raw => {
+        const list = unwrap(raw);
+        const ids  = (Array.isArray(list) ? list : []).map(f =>
+          typeof f.itemId === "object" ? f.itemId._id : f.itemId
+        );
+        setFavouriteIds(new Set(ids));
+      })
+      .catch(() => {});
+  }, [userId]);
+
+  // ── Toggle favourite ──────────────────────────────────────────────────
+  const handleToggleFavourite = async (serviceId, currentlyFavourited) => {
+    if (!userId || !isStudent) {
+      setShowLoginRequired(true);
+      return;
+    }
+
+    const method = currentlyFavourited ? "DELETE" : "POST";
+
+    try {
+      await fetch(`${API_BASE}/favourite`, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user: userId, itemId: serviceId, itemType: "FoodService" }),
+      });
+
+      setFavouriteIds(prev => {
+        const next = new Set(prev);
+        currentlyFavourited ? next.delete(serviceId) : next.add(serviceId);
+        return next;
+      });
+    } catch { /* silent */ }
+  };
 
   // ── Fetch food services ───────────────────────────────────────────────
   useEffect(() => {
@@ -401,7 +452,7 @@ export default function Foods() {
     <div className="fsl-page">
 
       {/* ══ NAVBAR ══ */}
-      <StudentNavbar />
+      <StudentNavbar activeTab="Foods" />
 
       {/* ══ SEARCH + FILTER BAR ══ */}
       <div className="fsl-search-container">
@@ -451,8 +502,9 @@ export default function Foods() {
 
         {error && (
           <div className="fsl-error">
-            <div className="fsl-error__icon">⚠️</div>
-            <div className="fsl-error__msg">Failed to load: {error}</div>
+            <img src="/images/icon7.jpg" alt="Connection error" className="fsl-error__img" />
+            <div className="fsl-error__title">Connection Error</div>
+            <div className="fsl-error__msg">Something went wrong. Please check your connection and try again.</div>
             <button className="fsl-error__btn" onClick={() => window.location.reload()}>Retry</button>
           </div>
         )}
@@ -460,16 +512,25 @@ export default function Foods() {
         <div className="fsl-grid">
           {loading
             ? Array.from({ length:8 }).map((_,i) => <CardSkeleton key={i} />)
-            : filtered.length === 0
-              ? <div className="fsl-empty">
-                  <div className="fsl-empty__icon"><FaUtensils /></div>
-                  <div className="fsl-empty__title">No food services found</div>
-                  <div className="fsl-empty__sub">Try adjusting your search or filters</div>
-                </div>
-              : filtered.map(s => (
-                  <FoodServiceCard key={s._id} service={s}
-                    onNavigate={id => navigate(`/FoodService/${id}`)} />
-                ))}
+            : error
+              ? null
+              : filtered.length === 0
+                ? <div className="fsl-empty">
+                    <div className="fsl-empty__icon">
+                      <img src="/images/icon5.jpg" alt="No food services" className="fsl-empty__img" />
+                    </div>
+                    <div className="fsl-empty__title">No food services found</div>
+                    <div className="fsl-empty__sub">Try adjusting your search or filters</div>
+                  </div>
+                : filtered.map(s => (
+                    <FoodServiceCard
+                      key={s._id}
+                      service={s}
+                      isFavourited={favouriteIds.has(s._id)}
+                      onToggleFavourite={handleToggleFavourite}
+                      onNavigate={id => navigate(`/FoodService/${id}`)}
+                    />
+                  ))}
         </div>
       </section>
 

@@ -24,6 +24,8 @@ import Register from "./Components/Register/Register";
 import ForgotPassword from "./Components/ForgotPassword/ForgotPassword";
 import ForgotPasswrodOtp from "./Components/ForgotPasswordOtp/ForgotPasswordOtp";
 import ResetPassword from "./Components/ResetPassword/ResetPassword";
+import Favourites from "./Components/Favourites/Favourites";
+
 
 
 
@@ -57,8 +59,7 @@ function App() {
       <Route path="/ForgotPassword" element={<ForgotPassword />} />
       <Route path="/ForgotPasswrodOtp" element={<ForgotPasswrodOtp />} />
        <Route path="/ResetPassword" element={<ResetPassword />} />
-      
-
+      <Route path="/Favourites" element={<Favourites />} />
 
 
 

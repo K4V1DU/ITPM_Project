@@ -1,16 +1,16 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Boardings.css";
 import {
-  FaAirbnb, FaBars, FaUser, FaSearch,
-  FaFacebookF, FaTwitter, FaInstagram,
-  FaSignOutAlt, FaEnvelope,
+  FaSearch,
   FaHeart, FaRegHeart, FaSlidersH, FaTimes,
   FaBed, FaWifi, FaSnowflake, FaParking, FaUtensils,
   FaShower, FaMale, FaFemale, FaUsers,
-  FaStar, FaExclamationCircle, FaSignInAlt,
+  FaStar, FaExclamationCircle, FaSignInAlt, FaMapMarkerAlt,
 } from "react-icons/fa";
 import axios from "axios";
+import StudentNavbar from "../NavBar/Student_NavBar/StudentNavbar";
+import Footer from "../NavBar/Footer/Footer";
 
 // ─── Config ───────────────────────────────────────────────────────────────
 const API_BASE = "http://localhost:8000";
@@ -37,25 +37,6 @@ const DEFAULT_FILTERS = {
 const countActive = (f) =>
   f.roomTypes.length + f.amenities.length + f.gender.length +
   (f.minRating > 0 ? 1 : 0) + (f.maxPrice > 0 ? 1 : 0);
-
-// ─────────────────────────────────────────
-// LOGOUT CONFIRM MODAL
-// ─────────────────────────────────────────
-function LogoutModal({ onConfirm, onCancel }) {
-  return (
-    <div className="bd-modal-overlay" onClick={onCancel}>
-      <div className="bd-modal" onClick={e => e.stopPropagation()}>
-        <div className="bd-modal__icon bd-modal__icon--logout"><FaSignOutAlt /></div>
-        <h3 className="bd-modal__title">Logout</h3>
-        <p className="bd-modal__msg">Are you sure you want to logout?</p>
-        <div className="bd-modal__actions">
-          <button className="bd-modal__btn bd-modal__btn--cancel" onClick={onCancel}>Cancel</button>
-          <button className="bd-modal__btn bd-modal__btn--danger" onClick={onConfirm}>Yes, Logout</button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────
 // LOGIN REQUIRED MODAL
@@ -100,8 +81,16 @@ function CardSkeleton() {
 // ─────────────────────────────────────────
 // BOARDING CARD
 // ─────────────────────────────────────────
-function BoardingCard({ acc, imageUrl, onNavigate }) {
-  const [favourited, setFavourited] = useState(false);
+function BoardingCard({ acc, imageUrl, onNavigate, isFavourited, onToggleFavourite }) {
+  const [pending, setPending] = useState(false);
+
+  const handleHeart = async (e) => {
+    e.stopPropagation();
+    if (pending) return;
+    setPending(true);
+    await onToggleFavourite(acc._id, isFavourited);
+    setPending(false);
+  };
 
   return (
     <div className="bd-card" onClick={() => onNavigate(acc._id)}>
@@ -114,9 +103,11 @@ function BoardingCard({ acc, imageUrl, onNavigate }) {
         />
         <button
           className="bd-card__heart"
-          onClick={e => { e.stopPropagation(); setFavourited(p => !p); }}
+          onClick={handleHeart}
+          disabled={pending}
+          style={{ opacity: pending ? 0.6 : 1 }}
         >
-          {favourited
+          {isFavourited
             ? <FaHeart    style={{ color: "var(--orange)", fontSize: 15 }} />
             : <FaRegHeart style={{ color: "#333",          fontSize: 15 }} />}
         </button>
@@ -131,7 +122,10 @@ function BoardingCard({ acc, imageUrl, onNavigate }) {
             <span className="bd-card__rating">★ {acc.ratingAverage.toFixed(1)}</span>
           )}
         </div>
-        <p className="bd-card__subtitle">📍 {acc.address}</p>
+        <p className="bd-card__subtitle">
+          <FaMapMarkerAlt style={{ color: "var(--orange)", fontSize: 12, flexShrink: 0 }} />
+          {acc.address}
+        </p>
         <div className="bd-card__footer">
           <span className="bd-card__review-count">
             {acc.ratingCount > 0
@@ -149,7 +143,7 @@ function BoardingCard({ acc, imageUrl, onNavigate }) {
 }
 
 // ─────────────────────────────────────────
-// FILTER POPUP — icons instead of emojis
+// FILTER POPUP
 // ─────────────────────────────────────────
 function FilterPopup({ draft, setDraft, onApply, onClear, onClose }) {
   const toggle = (field, val) =>
@@ -242,38 +236,66 @@ const Boarding = () => {
   const [showFilter,     setShowFilter]     = useState(false);
   const [appliedFilters, setAppliedFilters] = useState(DEFAULT_FILTERS);
   const [draftFilters,   setDraftFilters]   = useState(DEFAULT_FILTERS);
-  const [showDropdown,   setShowDropdown]   = useState(false);
-  const [activeTab,      setActiveTab]      = useState("boardings");
-
-  // ── Auth state ────────────────────────────────────────────────────────
-  const [currentUser,       setCurrentUser]       = useState(null);
-  const [userAvatarSrc,     setUserAvatarSrc]     = useState(null);
-  const [showLogoutModal,   setShowLogoutModal]   = useState(false);
   const [showLoginRequired, setShowLoginRequired] = useState(false);
 
-  const dropdownRef = useRef(null);
-  const activeCount = countActive(appliedFilters);
+  // ── Auth ──────────────────────────────────────────────────────────────
+  const [currentUser,  setCurrentUser]  = useState(null);
 
-  // Derived role helpers
-  const userId     = localStorage.getItem("CurrentUserId");
-  const isLoggedIn = !!userId;
-  const userRole   = currentUser?.role ?? null;
-  const isStudent  = userRole === "student";
-  const isHost     = userRole === "host";
+  // ── Favourites — Set of favourited accommodation IDs ──────────────────
+  const [favouriteIds, setFavouriteIds] = useState(new Set());
+
+  const activeCount = countActive(appliedFilters);
+  const userId      = localStorage.getItem("CurrentUserId");
+  const userRole    = currentUser?.role ?? null;
+  const isStudent   = userRole === "student";
 
   // ── Fetch current user ────────────────────────────────────────────────
   useEffect(() => {
     if (!userId) return;
     fetch(`${API_BASE}/User/${userId}`)
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-      .then(raw => {
-        const user = unwrap(raw);
-        setCurrentUser(user);
-        const photoId = user?.profileImage ?? null;
-        if (photoId) setUserAvatarSrc(`${API_BASE}/Photo/${photoId}`);
-      })
-      .catch(() => { setCurrentUser(null); setUserAvatarSrc(null); });
+      .then(raw => setCurrentUser(unwrap(raw)))
+      .catch(() => setCurrentUser(null));
   }, []);
+
+  // ── Fetch existing favourites ─────────────────────────────────────────
+  useEffect(() => {
+    if (!userId) return;
+    fetch(`${API_BASE}/favourite/${userId}?itemType=Accommodation`)
+      .then(r => r.json())
+      .then(raw => {
+        const list = unwrap(raw);
+        const ids  = (Array.isArray(list) ? list : []).map(f =>
+          typeof f.itemId === "object" ? f.itemId._id : f.itemId
+        );
+        setFavouriteIds(new Set(ids));
+      })
+      .catch(() => {});
+  }, [userId]);
+
+  // ── Toggle favourite ──────────────────────────────────────────────────
+  const handleToggleFavourite = async (accId, currentlyFavourited) => {
+    if (!userId || !isStudent) {
+      setShowLoginRequired(true);
+      return;
+    }
+
+    const method = currentlyFavourited ? "DELETE" : "POST";
+
+    try {
+      await fetch(`${API_BASE}/favourite`, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user: userId, itemId: accId, itemType: "Accommodation" }),
+      });
+
+      setFavouriteIds(prev => {
+        const next = new Set(prev);
+        currentlyFavourited ? next.delete(accId) : next.add(accId);
+        return next;
+      });
+    } catch { /* silent */ }
+  };
 
   // ── Fetch accommodations ──────────────────────────────────────────────
   useEffect(() => {
@@ -355,40 +377,6 @@ const Boarding = () => {
     setFiltered(runFilter(DEFAULT_FILTERS, searchQuery, accommodations));
   };
 
-  // ── Logout ────────────────────────────────────────────────────────────
-  const handleLogoutConfirm = () => {
-    localStorage.removeItem("CurrentUserId");
-    setShowDropdown(false);
-    setShowLogoutModal(false);
-    navigate("/Login");
-  };
-
-  // ── Dropdown guard — non-students see login-required modal ────────────
-  const handleProtectedClick = (cb) => {
-    if (!isLoggedIn || !isStudent) {
-      setShowDropdown(false);
-      setShowLoginRequired(true);
-      return;
-    }
-    setShowDropdown(false);
-    cb?.();
-  };
-
-  // ── Navbar action button ──────────────────────────────────────────────
-  // No user → "Login", Student → hidden, Host → "Host Page" → /Listings
-  const hostBtnLabel  = !isLoggedIn ? "Login" : isHost ? "Host Page" : null;
-  const hostBtnAction = () => navigate(!isLoggedIn ? "/Login" : "/Listings");
-
-  // ── Close dropdown on outside click ──────────────────────────────────
-  useEffect(() => {
-    const h = e => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target))
-        setShowDropdown(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
-
   const filterSummary = () => {
     const parts = [];
     if (appliedFilters.roomTypes.length)  parts.push(appliedFilters.roomTypes.join(", "));
@@ -398,115 +386,11 @@ const Boarding = () => {
     return parts.join(" · ");
   };
 
-  // ── Avatar ────────────────────────────────────────────────────────────
-  const UserAvatar = () => (
-    <div className="bd-nav__avatar">
-      {userAvatarSrc
-        ? <img src={userAvatarSrc} alt="Profile" className="bd-nav__avatar-img"
-            onError={() => setUserAvatarSrc(null)} />
-        : <FaUser className="bd-nav__avatar-icon" />}
-    </div>
-  );
-
   return (
     <div className="bd-page">
 
       {/* ══ NAVBAR ══ */}
-      <nav className="bd-nav">
-        <div className="bd-nav__left">
-          <a href="/" className="bd-nav__logo"><FaAirbnb /> Bodima</a>
-        </div>
-
-        {/* Centered tabs */}
-        <div className="bd-nav__tabs">
-          {[
-            { key: "boardings",   label: "Boardings",          href: "/Boardings"    },
-            { key: "food",        label: "Food Services",       href: "/Foods" },
-            { key: "experiences", label: "Orders",  href: "#"             },
-          ].map(({ key, label, href }) => (
-            <a key={key} href={href}
-              className={`bd-nav__tab${activeTab === key ? " bd-nav__tab--active" : ""}`}
-              onClick={() => setActiveTab(key)}>
-              {label}
-              {activeTab === key && <span className="bd-nav__tab-underline" />}
-            </a>
-          ))}
-        </div>
-
-        <div className="bd-nav__right">
-          {/* Login / Host Page — hidden for students */}
-          {hostBtnLabel && (
-            <button className="bd-nav__host-btn" onClick={hostBtnAction}>
-              {hostBtnLabel}
-            </button>
-          )}
-
-          <UserAvatar />
-
-          <div ref={dropdownRef} className="bd-dropdown">
-            <div className="bd-nav__icon-btn" onClick={() => setShowDropdown(p => !p)}>
-              <FaBars />
-            </div>
-
-            {showDropdown && (
-              <div className="bd-dropdown__menu">
-                {/* User info — only when logged in */}
-                {isLoggedIn && currentUser && (
-                  <>
-                    <div className="bd-dropdown__user">
-                      <span className="bd-dropdown__username">{currentUser.name ?? "User"}</span>
-                      <span className="bd-dropdown__email">{currentUser.email ?? ""}</span>
-                      <span className={`bd-dropdown__role bd-dropdown__role--${userRole}`}>
-                        {userRole}
-                      </span>
-                    </div>
-                    <div className="bd-dropdown__divider" />
-                  </>
-                )}
-
-                {/* Profile — students and hosts */}
-                {(isStudent || isHost) && (
-                  <div className="bd-dropdown__item"
-                    onClick={() => { setShowDropdown(false); navigate("/Profile"); }}>
-                    <FaUser style={{ opacity: 0.7 }} /> Profile
-                  </div>
-                )}
-
-                {/* Not logged in — show login-required modal */}
-                {!isLoggedIn && (
-                  <>
-                    <div className="bd-dropdown__item" onClick={() => handleProtectedClick()}>
-                      <FaUser style={{ opacity: 0.7 }} /> Profile
-                    </div>
-                    <div className="bd-dropdown__item" onClick={() => handleProtectedClick()}>
-                      <FaEnvelope style={{ opacity: 0.7 }} /> Messages
-                    </div>
-                  </>
-                )}
-
-                {/* Messages — students only */}
-                {isStudent && (
-                  <div className="bd-dropdown__item"
-                    onClick={() => { setShowDropdown(false); navigate("/Messages"); }}>
-                    <FaEnvelope style={{ opacity: 0.7 }} /> Messages
-                  </div>
-                )}
-
-                {/* Logout — students and hosts */}
-                {isLoggedIn && (isStudent || isHost) && (
-                  <>
-                    <div className="bd-dropdown__divider" />
-                    <div className="bd-dropdown__item bd-dropdown__item--danger"
-                      onClick={() => { setShowDropdown(false); setShowLogoutModal(true); }}>
-                      <FaSignOutAlt style={{ opacity: 0.7 }} /> Logout
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </nav>
+      <StudentNavbar activeTab="Boardings" />
 
       {/* ══ SEARCH + FILTER BAR ══ */}
       <div className="bd-search-container">
@@ -556,8 +440,9 @@ const Boarding = () => {
 
         {error && (
           <div className="bd-error">
-            <div className="bd-error__icon">⚠️</div>
-            <div className="bd-error__msg">Failed to load: {error}</div>
+            <img src="/images/icon7.jpg" alt="Connection error" className="bd-error__img" />
+            <div className="bd-error__title">Connection Error</div>
+            <div className="bd-error__msg">Something went wrong. Please check your connection and try again.</div>
             <button className="bd-error__btn" onClick={() => window.location.reload()}>Retry</button>
           </div>
         )}
@@ -565,34 +450,33 @@ const Boarding = () => {
         <div className="bd-grid">
           {loading
             ? Array.from({ length: 8 }).map((_, i) => <CardSkeleton key={i} />)
-            : filtered.length === 0
-              ? (
-                <div className="bd-empty">
-                  <div className="bd-empty__icon">🏠</div>
-                  <div className="bd-empty__title">No boardings found</div>
-                  <div className="bd-empty__sub">Try adjusting your search or filters</div>
-                </div>
-              )
-              : filtered.map(acc => (
-                  <BoardingCard
-                    key={acc._id} acc={acc} imageUrl={imageUrls[acc._id]}
-                    onNavigate={id => navigate(`/details-Accommodation/${id}`)}
-                  />
-                ))}
+            : error
+              ? null
+              : filtered.length === 0
+                ? (
+                  <div className="bd-empty">
+                    <div className="bd-empty__icon">
+                      <img src="/images/icon4.jpg" alt="No boardings" className="bd-empty__img" />
+                    </div>
+                    <div className="bd-empty__title">No boardings found</div>
+                    <div className="bd-empty__sub">Try adjusting your search or filters</div>
+                  </div>
+                )
+                : filtered.map(acc => (
+                    <BoardingCard
+                      key={acc._id}
+                      acc={acc}
+                      imageUrl={imageUrls[acc._id]}
+                      isFavourited={favouriteIds.has(acc._id)}
+                      onToggleFavourite={handleToggleFavourite}
+                      onNavigate={id => navigate(`/details-Accommodation/${id}`)}
+                    />
+                  ))}
         </div>
       </section>
 
       {/* ══ FOOTER ══ */}
-      <footer className="bd-footer">
-        <div className="bd-footer__bottom">
-          <span>© 2026 Bodima, Inc. · <a href="#" className="bd-footer__legal">Privacy · Terms · Sitemap</a></span>
-          <div className="bd-footer__socials">
-            {[FaFacebookF, FaTwitter, FaInstagram].map((Icon, i) => (
-              <a key={i} href="#" className="bd-footer__social-icon"><Icon /></a>
-            ))}
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       {/* ══ FILTER POPUP ══ */}
       {showFilter && (
@@ -600,14 +484,6 @@ const Boarding = () => {
           draft={draftFilters} setDraft={setDraftFilters}
           onApply={handleFilterApply} onClear={handleFilterClear}
           onClose={() => setShowFilter(false)}
-        />
-      )}
-
-      {/* ══ LOGOUT CONFIRM ══ */}
-      {showLogoutModal && (
-        <LogoutModal
-          onConfirm={handleLogoutConfirm}
-          onCancel={() => setShowLogoutModal(false)}
         />
       )}
 
