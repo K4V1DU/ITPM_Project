@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
+import "./EditFoodService.css";
 import {
   GoogleMap,
   useJsApiLoader,
@@ -9,7 +10,7 @@ import {
   Trash2, RefreshCw, X, ChevronRight, ChevronLeft,
   Home, UtensilsCrossed, Coffee, Croissant, Truck, ShoppingBag,
   MapPin, Crosshair, Upload, Leaf, Flame, Wheat, Sprout,
-  CheckCircle, Loader2, Image as ImageIcon, Plus, Store, Clock,
+  CheckCircle, Loader2, Image as ImageIcon, Plus, Clock,
   AlertCircle, PenLine,
 } from "lucide-react";
 import axios from "axios";
@@ -80,256 +81,6 @@ const emptyMenuItem = () => ({
   imagePreview: null, imageFile: null, imageId: null, imageUploading: false,
   isNew: true,
 });
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap');
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'DM Sans', sans-serif; background: #f5f5f5; color: #1c1c1e; -webkit-font-smoothing: antialiased; }
-  .efs-root { min-height: 100vh; background: #f5f5f5; }
-
-  /* ── Top Bar ── */
-  .efs-topbar {
-    background: #fff; border-bottom: 1px solid #e8e8e8; position: sticky; top: 0; z-index: 100;
-    padding: 0 32px; height: 58px;
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .efs-topbar-brand { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700; color: #1c1c1e; letter-spacing: -0.2px; }
-  .efs-topbar-brand-dot { width: 30px; height: 30px; background: #e67e22; border-radius: 7px; display: flex; align-items: center; justify-content: center; color: #fff; }
-  .efs-topbar-brand span { color: #e67e22; }
-  .efs-topbar-center {
-    position: absolute; left: 50%; transform: translateX(-50%);
-    display: flex; align-items: center; gap: 8px;
-    font-size: 13px; font-weight: 600; color: #888;
-  }
-  .efs-topbar-center-dot { width: 6px; height: 6px; border-radius: 50%; background: #e67e22; }
-  .efs-exit-btn {
-    display: flex; align-items: center; gap: 6px;
-    background: #f5f5f5; border: 1px solid #e8e8e8;
-    color: #444; padding: 7px 16px; border-radius: 8px;
-    font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; transition: all 0.15s;
-  }
-  .efs-exit-btn:hover { background: #1c1c1e; color: #fff; border-color: #1c1c1e; }
-
-  /* ── Progress Bar ── */
-  .efs-progress-wrapper { background: #fff; border-bottom: 1px solid #ebebeb; padding: 0 32px; }
-  .efs-progress-steps { max-width: 680px; margin: 0 auto; display: flex; align-items: center; padding: 20px 0; }
-  .efs-progress-step { display: flex; flex-direction: column; align-items: center; gap: 8px; position: relative; z-index: 1; }
-  .efs-progress-bubble {
-    width: 40px; height: 40px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 700; font-family: 'DM Mono', monospace;
-    border: 2.5px solid #e0e0e0; background: #fff; color: #bbb;
-    transition: all 0.3s ease; box-shadow: 0 0 0 5px #f5f5f5;
-  }
-  .efs-progress-step.active .efs-progress-bubble { border-color: #e67e22; background: #e67e22; color: #fff; box-shadow: 0 0 0 5px rgba(230,126,34,0.14); }
-  .efs-progress-step.done  .efs-progress-bubble { border-color: #1c1c1e; background: #1c1c1e; color: #fff; box-shadow: 0 0 0 5px rgba(28,28,30,0.07); }
-  .efs-progress-label { font-size: 11px; font-weight: 600; color: #bbb; text-transform: uppercase; letter-spacing: 0.7px; white-space: nowrap; transition: color 0.3s; }
-  .efs-progress-step.active .efs-progress-label { color: #e67e22; }
-  .efs-progress-step.done  .efs-progress-label { color: #1c1c1e; }
-  .efs-progress-line { flex: 1; height: 2.5px; background: #e8e8e8; margin-bottom: 28px; border-radius: 2px; overflow: hidden; position: relative; }
-  .efs-progress-line-fill { position: absolute; left: 0; top: 0; height: 100%; background: #1c1c1e; transition: width 0.4s ease; border-radius: 2px; }
-
-  /* ── Layout ── */
-  .efs-layout { max-width: 740px; margin: 0 auto; padding: 32px 24px 60px; }
-
-  /* ── Loading / Error ── */
-  .efs-state-screen {
-    max-width: 740px; margin: 80px auto; padding: 0 24px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 16px; text-align: center;
-    background: #fff; border-radius: 16px; border: 1px solid #ebebeb;
-    padding: 60px 40px; box-shadow: 0 1px 6px rgba(0,0,0,0.04);
-  }
-  .efs-state-screen p { font-size: 14px; color: #888; }
-  .efs-state-screen p.err { color: #c0392b; font-weight: 500; }
-
-  /* ── Card ── */
-  .efs-card { background: #fff; border-radius: 16px; border: 1px solid #ebebeb; padding: 36px 32px; margin-bottom: 16px; box-shadow: 0 1px 6px rgba(0,0,0,0.04); }
-  .efs-card-title { font-size: 21px; font-weight: 700; color: #1c1c1e; margin-bottom: 4px; letter-spacing: -0.3px; }
-  .efs-card-subtitle { font-size: 13px; color: #999; margin-bottom: 28px; }
-
-  /* ── Form Elements ── */
-  .efs-field { margin-bottom: 22px; }
-  .efs-label { display: block; font-size: 13px; font-weight: 600; color: #1c1c1e; margin-bottom: 8px; }
-  .efs-label span { font-weight: 400; color: #bbb; margin-left: 4px; }
-  .efs-hint { font-size: 12px; color: #aaa; margin-top: 5px; display: block; }
-  .efs-input, .efs-textarea, .efs-select {
-    width: 100%; padding: 11px 14px; font-size: 14px; font-family: 'DM Sans', sans-serif;
-    border: 1.5px solid #e8e8e8; border-radius: 9px; outline: none;
-    color: #1c1c1e; background: #fafafa; transition: border-color 0.15s, box-shadow 0.15s; -webkit-appearance: none;
-  }
-  .efs-input:focus, .efs-textarea:focus, .efs-select:focus { border-color: #e67e22; background: #fff; box-shadow: 0 0 0 3px rgba(230,126,34,0.12); }
-  .efs-textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
-  .efs-select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 13px center; background-color: #fafafa; padding-right: 34px; }
-  .efs-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .efs-field-footer { display: flex; justify-content: flex-end; margin-top: 5px; }
-  .efs-char-count { font-size: 11px; font-family: 'DM Mono', monospace; color: #ddd; }
-  .efs-char-count.warn { color: #e67e22; }
-  .efs-divider { height: 1px; background: #f0f0f0; margin: 24px 0; }
-
-  /* ── Service Type Grid ── */
-  .efs-type-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-  .efs-type-card { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 10px; border-radius: 11px; border: 1.5px solid #e8e8e8; background: #fafafa; cursor: pointer; transition: all 0.15s; text-align: center; }
-  .efs-type-card:hover { border-color: #e67e22; background: #fff4ec; }
-  .efs-type-card.selected { border-color: #e67e22; background: #fff4ec; box-shadow: 0 0 0 3px rgba(230,126,34,0.14); }
-  .efs-type-icon { width: 38px; height: 38px; border-radius: 9px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #888; transition: all 0.15s; }
-  .efs-type-card.selected .efs-type-icon { background: #e67e22; color: #fff; }
-  .efs-type-name { font-size: 12px; font-weight: 700; color: #1c1c1e; }
-  .efs-type-desc { font-size: 11px; color: #aaa; line-height: 1.3; }
-
-  /* ── Time Picker ── */
-  .efs-time-row { display: flex; align-items: flex-end; gap: 10px; }
-  .efs-time-group { display: flex; flex-direction: column; gap: 5px; flex: 1; }
-  .efs-time-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #aaa; }
-  .efs-time-divider { display: flex; align-items: center; padding-bottom: 11px; color: #ccc; }
-
-  /* ── Service Options ── */
-  .efs-option-row { display: flex; gap: 12px; }
-  .efs-option-card { flex: 1; display: flex; align-items: center; gap: 12px; padding: 15px 16px; border-radius: 11px; border: 1.5px solid #e8e8e8; background: #fafafa; cursor: pointer; transition: all 0.15s; }
-  .efs-option-card:hover { border-color: #e67e22; }
-  .efs-option-card.active { border-color: #e67e22; background: #fff4ec; }
-  .efs-option-icon-box { width: 38px; height: 38px; border-radius: 9px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #888; flex-shrink: 0; transition: all 0.15s; }
-  .efs-option-card.active .efs-option-icon-box { background: #e67e22; color: #fff; }
-  .efs-option-name { flex: 1; font-size: 14px; font-weight: 600; color: #1c1c1e; }
-  .efs-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
-  .efs-badge.on  { background: #fff4ec; color: #e67e22; border: 1px solid rgba(230,126,34,0.3); }
-  .efs-badge.off { background: #f3f3f3; color: #aaa; border: 1px solid #e8e8e8; }
-
-  /* ── Map ── */
-  .efs-map-wrapper { border-radius: 10px; overflow: hidden; border: 1px solid #e8e8e8; margin-bottom: 12px; }
-  .efs-map-loading { height: 420px; border-radius: 10px; border: 1px solid #e8e8e8; margin-bottom: 12px; background: #fafafa; display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 14px; font-weight: 500; color: #888; }
-  .efs-map-error { height: 420px; border-radius: 10px; border: 1px solid #e8e8e8; margin-bottom: 12px; background: #fafafa; display: flex; align-items: center; justify-content: center; gap: 16px; font-size: 14px; color: #1c1c1e; padding: 24px; }
-  .efs-map-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-  .efs-map-btn { display: flex; align-items: center; gap: 7px; background: #fff; border: 1.5px solid #e8e8e8; color: #1c1c1e; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; font-family: inherit; }
-  .efs-map-btn:hover { background: #fff4ec; border-color: #e67e22; color: #e67e22; }
-
-  /* ── Upload Zones ── */
-  .efs-upload-zone { border: 1.5px dashed #d8d8d8; border-radius: 10px; padding: 30px 20px; text-align: center; cursor: pointer; background: #fafafa; transition: all 0.15s; }
-  .efs-upload-zone:hover { border-color: #e67e22; background: #fff4ec; }
-  .efs-upload-icon { width: 44px; height: 44px; border-radius: 10px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #aaa; margin: 0 auto 10px; }
-  .efs-upload-text { font-size: 13px; font-weight: 600; color: #1c1c1e; }
-  .efs-upload-hint { font-size: 12px; color: #aaa; margin-top: 4px; }
-  .efs-photo-preview { position: relative; display: block; }
-  .efs-preview-icon { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; display: block; border: 3px solid #e8e8e8; }
-  .efs-preview-bg { width: 100%; max-height: 200px; object-fit: cover; border-radius: 10px; display: block; }
-  .efs-photo-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 6px; }
-  .efs-icon-btn { width: 32px; height: 32px; border-radius: 7px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity 0.15s, transform 0.1s; backdrop-filter: blur(6px); }
-  .efs-icon-btn:hover { opacity: 0.85; transform: scale(1.07); }
-  .efs-icon-btn.del { background: rgba(28,28,30,0.85); color: #fff; }
-  .efs-icon-btn.upd { background: rgba(230,126,34,0.9); color: #fff; }
-
-  /* ── Menu Cards ── */
-  .efs-menu-card { background: #fafafa; border: 1px solid #ebebeb; border-radius: 13px; padding: 24px; margin-bottom: 14px; }
-  .efs-menu-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid #f0f0f0; }
-  .efs-menu-header-left { display: flex; align-items: center; gap: 10px; }
-  .efs-menu-num { width: 28px; height: 28px; border-radius: 7px; background: #e67e22; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; font-family: 'DM Mono', monospace; }
-  .efs-menu-title { font-size: 15px; font-weight: 600; color: #1c1c1e; }
-  .efs-item-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 10px; letter-spacing: 0.3px; }
-  .efs-item-badge.existing { background: #f0f0f0; color: #888; border: 1px solid #e8e8e8; }
-  .efs-item-badge.new { background: #fff4ec; color: #e67e22; border: 1px solid rgba(230,126,34,0.3); }
-  .efs-remove-btn { display: flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #e8e8e8; color: #aaa; padding: 6px 13px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: inherit; }
-  .efs-remove-btn:hover { background: #1c1c1e; color: #fff; border-color: #1c1c1e; }
-
-  .efs-item-img { width: 100%; max-height: 160px; object-fit: cover; border-radius: 9px; display: block; }
-  .efs-img-uploading { position: absolute; inset: 0; background: rgba(0,0,0,0.4); border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 13px; gap: 8px; }
-
-  /* ── Dietary Tags ── */
-  .efs-tags-row { display: flex; flex-wrap: wrap; gap: 8px; }
-  .efs-tag-btn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; border: 1.5px solid; font-family: inherit; }
-  .efs-tag-check { font-size: 11px; font-weight: 700; }
-
-  /* ── Availability Toggle ── */
-  .efs-avail { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 9px; cursor: pointer; font-size: 13px; font-weight: 600; border: 1.5px solid; user-select: none; transition: all 0.15s; }
-  .efs-avail.on  { background: #fff4ec; color: #e67e22; border-color: rgba(230,126,34,0.3); }
-  .efs-avail.off { background: #f5f5f5; color: #aaa; border-color: #e8e8e8; }
-  .efs-avail-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  .efs-avail.on  .efs-avail-dot { background: #e67e22; }
-  .efs-avail.off .efs-avail-dot { background: #ccc; }
-
-  .efs-add-item-btn { width: 100%; padding: 14px; background: #fff; border: 1.5px dashed #d8d8d8; border-radius: 11px; color: #aaa; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.15s; font-family: inherit; margin-bottom: 20px; }
-  .efs-add-item-btn:hover { background: #fff4ec; border-color: #e67e22; color: #e67e22; }
-
-  /* ── Delete notice ── */
-  .efs-delete-notice { display: flex; align-items: center; gap: 10px; background: #fff4ec; border: 1px solid rgba(230,126,34,0.3); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #c0641a; font-weight: 500; }
-
-  /* ── Review / Summary ── */
-  .efs-section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #aaa; margin-bottom: 12px; }
-  .efs-summary-table { width: 100%; border-collapse: collapse; }
-  .efs-summary-table tr { border-bottom: 1px solid #f0f0f0; }
-  .efs-summary-table tr:last-child { border-bottom: none; }
-  .efs-summary-table td { padding: 10px 0; font-size: 13px; vertical-align: top; }
-  .efs-summary-table td:first-child { color: #999; width: 38%; }
-  .efs-summary-table td:last-child { font-weight: 600; color: #1c1c1e; text-align: right; }
-
-  /* ── Food Service Preview Card ── */
-  .efs-service-card { border-radius: 14px; overflow: hidden; border: 1px solid #e8e8e8; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.07); margin-bottom: 28px; }
-  .efs-service-card-cover { width: 100%; height: 155px; object-fit: cover; display: block; }
-  .efs-service-card-cover-placeholder { width: 100%; height: 155px; background: linear-gradient(135deg, #1c1c1e 0%, #2e2e2e 100%); display: flex; align-items: center; justify-content: center; }
-  .efs-service-card-body { padding: 0 18px 18px; position: relative; }
-  .efs-service-card-avatar {
-    position: absolute; top: -50px; left: 18px;
-    width: 108px; height: 108px; border-radius: 50%;
-    border: 4px solid #fff; overflow: hidden; background: #e67e22;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .efs-service-card-avatar img { width: 100%; height: 100%; object-fit: cover; }
-  .efs-service-card-info { padding-top: 68px; }
-  .efs-service-card-name { font-size: 17px; font-weight: 800; color: #1c1c1e; letter-spacing: -0.3px; margin-bottom: 4px; }
-  .efs-service-card-meta { font-size: 12px; color: #999; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-  .efs-service-card-meta span { display: flex; align-items: center; gap: 5px; }
-  .efs-service-card-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
-  .efs-chip { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
-  .efs-chip.orange { background: #fff4ec; color: #e67e22; border: 1px solid rgba(230,126,34,0.25); }
-  .efs-chip.dark   { background: #f3f3f3; color: #1c1c1e; border: 1px solid #e8e8e8; }
-
-  /* ── Menu Preview Rows ── */
-  .efs-menu-preview-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
-  .efs-menu-preview-row:last-child { border-bottom: none; }
-  .efs-menu-preview-thumb { width: 42px; height: 42px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
-  .efs-menu-preview-noimg { width: 42px; height: 42px; background: #f3f3f3; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #ccc; flex-shrink: 0; }
-  .efs-menu-preview-name { flex: 1; font-weight: 600; color: #1c1c1e; }
-  .efs-menu-preview-cat { background: #f3f3f3; color: #888; padding: 3px 9px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-  .efs-menu-preview-price { font-weight: 700; color: #e67e22; font-family: 'DM Mono', monospace; min-width: 90px; text-align: right; }
-  .efs-menu-preview-new { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px; background: #fff4ec; color: #e67e22; border: 1px solid rgba(230,126,34,0.3); }
-
-  /* ── Checkboxes ── */
-  .efs-check-label { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: #444; cursor: pointer; padding: 8px 0; line-height: 1.5; }
-  .efs-check-label input[type=checkbox] { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; cursor: pointer; accent-color: #e67e22; }
-
-  /* ── Save Progress ── */
-  .efs-save-bar { display: flex; align-items: center; gap: 12px; background: #fff4ec; border: 1px solid rgba(230,126,34,0.3); border-radius: 10px; padding: 13px 16px; margin-bottom: 16px; font-size: 13px; font-weight: 500; color: #c0641a; }
-  .efs-spin { animation: efs-spin 0.8s linear infinite; flex-shrink: 0; }
-  @keyframes efs-spin { to { transform: rotate(360deg); } }
-
-  /* ── Nav Buttons ── */
-  .efs-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 28px; padding-top: 20px; border-top: 1px solid #f0f0f0; gap: 12px; }
-  .efs-btn-secondary { display: flex; align-items: center; gap: 6px; background: #fff; border: 1.5px solid #e8e8e8; color: #444; padding: 10px 22px; border-radius: 9px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; font-family: inherit; }
-  .efs-btn-secondary:hover:not(:disabled) { background: #1c1c1e; color: #fff; border-color: #1c1c1e; }
-  .efs-btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
-  .efs-btn-primary { display: flex; align-items: center; gap: 6px; background: #e67e22; color: #fff; border: none; padding: 10px 28px; border-radius: 9px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; margin-left: auto; font-family: inherit; }
-  .efs-btn-primary:hover:not(:disabled) { background: #d35400; transform: translateY(-1px); }
-  .efs-btn-primary:disabled { background: #ccc; cursor: not-allowed; }
-  .efs-btn-save { display: flex; align-items: center; gap: 6px; background: #1c1c1e; color: #fff; border: none; padding: 10px 28px; border-radius: 9px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.15s; margin-left: auto; font-family: inherit; }
-  .efs-btn-save:hover:not(:disabled) { background: #e67e22; transform: translateY(-1px); }
-  .efs-btn-save:disabled { background: #ccc; cursor: not-allowed; }
-  .efs-btn-back { display: flex; align-items: center; gap: 6px; background: #e67e22; color: #fff; border: none; padding: 10px 22px; border-radius: 9px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
-
-  /* ── Responsive ── */
-  @media (max-width: 640px) {
-    .efs-type-grid { grid-template-columns: 1fr 1fr; }
-    .efs-option-row { flex-direction: column; }
-    .efs-row { grid-template-columns: 1fr; }
-    .efs-time-row { flex-direction: column; gap: 8px; }
-    .efs-time-divider { display: none; }
-    .efs-card { padding: 22px 16px; }
-    .efs-menu-card { padding: 16px; }
-    .efs-progress-wrapper { padding: 0 12px; }
-    .efs-topbar-center { display: none; }
-  }
-`;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 function EditFoodService() {
@@ -405,8 +156,8 @@ function EditFoodService() {
 
         const photoUrl = (pid) => `${BASE_URL}/photo/${pid}`;
 
-        if (fs.iconImage)       { setIconPreview(photoUrl(fs.iconImage));       setIconImageId(fs.iconImage); }
-        if (fs.BackgroundImage) { setBgPreview(photoUrl(fs.BackgroundImage));   setBgImageId(fs.BackgroundImage); }
+        if (fs.iconImage)       { setIconPreview(photoUrl(fs.iconImage));     setIconImageId(fs.iconImage); }
+        if (fs.BackgroundImage) { setBgPreview(photoUrl(fs.BackgroundImage)); setBgImageId(fs.BackgroundImage); }
 
         if (fs.menu && fs.menu.length > 0) {
           const items = await Promise.all(
@@ -552,12 +303,12 @@ function EditFoodService() {
     if (map) { map.panTo(SLIIT_LOCATION); map.setZoom(17); }
   };
 
-  // ── Save (upload new files, then update) ─────────────────────────────────
+  // ── Save ──────────────────────────────────────────────────────────────────
   const handleSaveListing = async () => {
-    if (!hasSelectedLocation)                          return alert("Please pin your kitchen location.");
-    if (!iconPreview || (!iconImageId && !iconFile))   return alert("Please upload a kitchen icon image.");
-    if (!bgPreview   || (!bgImageId   && !bgFile))     return alert("Please upload a kitchen background image.");
-    if (!isVerified || !isAgreed)                      return alert("Please confirm accuracy and agree to terms.");
+    if (!hasSelectedLocation)                        return alert("Please pin your kitchen location.");
+    if (!iconPreview || (!iconImageId && !iconFile)) return alert("Please upload a kitchen icon image.");
+    if (!bgPreview   || (!bgImageId   && !bgFile))   return alert("Please upload a kitchen background image.");
+    if (!isVerified || !isAgreed)                    return alert("Please confirm accuracy and agree to terms.");
 
     setIsSaving(true);
     try {
@@ -633,18 +384,35 @@ function EditFoodService() {
     { num: 5, label: "Review"  },
   ];
 
+  // ── Topbar shared across all states ──────────────────────────────────────
+  const Topbar = () => (
+    <div className="efs-topbar">
+      <div className="hn-nav__logo-wrap">
+        <a href="/Listings" className="hn-nav__logo">
+          <img
+            src="/images/logo2.png"
+            alt="Unisewana Logo"
+            style={{ height: "32px", width: "auto", display: "block" }}
+          />
+        </a>
+      </div>
+      {!isLoading && !loadError && (
+        <div className="efs-topbar-center">
+          <PenLine size={13} />
+          <span>Editing listing</span>
+          <div className="efs-topbar-center-dot" />
+          <span className="efs-topbar-center-name">{kitchenName || "…"}</span>
+        </div>
+      )}
+      <button className="efs-exit-btn" onClick={handleExit}><X size={14} /> Exit</button>
+    </div>
+  );
+
   // ── Loading state ─────────────────────────────────────────────────────────
   if (isLoading) return (
     <div className="efs-root">
-      <style>{styles}</style>
-      <div className="efs-topbar">
-        <div className="efs-topbar-brand">
-          <div className="efs-topbar-brand-dot"><Store size={15} /></div>
-          Food<span>Service</span>
-        </div>
-        <button className="efs-exit-btn" onClick={handleExit}><X size={14} /> Exit</button>
-      </div>
-      <div className="efs-state-screen" style={{ marginTop: 60 }}>
+      <Topbar />
+      <div className="efs-state-screen">
         <Loader2 size={32} className="efs-spin" color="#e67e22" />
         <p>Loading food service data...</p>
       </div>
@@ -654,15 +422,8 @@ function EditFoodService() {
   // ── Error state ───────────────────────────────────────────────────────────
   if (loadError) return (
     <div className="efs-root">
-      <style>{styles}</style>
-      <div className="efs-topbar">
-        <div className="efs-topbar-brand">
-          <div className="efs-topbar-brand-dot"><Store size={15} /></div>
-          Food<span>Service</span>
-        </div>
-        <button className="efs-exit-btn" onClick={handleExit}><X size={14} /> Exit</button>
-      </div>
-      <div className="efs-state-screen" style={{ marginTop: 60 }}>
+      <Topbar />
+      <div className="efs-state-screen">
         <AlertCircle size={32} color="#c0392b" />
         <p className="err">{loadError}</p>
         <button className="efs-btn-back" onClick={handleExit}>Go Back</button>
@@ -673,22 +434,8 @@ function EditFoodService() {
   // ── Main render ───────────────────────────────────────────────────────────
   return (
     <div className="efs-root">
-      <style>{styles}</style>
 
-      {/* Top Bar */}
-      <div className="efs-topbar">
-        <div className="efs-topbar-brand">
-          <div className="efs-topbar-brand-dot"><Store size={15} /></div>
-          Food<span>Service</span>
-        </div>
-        <div className="efs-topbar-center">
-          <PenLine size={13} />
-          <span>Editing listing</span>
-          <div className="efs-topbar-center-dot" />
-          <span style={{ color: "#1c1c1e", fontWeight: 700 }}>{kitchenName || "…"}</span>
-        </div>
-        <button className="efs-exit-btn" onClick={handleExit}><X size={14} /> Exit</button>
-      </div>
+      <Topbar />
 
       {/* Progress Bar */}
       <div className="efs-progress-wrapper">
@@ -829,8 +576,8 @@ function EditFoodService() {
               <div className="efs-map-error">
                 <MapPin size={22} />
                 <div>
-                  <div style={{ fontWeight: 600, marginBottom: 4 }}>Map failed to load</div>
-                  <div style={{ fontSize: 12, color: "#aaa" }}>Check your internet connection and reload.</div>
+                  <div className="efs-map-error-title">Map failed to load</div>
+                  <div className="efs-map-error-sub">Check your internet connection and reload.</div>
                 </div>
               </div>
             ) : !mapIsLoaded ? (
@@ -928,7 +675,7 @@ function EditFoodService() {
         {/* ── STEP 4 ── */}
         {currentStep === 4 && (
           <div>
-            <div className="efs-card" style={{ marginBottom: 16 }}>
+            <div className="efs-card efs-menu-header-card">
               <div className="efs-card-title">Edit menu</div>
               <div className="efs-card-subtitle">Update, remove, or add new items</div>
             </div>
@@ -951,13 +698,13 @@ function EditFoodService() {
                 <div className="efs-field">
                   <label className="efs-label">Item photo</label>
                   {!item.imagePreview ? (
-                    <div className="efs-upload-zone" style={{ padding: "18px 20px" }}
+                    <div className="efs-upload-zone efs-upload-zone--sm"
                       onClick={() => menuImageRefs.current[index]?.click()}>
                       <input type="file" accept="image/*" style={{ display: "none" }}
                         ref={el => (menuImageRefs.current[index] = el)}
                         onChange={e => handleMenuItemImageSelect(index, e)} />
-                      <div className="efs-upload-icon" style={{ width: 34, height: 34, marginBottom: 6 }}><Upload size={15} /></div>
-                      <div className="efs-upload-text" style={{ fontSize: 13 }}>Upload item photo</div>
+                      <div className="efs-upload-icon efs-upload-icon--sm"><Upload size={15} /></div>
+                      <div className="efs-upload-text efs-upload-text--sm">Upload item photo</div>
                     </div>
                   ) : (
                     <div className="efs-photo-preview">
@@ -1002,7 +749,7 @@ function EditFoodService() {
                       onBlur={e => {
                         const v = Number(e.target.value);
                         if (e.target.value === "") return;
-                        if (v < 100)   updateMenuItem(index, "price", "100");
+                        if (v < 100)        updateMenuItem(index, "price", "100");
                         else if (v > 10000) updateMenuItem(index, "price", "10000");
                       }}
                       min="100" max="10000" placeholder="350" />
@@ -1014,7 +761,7 @@ function EditFoodService() {
                       onBlur={e => {
                         const v = Number(e.target.value);
                         if (e.target.value === "") return;
-                        if (v < 1)   updateMenuItem(index, "prepTime", "1");
+                        if (v < 1)        updateMenuItem(index, "prepTime", "1");
                         else if (v > 120) updateMenuItem(index, "prepTime", "120");
                       }}
                       min="1" max="120" />
@@ -1084,7 +831,7 @@ function EditFoodService() {
               <Plus size={16} /> Add another menu item
             </button>
 
-            <div className="efs-nav" style={{ background: "#fff", borderRadius: 14, padding: "16px 24px", border: "1px solid #ebebeb" }}>
+            <div className="efs-nav efs-step4-nav">
               <button className="efs-btn-secondary" onClick={handlePreviousStep}><ChevronLeft size={15} /> Previous</button>
               <button className="efs-btn-primary" onClick={handleNextStep}>Next <ChevronRight size={15} /></button>
             </div>
@@ -1097,8 +844,7 @@ function EditFoodService() {
             <div className="efs-card-title">Review & save</div>
             <div className="efs-card-subtitle">Confirm everything looks right before saving changes</div>
 
-            {/* Listing preview card */}
-            <div className="efs-section-label" style={{ marginBottom: 14 }}>Listing preview</div>
+            <div className="efs-section-label efs-section-label--spaced">Listing preview</div>
             <div className="efs-service-card">
               {bgPreview
                 ? <img src={bgPreview} alt="cover" className="efs-service-card-cover" />
@@ -1108,7 +854,7 @@ function EditFoodService() {
                 <div className="efs-service-card-avatar">
                   {iconPreview
                     ? <img src={iconPreview} alt="icon" />
-                    : <Store size={40} color="#fff" />
+                    : <UtensilsCrossed size={40} color="#fff" />
                   }
                 </div>
                 <div className="efs-service-card-info">
@@ -1128,8 +874,7 @@ function EditFoodService() {
 
             <div className="efs-divider" />
 
-            {/* Kitchen details */}
-            <div style={{ marginBottom: 24 }}>
+            <div className="efs-review-block">
               <div className="efs-section-label">Kitchen details</div>
               <table className="efs-summary-table">
                 <tbody>
@@ -1149,9 +894,10 @@ function EditFoodService() {
 
             <div className="efs-divider" />
 
-            {/* Menu preview */}
-            <div style={{ marginBottom: 24 }}>
-              <div className="efs-section-label">Menu — {menuItems.length} item(s){deletedItemIds.length > 0 ? `, ${deletedItemIds.length} to be removed` : ""}</div>
+            <div className="efs-review-block">
+              <div className="efs-section-label">
+                Menu — {menuItems.length} item(s){deletedItemIds.length > 0 ? `, ${deletedItemIds.length} to be removed` : ""}
+              </div>
               {deletedItemIds.length > 0 && (
                 <div className="efs-delete-notice">
                   <Trash2 size={14} /> {deletedItemIds.length} item(s) will be permanently deleted on save.
@@ -1172,14 +918,13 @@ function EditFoodService() {
 
             <div className="efs-divider" />
 
-            {/* Confirmation */}
-            <div style={{ marginBottom: 20 }}>
+            <div className="efs-review-block">
               <div className="efs-section-label">Confirmation</div>
               <label className="efs-check-label">
                 <input type="checkbox" checked={isVerified} onChange={e => setIsVerified(e.target.checked)} />
                 I confirm all updated information is accurate and up to date.
               </label>
-              <label className="efs-check-label" style={{ marginTop: 4 }}>
+              <label className="efs-check-label efs-check-label--spaced">
                 <input type="checkbox" checked={isAgreed} onChange={e => setIsAgreed(e.target.checked)} />
                 I agree to the Terms of Service. New images will be uploaded on save.
               </label>
