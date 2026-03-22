@@ -346,7 +346,7 @@ export default function HostProfile() {
       <div className="hp-state">
         <FaExclamationCircle className="hp-state__err-icon" />
         <p className="hp-state__text">Could not load profile.</p>
-        <button className="hp-state__btn" onClick={() => navigate("/host")}>
+        <button className="hp-state__btn" onClick={() => navigate("/Listings")}>
           ← Back to Dashboard
         </button>
       </div>
