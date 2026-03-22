@@ -46,17 +46,20 @@ export default function HostNavbar({ activeHref = "" }) {
     clearAll,
   } = useNotifications(userId);
 
-  const [currentUser,   setCurrentUser]   = useState(null);
-  const [userAvatarSrc, setUserAvatarSrc] = useState(
+  const [currentUser,    setCurrentUser]    = useState(null);
+  const [userAvatarSrc,  setUserAvatarSrc]  = useState(
     () => sessionStorage.getItem("hostAvatarDataUrl") || null
   );
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [showBell,     setShowBell]     = useState(false);
-  const [showLogout,   setShowLogout]   = useState(false);
+  const [showDropdown,   setShowDropdown]   = useState(false);
+  const [showBell,       setShowBell]       = useState(false);
+  const [showLogout,     setShowLogout]     = useState(false);
+  const [unreadMsgCount, setUnreadMsgCount] = useState(0);
 
   const dropdownRef = useRef(null);
   const bellRef     = useRef(null);
+  const msgPollRef  = useRef(null);
 
+  // ── Fetch user profile + avatar ───────────────────────────────────────────
   useEffect(() => {
     if (!userId) return;
     fetch(`${API_BASE}/User/${userId}`)
@@ -93,6 +96,28 @@ export default function HostNavbar({ activeHref = "" }) {
       .catch(() => {});
   }, [userId]);
 
+  // ── Fetch unread message count + poll every 10s ───────────────────────────
+  const fetchUnreadMessages = async () => {
+    if (!userId) return;
+    try {
+      const res  = await fetch(`${API_BASE}/message/conversations/${userId}`);
+      const raw  = await res.json();
+      const list = raw?.data ?? raw?.result ?? raw;
+      const total = Array.isArray(list)
+        ? list.reduce((sum, conv) => sum + (conv.unreadCount?.[userId] ?? 0), 0)
+        : 0;
+      setUnreadMsgCount(total);
+    } catch { /* silent */ }
+  };
+
+  useEffect(() => {
+    if (!userId) return;
+    fetchUnreadMessages();
+    msgPollRef.current = setInterval(fetchUnreadMessages, 10000);
+    return () => clearInterval(msgPollRef.current);
+  }, [userId]);
+
+  // ── Close dropdowns on outside click ─────────────────────────────────────
   useEffect(() => {
     const handler = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target))
@@ -207,6 +232,8 @@ export default function HostNavbar({ activeHref = "" }) {
                 ? <img src={userAvatarSrc} alt="Profile" className="hn-user-avatar"
                     onError={() => setUserAvatarSrc(null)} />
                 : <span className="hn-user-icon-wrap"><FaUser className="hn-user-icon" /></span>}
+              {/* Unread message dot on the pill */}
+              {unreadMsgCount > 0 && <span className="hn-menu-msg-dot" />}
             </button>
 
             {showDropdown && (
@@ -231,6 +258,11 @@ export default function HostNavbar({ activeHref = "" }) {
                 <div className="hn-dropdown__item"
                   onClick={() => { setShowDropdown(false); navigate("/Messages"); }}>
                   <FaEnvelope style={{ opacity: 0.55 }} /> Messages
+                  {unreadMsgCount > 0 && (
+                    <span className="hn-dropdown-msg-badge">
+                      {unreadMsgCount > 99 ? "99+" : unreadMsgCount}
+                    </span>
+                  )}
                 </div>
                 <div className="hn-dropdown__divider" />
                 <div className="hn-dropdown__item hn-dropdown__item--danger"

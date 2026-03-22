@@ -37,10 +37,10 @@ const BG_CYCLE = [
 ];
 
 const CAT_ICON = {
-  Breakfast: <FaBreadSlice />,
-  Lunch:     <FaDrumstickBite />,
-  Dinner:    <FaEgg />,
-  Snacks:    <FaAppleAlt />,
+  Breakfast: <FaEgg />,
+  Lunch:     <FaAppleAlt />,
+  Dinner:    <FaDrumstickBite />,
+  Snacks:    <FaBreadSlice />,
   Drinks:    <FaGlassWhiskey />,
   Dessert:   <FaIceCream />,
 };
@@ -946,10 +946,24 @@ export default function FoodService() {
                   </div>
                   <div className="fs-action-dropdown__divider" />
                   <button className="fs-action-dropdown__item fs-action-dropdown__item--primary"
-                    onClick={() => {
+                    onClick={async () => {
                       setShowActionMenu(false);
                       if (!isLoggedIn || !isStudent) { setShowLoginRequired(true); return; }
-                      showToast("Opening messages…");
+                      const hostId = service?.owner?._id ?? service?.owner;
+                      if (!hostId) { showToast("Host info not available."); return; }
+                      try {
+                        showToast("Opening chat…");
+                        const res = await fetch(`${API_BASE}/message/conversation`, {
+                          method:  "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body:    JSON.stringify({ senderId: userId, receiverId: hostId }),
+                        });
+                        const raw  = await res.json();
+                        const conv = raw?.data ?? raw?.result ?? raw;
+                        navigate("/Messages", { state: { openConversationId: conv._id } });
+                      } catch {
+                        showToast("Failed to open chat. Try again.");
+                      }
                     }}>
                     <FaCommentAlt style={{ fontSize:13 }} /> Message Host
                   </button>

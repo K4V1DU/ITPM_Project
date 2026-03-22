@@ -14,7 +14,7 @@ import HostProfile from "./Components/Host_Profile/HostProfile";
 import FoodCheckout from "./Components/Food_Checkout/FoodCheckout";
 import Payment from "./Components/Payment/Payment";
 import PaymentReceipt from "./Components/Payment/PaymentReceipt";
-import Messages from "./Components/Message/Message";
+import Messages from "./Components/Message/Messages";
 import HostOrders from "./Components/Host_Orders/HostOrders";
 import HostNavbar from "./Components/NavBar/Host_NavBar/HostNavbar";
 import Footer from "./Components/NavBar/Footer/Footer";
