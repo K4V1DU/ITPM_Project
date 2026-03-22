@@ -347,6 +347,15 @@
   display: flex; align-items: center; gap: 6px; color: #92400e;
 }
 .hb-warn-icon { font-size: 10px; color: #f59e0b; }
+
+/* ── Message from student ── */
+.hb-detail__section-label--msg {
+  display: flex; align-items: center; gap: 6px; color: #1e40af;
+}
+.hb-msg-icon { font-size: 10px; color: #3b82f6; }
+
+/* ── Time icon colour in date card ── */
+.hb-date-card__icon--time { color: #6366f1; }
 .hb-detail__notes {
   font-size: 13px; color: #757575;
   line-height: 1.6;

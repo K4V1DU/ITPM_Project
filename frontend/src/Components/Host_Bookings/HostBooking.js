@@ -4,7 +4,6 @@ import {
   FaHome,
   FaSpinner,
   FaMapMarkerAlt,
-  FaExclamationTriangle,
   FaCheckCircle,
   FaPhone,
   FaClock,
@@ -15,51 +14,28 @@ import {
   FaBoxOpen,
   FaExternalLinkAlt,
   FaCalendarAlt,
-  FaCalendarCheck,
-  FaUsers,
   FaBed,
-  FaMoneyBillWave,
   FaEnvelope,
+  FaCommentAlt,
 } from "react-icons/fa";
 import HostNavbar from "../NavBar/Host_NavBar/HostNavbar";
 import Footer from "../NavBar/Footer/Footer";
 import "./HostBooking.css";
 
 const API_BASE = "http://localhost:8000";
+// ✅ FIX 1: correct base path — matches router.js mount point
 const BOOKING_API = `${API_BASE}/Booking`;
 const ORANGE = "#FF6B2B";
 
 // ─── Notification helper — fire-and-forget ────────────────────────────────────
-async function sendNotification({
-  recipient,
-  type,
-  title,
-  message,
-  link,
-  refId,
-  refType,
-}) {
+async function sendNotification({ recipient, type, title, message, link, refId, refType }) {
   try {
     await fetch(`${API_BASE}/Notification`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        recipient,
-        type,
-        title,
-        message,
-        link,
-        refId,
-        refType,
-      }),
+      body: JSON.stringify({ recipient, type, title, message, link, refId, refType }),
     });
-  } catch {
-    /* silent */
-  }
-}
-
-function unwrap(raw) {
-  return raw?.data ?? raw?.result ?? raw;
+  } catch { /* silent */ }
 }
 
 function timeAgo(dateStr) {
@@ -67,10 +43,7 @@ function timeAgo(dateStr) {
   if (diff < 60) return `${diff}s ago`;
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function formatDate(dateStr) {
@@ -82,40 +55,18 @@ function formatDate(dateStr) {
   });
 }
 
-function nightsBetween(checkIn, checkOut) {
-  if (!checkIn || !checkOut) return 0;
-  const diff = new Date(checkOut) - new Date(checkIn);
-  return Math.max(0, Math.round(diff / (1000 * 60 * 60 * 24)));
-}
-
 const STATUS = {
   pending: {
-    bg: "#fff7ed",
-    text: "#c2410c",
-    dot: ORANGE,
-    border: "#fcd9c4",
-    label: "Pending",
+    bg: "#fff7ed", text: "#c2410c", dot: ORANGE, border: "#fcd9c4", label: "Pending",
   },
   confirmed: {
-    bg: "#f7f7f7",
-    text: "#1b1b1b",
-    dot: "#1b1b1b",
-    border: "#e2e2e2",
-    label: "Confirmed",
+    bg: "#f7f7f7", text: "#1b1b1b", dot: "#1b1b1b", border: "#e2e2e2", label: "Confirmed",
   },
   completed: {
-    bg: "#f0fdf4",
-    text: "#15803d",
-    dot: "#22c55e",
-    border: "#bbf7d0",
-    label: "Completed",
+    bg: "#f0fdf4", text: "#15803d", dot: "#22c55e", border: "#bbf7d0", label: "Completed",
   },
   cancelled: {
-    bg: "#fef2f2",
-    text: "#b91c1c",
-    dot: "#ef4444",
-    border: "#fecaca",
-    label: "Cancelled",
+    bg: "#fef2f2", text: "#b91c1c", dot: "#ef4444", border: "#fecaca", label: "Cancelled",
   },
 };
 
@@ -123,37 +74,27 @@ const STATUS = {
 // CONFIRM MODAL
 // ─────────────────────────────────────────
 function ConfirmModal({ action, onConfirm, onCancel, loading }) {
-  const isConfirm = action === "confirmed";
+  const isConfirm  = action === "confirmed";
   const isComplete = action === "completed";
-  const isCancel = action === "cancelled";
+  const isCancel   = action === "cancelled";
   return (
     <div className="hb-overlay" onClick={!loading ? onCancel : undefined}>
       <div className="hb-modal" onClick={(e) => e.stopPropagation()}>
-        <div
-          className={`hb-modal__icon-wrap hb-modal__icon-wrap--${isCancel ? "danger" : "primary"}`}
-        >
+        <div className={`hb-modal__icon-wrap hb-modal__icon-wrap--${isCancel ? "danger" : "primary"}`}>
           {isCancel ? <FaTimesCircle /> : <FaCheckCircle />}
         </div>
         <h3 className="hb-modal__title">
-          {isConfirm
-            ? "Confirm Booking"
-            : isComplete
-              ? "Mark as Completed"
-              : "Cancel Booking"}
+          {isConfirm ? "Confirm Booking" : isComplete ? "Mark as Completed" : "Cancel Booking"}
         </h3>
         <p className="hb-modal__desc">
           {isConfirm
-            ? "Confirm this booking? The student will be notified their stay is approved."
+            ? "Confirm this booking? The student will be notified their visit is approved."
             : isComplete
-              ? "Mark this booking as completed? This confirms the stay has ended."
-              : "Cancel this booking? This action cannot be undone and the student will be notified."}
+            ? "Mark this booking as completed? This confirms the visit has taken place."
+            : "Cancel this booking? This action cannot be undone and the student will be notified."}
         </p>
         <div className="hb-modal__btns">
-          <button
-            className="hb-modal__btn hb-modal__btn--ghost"
-            onClick={onCancel}
-            disabled={loading}
-          >
+          <button className="hb-modal__btn hb-modal__btn--ghost" onClick={onCancel} disabled={loading}>
             Back
           </button>
           <button
@@ -163,13 +104,7 @@ function ConfirmModal({ action, onConfirm, onCancel, loading }) {
           >
             {loading ? (
               <FaSpinner className="hb-spin" />
-            ) : isConfirm ? (
-              "Confirm"
-            ) : isComplete ? (
-              "Mark Completed"
-            ) : (
-              "Yes, Cancel"
-            )}
+            ) : isConfirm ? "Confirm" : isComplete ? "Mark Completed" : "Yes, Cancel"}
           </button>
         </div>
       </div>
@@ -183,14 +118,7 @@ function ConfirmModal({ action, onConfirm, onCancel, loading }) {
 function StatusBadge({ status }) {
   const s = STATUS[status] ?? STATUS.pending;
   return (
-    <span
-      className="hb-badge"
-      style={{
-        background: s.bg,
-        color: s.text,
-        border: `1px solid ${s.border}`,
-      }}
-    >
+    <span className="hb-badge" style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}` }}>
       <span className="hb-badge__dot" style={{ background: s.dot }} />
       {s.label}
     </span>
@@ -201,9 +129,9 @@ function StatusBadge({ status }) {
 // LEFT: BOOKING ROW
 // ─────────────────────────────────────────
 function BookingRow({ booking, selected, onClick }) {
+  // ✅ FIX 2: real fields from Booking model — visitDate & visitTime, not checkIn/checkOut
   const name = booking.student?.name ?? "Student";
-  const s = STATUS[booking.status] ?? STATUS.pending;
-  const nights = nightsBetween(booking.checkIn, booking.checkOut);
+  const s    = STATUS[booking.status] ?? STATUS.pending;
 
   return (
     <div
@@ -221,12 +149,11 @@ function BookingRow({ booking, selected, onClick }) {
         </div>
         <div className="hb-row__meta">
           <span>
-            {nights} night{nights !== 1 ? "s" : ""}
+            <FaCalendarAlt style={{ fontSize: 9 }} />{" "}
+            {formatDate(booking.visitDate)}
           </span>
           <span className="hb-sep">·</span>
-          <span className="hb-row__price">
-            LKR {booking.totalPrice?.toLocaleString()}
-          </span>
+          <span>{booking.visitTime ?? "—"}</span>
           <span className="hb-sep">·</span>
           <span className="hb-row__time">
             <FaClock style={{ fontSize: 9 }} /> {timeAgo(booking.createdAt)}
@@ -250,38 +177,29 @@ function BookingDetail({ booking, onAction, actionLoading }) {
     return (
       <div className="hb-detail hb-detail--empty">
         <FaBookmark className="hb-detail__empty-icon" />
-        <p className="hb-detail__empty-text">
-          Select a booking to view details
-        </p>
+        <p className="hb-detail__empty-text">Select a booking to view details</p>
       </div>
     );
   }
 
-  const student = booking.student ?? {};
-  const name = student.name ?? "Student";
-  const phone = student.phone ?? null;
+  const student    = booking.student ?? {};
+  const name       = student.name ?? "Student";
+  const phone      = student.phone ?? null;
   const profileImg = student.profileImage
     ? `${API_BASE}/Photo/${student.profileImage}`
     : null;
   const busy = actionLoading === booking._id;
 
-  const nights = nightsBetween(booking.checkIn, booking.checkOut);
-  const pricePerNight = booking.pricePerNight ?? (nights > 0 ? Math.round((booking.subtotal ?? booking.totalPrice) / nights) : 0);
-
-  // Map for bookings that have coordinates
-  const lat = booking.accommodation?.location?.coordinates?.[1];
-  const lng = booking.accommodation?.location?.coordinates?.[0];
-  const showMap = lat && lng;
-  const mapSrc = showMap
-    ? `https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed`
-    : null;
-  const mapsLink = showMap
-    ? `https://www.google.com/maps?q=${lat},${lng}`
-    : null;
+  // Map — only if accommodation has coordinates
+  const lat      = booking.accommodation?.location?.coordinates?.[1];
+  const lng      = booking.accommodation?.location?.coordinates?.[0];
+  const showMap  = lat && lng;
+  const mapSrc   = showMap ? `https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed` : null;
+  const mapsLink = showMap ? `https://www.google.com/maps?q=${lat},${lng}` : null;
 
   return (
     <div className="hb-detail">
-      {/* ── Header: customer + meta ── */}
+      {/* ── Header ── */}
       <div className="hb-detail__header">
         <div className="hb-detail__booking-id">
           <span className="hb-detail__booking-id__text">
@@ -297,9 +215,7 @@ function BookingDetail({ booking, onAction, actionLoading }) {
                   src={profileImg}
                   alt={name}
                   className="hb-detail__avatar-img"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
                 />
               ) : (
                 name.charAt(0).toUpperCase()
@@ -308,10 +224,7 @@ function BookingDetail({ booking, onAction, actionLoading }) {
             <div className="hb-detail__customer-info">
               <div className="hb-detail__customer-name">{name}</div>
               {student.email && (
-                <a
-                  href={`mailto:${student.email}`}
-                  className="hb-detail__email"
-                >
+                <a href={`mailto:${student.email}`} className="hb-detail__email">
                   <FaEnvelope style={{ fontSize: 10 }} /> {student.email}
                 </a>
               )}
@@ -340,103 +253,45 @@ function BookingDetail({ booking, onAction, actionLoading }) {
             {timeAgo(booking.createdAt)}
           </span>
           <span className="hb-sep">·</span>
-          <span className="hb-header-meta__item hb-header-meta__item--nights">
+          <span className="hb-header-meta__item hb-header-meta__item--visit">
             <FaCalendarAlt style={{ fontSize: 11 }} />
-            {nights} night{nights !== 1 ? "s" : ""}
+            {formatDate(booking.visitDate)}
           </span>
-          {booking.guests > 0 && (
-            <>
-              <span className="hb-sep">·</span>
-              <span className="hb-header-meta__item">
-                <FaUsers style={{ fontSize: 11 }} />
-                {booking.guests} guest{booking.guests !== 1 ? "s" : ""}
-              </span>
-            </>
-          )}
         </div>
       </div>
 
       {/* ── Body ── */}
       <div className="hb-detail__body">
 
-        {/* STAY DATES */}
+        {/* ✅ FIX 3: visitDate + visitTime cards instead of checkIn/checkOut/rooms/pricing */}
         <div className="hb-detail__section">
-          <div className="hb-detail__section-label">Stay Details</div>
+          <div className="hb-detail__section-label">Visit Details</div>
           <div className="hb-dates-grid">
             <div className="hb-date-card">
               <div className="hb-date-card__label">
-                <FaCalendarAlt className="hb-date-card__icon" /> Check-in
+                <FaCalendarAlt className="hb-date-card__icon" /> Visit Date
               </div>
-              <div className="hb-date-card__value">{formatDate(booking.checkIn)}</div>
-              <div className="hb-date-card__sub">From 2:00 PM</div>
+              <div className="hb-date-card__value">{formatDate(booking.visitDate)}</div>
+              <div className="hb-date-card__sub">Scheduled visit day</div>
             </div>
-            <div className="hb-date-arrow">→</div>
+            <div className="hb-date-arrow">·</div>
             <div className="hb-date-card">
               <div className="hb-date-card__label">
-                <FaCalendarCheck className="hb-date-card__icon hb-date-card__icon--out" /> Check-out
+                <FaClock className="hb-date-card__icon hb-date-card__icon--time" /> Visit Time
               </div>
-              <div className="hb-date-card__value">{formatDate(booking.checkOut)}</div>
-              <div className="hb-date-card__sub">By 11:00 AM</div>
-            </div>
-          </div>
-
-          {/* Room / unit info */}
-          {booking.rooms && booking.rooms.length > 0 && (
-            <div className="hb-rooms-list">
-              {booking.rooms.map((room, i) => (
-                <div key={i} className="hb-room-row">
-                  <div className="hb-room-row__icon">
-                    <FaBed />
-                  </div>
-                  <span className="hb-room-row__name">{room.name ?? `Room ${i + 1}`}</span>
-                  {room.type && (
-                    <span className="hb-room-row__type">{room.type}</span>
-                  )}
-                  <span className="hb-room-row__price">
-                    LKR {room.price?.toLocaleString() ?? "—"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Price summary — receipt style */}
-          <div className="hb-detail__totals">
-            <div className="hb-detail__total-row">
-              <span>
-                LKR {pricePerNight?.toLocaleString()} × {nights} night{nights !== 1 ? "s" : ""}
-              </span>
-              <span>LKR {(booking.subtotal ?? booking.totalPrice)?.toLocaleString()}</span>
-            </div>
-            {booking.cleaningFee > 0 && (
-              <div className="hb-detail__total-row">
-                <span>Cleaning fee</span>
-                <span>LKR {booking.cleaningFee?.toLocaleString()}</span>
-              </div>
-            )}
-            {booking.serviceFee > 0 && (
-              <div className="hb-detail__total-row">
-                <span>Service fee</span>
-                <span>LKR {booking.serviceFee?.toLocaleString()}</span>
-              </div>
-            )}
-            <div className="hb-detail__total-row hb-detail__total-row--grand">
-              <span>Total</span>
-              <span className="hb-detail__grand-price">
-                LKR {booking.totalPrice?.toLocaleString()}
-              </span>
+              <div className="hb-date-card__value">{booking.visitTime ?? "—"}</div>
+              <div className="hb-date-card__sub">Preferred arrival time</div>
             </div>
           </div>
         </div>
 
-        {/* NOTES */}
-        {booking.notes && (
+        {/* MESSAGE FROM STUDENT */}
+        {booking.message && (
           <div className="hb-detail__section">
-            <div className="hb-detail__section-label hb-detail__section-label--warn">
-              <FaExclamationTriangle className="hb-warn-icon" /> Special
-              Requests
+            <div className="hb-detail__section-label hb-detail__section-label--msg">
+              <FaCommentAlt className="hb-msg-icon" /> Message from Student
             </div>
-            <div className="hb-detail__notes">{booking.notes}</div>
+            <div className="hb-detail__notes">{booking.message}</div>
           </div>
         )}
 
@@ -484,7 +339,7 @@ function BookingDetail({ booking, onAction, actionLoading }) {
           </div>
         )}
 
-        {/* MAP — always at the bottom */}
+        {/* MAP — always last */}
         {showMap && mapSrc && (
           <div className="hb-detail__section hb-detail__section--map">
             <div className="hb-detail__section-label">Property Location</div>
@@ -514,8 +369,7 @@ function BookingDetail({ booking, onAction, actionLoading }) {
                 rel="noopener noreferrer"
                 className="hb-map-link"
               >
-                <FaExternalLinkAlt style={{ fontSize: 11 }} /> Open in Google
-                Maps
+                <FaExternalLinkAlt style={{ fontSize: 11 }} /> Open in Google Maps
               </a>
             )}
           </div>
@@ -530,27 +384,24 @@ function BookingDetail({ booking, onAction, actionLoading }) {
 // ─────────────────────────────────────────
 export default function HostBooking() {
   const navigate = useNavigate();
-  const userId = localStorage.getItem("CurrentUserId");
+  const userId   = localStorage.getItem("CurrentUserId");
 
-  const [bookings, setBookings] = useState([]);
+  const [bookings,        setBookings]        = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [loadingBookings, setLoadingBookings] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [confirmModal, setConfirmModal] = useState(null);
-  const [actionLoading, setActionLoading] = useState(null);
-  const [lastRefresh, setLastRefresh] = useState(Date.now());
-  const [toast, setToast] = useState({ show: false, msg: "" });
-  const [error, setError] = useState(null);
+  const [statusFilter,    setStatusFilter]    = useState("all");
+  const [searchQuery,     setSearchQuery]     = useState("");
+  const [confirmModal,    setConfirmModal]    = useState(null);
+  const [actionLoading,   setActionLoading]   = useState(null);
+  const [lastRefresh,     setLastRefresh]     = useState(Date.now());
+  const [toast,           setToast]           = useState({ show: false, msg: "" });
+  const [error,           setError]           = useState(null);
   const toastRef = useRef(null);
 
   const showToast = (msg) => {
     setToast({ show: true, msg });
     clearTimeout(toastRef.current);
-    toastRef.current = setTimeout(
-      () => setToast({ show: false, msg: "" }),
-      2600
-    );
+    toastRef.current = setTimeout(() => setToast({ show: false, msg: "" }), 2600);
   };
 
   useEffect(() => {
@@ -561,47 +412,41 @@ export default function HostBooking() {
     if (!userId) return;
     setLoadingBookings(true);
     setError(null);
-    fetch(`${BOOKING_API}/owner/${userId}`)
+
+    // ✅ FIX 1: /host/:hostId  — matches router.get("/host/:hostId", getHostBookings)
+    fetch(`${BOOKING_API}/host/${userId}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((raw) => {
-        const list = unwrap(raw);
-        const arr = Array.isArray(list?.data ?? list)
-          ? list?.data ?? list
-          : [];
-        const sorted = arr.sort(
-          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-        );
+        // Controller returns { success: true, data: [...] }
+        const arr    = Array.isArray(raw?.data) ? raw.data : [];
+        const sorted = arr.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setBookings(sorted);
         setSelectedBooking((prev) =>
-          prev
-            ? sorted.find((b) => b._id === prev._id) ?? sorted[0]
-            : sorted[0]
+          prev ? sorted.find((b) => b._id === prev._id) ?? sorted[0] : sorted[0]
         );
       })
       .catch((err) => {
-        if (err === 404) {
-          setBookings([]);
-          return;
-        }
+        if (err === 404) { setBookings([]); return; }
         setError("Failed to load bookings. Please try again.");
       })
       .finally(() => setLoadingBookings(false));
   }, [userId, lastRefresh]);
 
-  const handleAction = (booking, action) =>
-    setConfirmModal({ booking, action });
+  const handleAction = (booking, action) => setConfirmModal({ booking, action });
 
   const handleConfirmAction = async () => {
     if (!confirmModal) return;
     const { booking, action } = confirmModal;
     setActionLoading(booking._id);
     try {
-      const res = await fetch(`${BOOKING_API}/${booking._id}/status`, {
+      // ✅ FIX 2: PUT /:id  — matches router.put("/:id", updateBookingStatus)
+      const res = await fetch(`${BOOKING_API}/${booking._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: action }),
       });
       if (!res.ok) throw new Error();
+
       setBookings((prev) =>
         prev.map((b) => (b._id === booking._id ? { ...b, status: action } : b))
       );
@@ -609,29 +454,18 @@ export default function HostBooking() {
         prev?._id === booking._id ? { ...prev, status: action } : prev
       );
       showToast(
-        action === "confirmed"
-          ? "Booking confirmed."
-          : action === "completed"
-          ? "Booking marked as completed."
-          : "Booking cancelled."
+        action === "confirmed"   ? "Booking confirmed."
+        : action === "completed" ? "Booking marked as completed."
+        : "Booking cancelled."
       );
 
       // ── Notify student ────────────────────────────────────────────────────
       const studentId = booking.student?._id ?? booking.student ?? null;
-      const propName = booking.accommodation?.name ?? "the property";
-      const notifMap = {
-        confirmed: {
-          title: "Booking Confirmed",
-          message: `Your booking at ${propName} has been confirmed. See you soon!`,
-        },
-        completed: {
-          title: "Stay Completed",
-          message: `Your stay at ${propName} has been marked as completed. Thank you!`,
-        },
-        cancelled: {
-          title: "Booking Cancelled",
-          message: `Your booking at ${propName} has been cancelled by the host.`,
-        },
+      const propName  = booking.accommodation?.name ?? "the property";
+      const notifMap  = {
+        confirmed: { title: "Booking Confirmed", message: `Your booking at ${propName} has been confirmed.` },
+        completed: { title: "Visit Completed",   message: `Your visit to ${propName} has been marked as completed.` },
+        cancelled: { title: "Booking Cancelled", message: `Your booking at ${propName} has been cancelled by the host.` },
       };
       const notif = notifMap[action];
       if (studentId && notif) {
@@ -653,14 +487,15 @@ export default function HostBooking() {
     }
   };
 
+  // ✅ FIX 4: search on actual fields — visitDate, visitTime, message (not rooms[])
   const filteredBookings = bookings.filter((b) => {
     const matchStatus = statusFilter === "all" || b.status === statusFilter;
     const q = searchQuery.toLowerCase();
     const matchSearch =
       !q ||
-      (b.student?.name ?? "").toLowerCase().includes(q) ||
+      (b.student?.name       ?? "").toLowerCase().includes(q) ||
       (b.accommodation?.name ?? "").toLowerCase().includes(q) ||
-      b.rooms?.some((r) => (r.name ?? "").toLowerCase().includes(q));
+      (b.message             ?? "").toLowerCase().includes(q);
     return matchStatus && matchSearch;
   });
 
@@ -679,10 +514,7 @@ export default function HostBooking() {
               {bookings.length} booking{bookings.length !== 1 ? "s" : ""}
             </span>
           </div>
-          <button
-            className="hb-btn-refresh"
-            onClick={() => setLastRefresh(Date.now())}
-          >
+          <button className="hb-btn-refresh" onClick={() => setLastRefresh(Date.now())}>
             <FaSyncAlt /> Refresh
           </button>
         </div>
@@ -695,13 +527,9 @@ export default function HostBooking() {
               className={`hb-tab${statusFilter === s ? " hb-tab--active" : ""}`}
               onClick={() => setStatusFilter(s)}
             >
-              {s === "all"
-                ? "All Bookings"
-                : s.charAt(0).toUpperCase() + s.slice(1)}
+              {s === "all" ? "All Bookings" : s.charAt(0).toUpperCase() + s.slice(1)}
               <span className="hb-tab__count">
-                {s === "all"
-                  ? bookings.length
-                  : bookings.filter((b) => b.status === s).length}
+                {s === "all" ? bookings.length : bookings.filter((b) => b.status === s).length}
               </span>
             </button>
           ))}
@@ -716,7 +544,7 @@ export default function HostBooking() {
               <input
                 className="hb-search"
                 type="text"
-                placeholder="Search guest, property or room..."
+                placeholder="Search guest, property or message..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -724,15 +552,9 @@ export default function HostBooking() {
 
             {error ? (
               <div className="hb-empty">
-                <FaTimesCircle
-                  className="hb-empty__icon"
-                  style={{ color: "#dc2626" }}
-                />
+                <FaTimesCircle className="hb-empty__icon" style={{ color: "#dc2626" }} />
                 <p>{error}</p>
-                <button
-                  className="hb-btn-refresh"
-                  onClick={() => setLastRefresh(Date.now())}
-                >
+                <button className="hb-btn-refresh" onClick={() => setLastRefresh(Date.now())}>
                   <FaSyncAlt /> Retry
                 </button>
               </div>
@@ -755,7 +577,7 @@ export default function HostBooking() {
                   {searchQuery
                     ? "No bookings match your search."
                     : bookings.length === 0
-                    ? "No bookings placed yet."
+                    ? "No bookings yet."
                     : "No bookings for this filter."}
                 </p>
               </div>
