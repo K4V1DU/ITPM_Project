@@ -14,6 +14,12 @@ import "./HostListings.css";
 
 const BASE_URL = "http://localhost:8000";
 
+// ─── Helper ───────────────────────────────────────────────────────────────────
+const isListingLive = (item) => {
+  const notExpired = !item.expireDate || new Date(item.expireDate) >= new Date();
+  return item.isAvailable && notExpired;
+};
+
 // ─── ListingCard ──────────────────────────────────────────────────────────────
 function ListingCard({ item, type, onClick }) {
   const { cachedUrl, photoStatus } = usePhotoCache();
@@ -23,10 +29,9 @@ function ListingCard({ item, type, onClick }) {
   const status       = photoStatus(coverPhotoId);
   const imgLoading   = status === "loading";
 
-  const isAvailable = item.isAvailable;
-  const isOpen      = isAvailable;
-  const title       = type === "food" ? item.kitchenName : item.title;
-  const typeLabel   = type === "food" ? item.serviceType : (item.accommodationType || "Accommodation");
+  const isOpen  = isListingLive(item);
+  const title   = type === "food" ? item.kitchenName : item.title;
+  const typeLabel = type === "food" ? item.serviceType : (item.accommodationType || "Accommodation");
   const rating      = item.ratingAverage ?? 0;
   const reviewCount = item.ratingCount   ?? item.reviews?.length ?? 0;
 
@@ -181,8 +186,11 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
   const iconUrl      = type === "food" ? cachedUrl(item.iconImage) : null;
 
   const isAvailable = item.isAvailable;
-  const title       = type === "food" ? item.kitchenName : item.title;
-  const subtitle    = type === "food" ? item.serviceType : (item.accommodationType || "Accommodation");
+  const isExpired   = item.expireDate && new Date(item.expireDate) < new Date();
+  const isListed    = isAvailable && !isExpired;
+
+  const title    = type === "food" ? item.kitchenName : item.title;
+  const subtitle = type === "food" ? item.serviceType : (item.accommodationType || "Accommodation");
 
   const handleToggle = async () => {
     setToggling(true);
@@ -190,8 +198,7 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
     setToggling(false);
   };
 
-  const fmtDate   = (d) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-  const isExpired = item.expireDate && new Date(item.expireDate) < new Date();
+  const fmtDate = (d) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
   return (
     <div className="popup-overlay" onClick={onClose}>
@@ -202,8 +209,9 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
             : <div className="popup-cover-placeholder">{type === "food" ? "Food Service" : "Accommodation"}</div>
           }
           <button className="popup-close" onClick={onClose}><FaTimes /></button>
-          <div className={`popup-status-badge ${isAvailable ? "on" : "off"}`}>
-            <span className="pill-dot" />{isAvailable ? "Listed" : "Unlisted"}
+          <div className={`popup-status-badge ${isListed ? "on" : "off"}`}>
+            <span className="pill-dot" />
+            {isListed ? "Listed" : isExpired ? "Expired" : "Unlisted"}
           </div>
           {iconUrl && (
             <div className="popup-icon-wrap">
@@ -230,10 +238,15 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
 
           <div className="popup-details">
             {item.address && (
-              <div className="popup-detail-row"><FaMapMarkerAlt className="popup-detail-icon" /><span>{item.address}</span></div>
+              <div className="popup-detail-row">
+                <FaMapMarkerAlt className="popup-detail-icon" /><span>{item.address}</span>
+              </div>
             )}
             {type === "food" && item.operatingHours && (
-              <div className="popup-detail-row"><FaClock className="popup-detail-icon" /><span>{item.operatingHours.open} – {item.operatingHours.close}</span></div>
+              <div className="popup-detail-row">
+                <FaClock className="popup-detail-icon" />
+                <span>{item.operatingHours.open} – {item.operatingHours.close}</span>
+              </div>
             )}
             {type === "food" && (item.deliveryAvailable || item.pickupAvailable) && (
               <div className="popup-detail-row">
@@ -248,7 +261,10 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
               </div>
             )}
             {type === "accommodation" && item.pricePerMonth && (
-              <div className="popup-detail-row"><FaCreditCard className="popup-detail-icon" /><span>LKR {Number(item.pricePerMonth).toLocaleString()} / month</span></div>
+              <div className="popup-detail-row">
+                <FaCreditCard className="popup-detail-icon" />
+                <span>LKR {Number(item.pricePerMonth).toLocaleString()} / month</span>
+              </div>
             )}
             {type === "accommodation" && (item.bedrooms || item.bathrooms) && (
               <div className="popup-detail-row">
@@ -271,7 +287,9 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
               <div className="popup-detail-row">
                 <FaClock className={`popup-detail-icon ${isExpired ? "icon-red" : "icon-green"}`} />
                 <span className={isExpired ? "text-red" : "text-green"}>
-                  {isExpired ? `Expired ${fmtDate(item.expireDate)}` : `Expires ${fmtDate(item.expireDate)}`}
+                  {isExpired
+                    ? `Expired ${fmtDate(item.expireDate)}`
+                    : `Expires ${fmtDate(item.expireDate)}`}
                 </span>
               </div>
             )}
@@ -296,8 +314,8 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
           <div className="popup-status-toggle-section">
             <div className="popup-status-toggle-label">
               <span className="toggle-label-text">Listing Status</span>
-              <span className={`toggle-label-status ${isAvailable ? "active" : "inactive"}`}>
-                {isAvailable ? "Active" : "Unlisted"}
+              <span className={`toggle-label-status ${isListed ? "active" : "inactive"}`}>
+                {isListed ? "Active" : isExpired ? "Expired" : "Unlisted"}
               </span>
             </div>
             <div
@@ -308,6 +326,12 @@ function ListingPopup({ item, type, onClose, onEdit, onDelete, onToggle, onAddPa
               <span className="toggle-thumb-large" />
             </div>
           </div>
+
+          {isExpired && (
+            <div className="popup-expired-notice">
+              ⚠️ This listing has expired. Add a payment to re-activate it.
+            </div>
+          )}
 
           <div className="popup-actions">
             <button className="popup-btn popup-btn--payment" onClick={() => onAddPayment(item._id, type, item)}>
@@ -443,29 +467,26 @@ export default function HostListings() {
     const CACHE_KEY_FS = `hl_fs_${currentUserId}`;
     const CACHE_KEY_AC = `hl_ac_${currentUserId}`;
 
-    // ── 1. Serve cached data instantly so the page feels immediate ────────
+    // ── 1. Serve cached data instantly ────────────────────────────────────
     const cachedFs = sessionStorage.getItem(CACHE_KEY_FS);
     const cachedAc = sessionStorage.getItem(CACHE_KEY_AC);
     if (cachedFs || cachedAc) {
       if (cachedFs) setFoodServices(JSON.parse(cachedFs));
       if (cachedAc) setAccommodations(JSON.parse(cachedAc));
-      setLoading(false); // show cached content right away
+      setLoading(false);
     }
 
-    // ── Helper: fetch one collection, filter by owner, update state ───────
+    // ── Helper ────────────────────────────────────────────────────────────
     const fetchCollection = async (url, setter, cacheKey, getPhotoIds) => {
       try {
-        // Try owner-filtered endpoint first (much smaller payload if backend supports it)
         let mine = [];
         try {
           const res = await axios.get(`${url}?owner=${currentUserId}`);
           const data = res.data?.data || res.data || [];
-          // If backend ignored the filter it returns everything — detect and re-filter
           mine = Array.isArray(data)
             ? data.filter(i => !i.owner || String(i.owner) === String(currentUserId) || String(i.owner?._id) === String(currentUserId))
             : [];
         } catch {
-          // Fallback: fetch all and filter client-side
           const res = await axios.get(url);
           const all = res.data?.data || res.data || [];
           mine = Array.isArray(all)
@@ -476,18 +497,16 @@ export default function HostListings() {
         setter(mine);
         sessionStorage.setItem(cacheKey, JSON.stringify(mine));
 
-        // Pre-warm photo cache
         const photoIds = mine.flatMap(getPhotoIds).filter(Boolean);
         if (photoIds.length) prefetchPhotos(photoIds);
       } catch (err) {
-        // Only set error if we have no cached fallback to show
         if (!sessionStorage.getItem(cacheKey)) {
           setError(err.message ?? "Connection error");
         }
       }
     };
 
-    // ── 2. Fetch both independently so each updates the UI as it arrives ──
+    // ── 2. Fetch both independently ───────────────────────────────────────
     const run = async () => {
       if (!cachedFs && !cachedAc) {
         setLoading(true);
@@ -513,7 +532,7 @@ export default function HostListings() {
     };
 
     run();
-  }, []); // runs once on mount — userId is read fresh inside
+  }, []);
 
   const handleEdit = (id, type) => {
     setSelectedItem(null);
@@ -634,7 +653,6 @@ export default function HostListings() {
             ))}
           </div>
         ) : error ? (
-          /* ── Connection error state ── */
           <div className="hl-error">
             <img src="/images/icon7.jpg" alt="Connection error" className="hl-error__img" />
             <div className="hl-error__title">Connection Error</div>
