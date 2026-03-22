@@ -37,6 +37,9 @@ import {
   FaTrash,
   FaEdit,
   FaKey,
+  FaClock,
+  FaCheckCircle,
+  FaHourglass,
 } from "react-icons/fa";
 import StudentNavbar from "../NavBar/Student_NavBar/StudentNavbar";
 import Footer from "../NavBar/Footer/Footer";
@@ -90,6 +93,28 @@ function calcRatingStats(reviewList) {
   if (!reviewList.length) return { avg: 0, count: 0 };
   const sum = reviewList.reduce((s, r) => s + (r.rating ?? 0), 0);
   return { avg: parseFloat((sum / reviewList.length).toFixed(1)), count: reviewList.length };
+}
+
+// Returns today's date string as YYYY-MM-DD for min date on input
+function todayString() {
+  return new Date().toISOString().split("T")[0];
+}
+
+// Format a date string nicely for display
+function formatDateDisplay(dateStr) {
+  if (!dateStr) return "";
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
+    weekday: "short", month: "short", day: "numeric", year: "numeric",
+  });
+}
+
+// Format a time string nicely (HH:MM → 12h)
+function formatTimeDisplay(timeStr) {
+  if (!timeStr) return "";
+  const [h, m] = timeStr.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${ampm}`;
 }
 
 async function apiPost(path, body) {
@@ -363,8 +388,14 @@ const AccommodationDetails = () => {
   const [showLoginRequired, setShowLoginRequired] = useState(false);
 
   // ── Favourite state ───────────────────────────────────────────────────
-  const [isSaved,        setIsSaved]        = useState(false);
-  const [favPending,     setFavPending]     = useState(false);
+  const [isSaved,    setIsSaved]    = useState(false);
+  const [favPending, setFavPending] = useState(false);
+
+  // ── Booking state ─────────────────────────────────────────────────────
+  // null = no booking yet, or one of: 'pending' | 'confirmed' | 'completed' | 'cancelled'
+  const [bookingStatus,     setBookingStatus]     = useState(null);
+  const [bookingSubmitting, setBookingSubmitting] = useState(false);
+  const [existingBookingId, setExistingBookingId] = useState(null);
 
   // ── UI state ──────────────────────────────────────────────────────────
   const [activeImg,      setActiveImg]      = useState(0);
@@ -418,6 +449,31 @@ const AccommodationDetails = () => {
       })
       .catch(() => { setCurrentUser(null); });
   }, []);
+
+  // ── Check existing booking for this student + accommodation ───────────
+  // ✅ FIX: fetch student's bookings and see if one exists for this acc
+  useEffect(() => {
+    if (!userId || !id) return;
+    fetch(`${API_BASE}/Booking/student/${userId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(raw => {
+        if (!raw) return;
+        const list = Array.isArray(raw?.data) ? raw.data : [];
+        const existing = list.find(b => {
+          const accId = b.accommodation?._id ?? b.accommodation;
+          return String(accId) === String(id);
+        });
+        if (existing) {
+          setBookingStatus(existing.status);   // 'pending' | 'confirmed' | 'completed' | 'cancelled'
+          setExistingBookingId(existing._id);
+          // Pre-fill the fields so the student can see what they booked
+          if (existing.visitDate) setCheckIn(existing.visitDate.split("T")[0]);
+          if (existing.visitTime) setCheckTime(existing.visitTime);
+          if (existing.message)   setNote(existing.message);
+        }
+      })
+      .catch(() => {});
+  }, [userId, id]);
 
   // ── Fetch existing favourite status ───────────────────────────────────
   useEffect(() => {
@@ -591,29 +647,64 @@ const AccommodationDetails = () => {
     finally { setReviewActionLoading(false); }
   };
 
-  // ── Contact Host ──────────────────────────────────────────────────────
-  const handleContactHost = async () => {
-    if (!isLoggedIn || !currentUser) { setShowLoginRequired(true); return; }
-    if (!checkIn)   { showToast("Please select a date"); return; }
-    if (!checkTime) { showToast("Please select a time"); return; }
+  // ── Book visit ────────────────────────────────────────────────────────
+  // ✅ FIX: correct endpoint POST /Booking and correct field names
+  const handleBookVisit = async () => {
+    if (!isLoggedIn || !isStudent) { setShowLoginRequired(true); return; }
+    if (!checkIn)   { showToast("Please select a visit date"); return; }
+    if (!checkTime) { showToast("Please select a visit time"); return; }
+    if (bookingStatus && bookingStatus !== "cancelled") return; // already booked, do nothing
 
-    const payload = {
-      studentId:       currentUser._id ?? userId,
-      accommodationId: acc._id,
-      visitDate:       checkIn,
-      visitTime:       checkTime,
-      message:         note || "",
-    };
-
+    setBookingSubmitting(true);
     try {
-      await axios.post(`${API_BASE}/contact`, payload);
-      showToast("Message sent to host successfully!");
-      setCheckIn(""); setCheckTime(""); setNote("");
+      // ✅ FIX 1: endpoint is /Booking (not /contact)
+      // ✅ FIX 2: field names match Booking_Controller: student, accommodation, visitDate, visitTime, message
+      const res = await fetch(`${API_BASE}/Booking`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          student:       userId,
+          accommodation: id,
+          visitDate:     checkIn,
+          visitTime:     checkTime,
+          message:       note.trim() || "",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = data?.message ?? data?.error ?? "Failed to send booking request";
+        showToast(`Failed: ${msg}`);
+        return;
+      }
+      // ✅ FIX 3: lock the button immediately to 'pending'
+      setBookingStatus("pending");
+      setExistingBookingId(data?.data?._id ?? null);
+      showToast("Booking request sent to host!");
     } catch (err) {
-      const serverMsg = err.response?.data?.message ?? err.response?.data?.error
-        ?? (typeof err.response?.data === "string" ? err.response.data : null) ?? err.message;
-      showToast(`Failed: ${typeof serverMsg === "string" ? serverMsg : "Server error"}`);
+      showToast("Network error — please try again.");
+    } finally {
+      setBookingSubmitting(false);
     }
+  };
+
+  // ── Booking button helper ─────────────────────────────────────────────
+  const isBookingLocked = bookingStatus && bookingStatus !== "cancelled";
+
+  const bookingButtonContent = () => {
+    if (bookingSubmitting) return <><FaSpinner className="acd-spin" style={{ fontSize: 14 }} /> Sending…</>;
+    switch (bookingStatus) {
+      case "pending":   return <><FaHourglass  style={{ fontSize: 13 }} /> Request Pending</>;
+      case "confirmed": return <><FaCheckCircle style={{ fontSize: 13 }} /> Booking Confirmed</>;
+      case "completed": return <><FaCheckCircle style={{ fontSize: 13 }} /> Visit Completed</>;
+      default:          return <span>Book a Visit</span>;
+    }
+  };
+
+  const bookingButtonClass = () => {
+    if (bookingStatus === "confirmed") return "acd-booking-card__btn acd-booking-card__btn--confirmed";
+    if (bookingStatus === "pending")   return "acd-booking-card__btn acd-booking-card__btn--pending";
+    if (bookingStatus === "completed") return "acd-booking-card__btn acd-booking-card__btn--completed";
+    return "acd-booking-card__btn";
   };
 
   // ── Derived host ──────────────────────────────────────────────────────
@@ -723,7 +814,6 @@ const AccommodationDetails = () => {
 
           {/* ── Action buttons ── */}
           <div className="acd-listing-header__actions">
-            {/* Favourite heart button — connected to API */}
             <button
               className={`acd-action-btn${isSaved ? " acd-action-btn--saved" : ""}`}
               onClick={handleToggleFavourite}
@@ -896,7 +986,9 @@ const AccommodationDetails = () => {
             )}
           </main>
 
-          {/* ── Booking sidebar ── */}
+          {/* ─────────────────────────────────────────
+              BOOKING SIDEBAR
+          ───────────────────────────────────────── */}
           <aside className="acd-booking-sidebar">
             <div className="acd-booking-card">
               <div className="acd-booking-card__price-row">
@@ -914,29 +1006,107 @@ const AccommodationDetails = () => {
                     <span style={{ color:"#757575", fontSize:13 }}>({liveRatingCount} reviews)</span>
                   </div>
 
-                  <div className="acd-booking-card__dates">
-                    <div className="acd-booking-card__date-field">
-                      <label><FaCalendarAlt style={{ marginRight:4, fontSize:10 }} />DATE</label>
-                      <input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)} />
+                  {/* ── Visit date & time — user-friendly inputs ── */}
+                  <div className="acd-booking-inputs">
+
+                    {/* Date picker */}
+                    <div className="acd-booking-input-wrap">
+                      <div className="acd-booking-input-label">
+                        <FaCalendarAlt className="acd-booking-input-label__icon" />
+                        Visit Date
+                      </div>
+                      <div className="acd-booking-input-field-wrap">
+                        <input
+                          type="date"
+                          className="acd-booking-input-field"
+                          value={checkIn}
+                          min={todayString()}
+                          disabled={isBookingLocked}
+                          onChange={e => setCheckIn(e.target.value)}
+                        />
+                        {checkIn && (
+                          <div className="acd-booking-input-display">
+                            {formatDateDisplay(checkIn)}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="acd-booking-card__date-field">
-                      <label><FaCalendarAlt style={{ marginRight:4, fontSize:10 }} />TIME</label>
-                      <input type="time" value={checkTime} onChange={e => setCheckTime(e.target.value)} />
+
+                    {/* Time picker */}
+                    <div className="acd-booking-input-wrap">
+                      <div className="acd-booking-input-label">
+                        <FaClock className="acd-booking-input-label__icon" />
+                        Visit Time
+                      </div>
+                      <div className="acd-booking-input-field-wrap">
+                        <input
+                          type="time"
+                          className="acd-booking-input-field"
+                          value={checkTime}
+                          disabled={isBookingLocked}
+                          onChange={e => setCheckTime(e.target.value)}
+                        />
+                        {checkTime && (
+                          <div className="acd-booking-input-display">
+                            {formatTimeDisplay(checkTime)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Note */}
+                    <div className="acd-booking-input-wrap acd-booking-input-wrap--full">
+                      <div className="acd-booking-input-label">
+                        <FaCommentAlt className="acd-booking-input-label__icon" />
+                        Note to Host <span style={{ fontWeight:400, color:"#aaa", fontSize:11 }}>(optional)</span>
+                      </div>
+                      <textarea
+                        className="acd-booking-note"
+                        placeholder="Any questions or special requests for the host…"
+                        value={note}
+                        disabled={isBookingLocked}
+                        onChange={e => setNote(e.target.value)}
+                        rows={3}
+                        style={{ fontFamily: FONT }}
+                      />
                     </div>
                   </div>
 
-                  <div className="acd-booking-card__guests">
-                    <label>Make a Note</label>
-                    <div className="acd-booking-card__guests-controls">
-                      <input placeholder="Ask something..." value={note} onChange={e => setNote(e.target.value)} />
-                    </div>
-                  </div>
-
-                  <button className="acd-booking-card__btn" style={{ fontFamily:FONT }}
-                    onClick={() => { if (!isLoggedIn || !isStudent) { setShowLoginRequired(true); return; } handleContactHost(); }}>
-                    <span>Book Now</span>
+                  {/* ── Book button — locks after submission ── */}
+                  <button
+                    className={bookingButtonClass()}
+                    style={{ fontFamily: FONT }}
+                    disabled={isBookingLocked || bookingSubmitting}
+                    onClick={() => {
+                      if (!isLoggedIn || !isStudent) { setShowLoginRequired(true); return; }
+                      handleBookVisit();
+                    }}
+                  >
+                    {bookingButtonContent()}
                   </button>
-                  <p className="acd-booking-card__note">Fix Date for Visit</p>
+
+                  {/* Status note below button */}
+                  {bookingStatus === "pending" && (
+                    <p className="acd-booking-card__status-note acd-booking-card__status-note--pending">
+                      <FaHourglass style={{ fontSize: 10 }} />
+                      Awaiting host confirmation
+                    </p>
+                  )}
+                  {bookingStatus === "confirmed" && (
+                    <p className="acd-booking-card__status-note acd-booking-card__status-note--confirmed">
+                      <FaCheckCircle style={{ fontSize: 10 }} />
+                      Your visit is confirmed!
+                    </p>
+                  )}
+                  {bookingStatus === "completed" && (
+                    <p className="acd-booking-card__status-note acd-booking-card__status-note--completed">
+                      <FaCheckCircle style={{ fontSize: 10 }} />
+                      Visit completed
+                    </p>
+                  )}
+                  {!bookingStatus && (
+                    <p className="acd-booking-card__note">Schedule a visit to see the property</p>
+                  )}
 
                   {acc?.pricePerMonth && (
                     <div className="acd-booking-card__breakdown">

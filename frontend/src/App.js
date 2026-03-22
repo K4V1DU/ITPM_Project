@@ -21,6 +21,7 @@ import Footer from "./Components/NavBar/Footer/Footer";
 import StudentOrders from "./Components/Student_Orders/StudentOrders";
 import PaymentHistory from "./Components/Payment_History/HostPayments";
 import Favourites from "./Components/Favourites/Favourites";
+import HostBooking from "./Components/Host_Bookings/HostBooking";
 
 
 
@@ -46,6 +47,7 @@ function App() {
       <Route path="/PaymentReceipt" element={<PaymentReceipt />} />
       <Route path="/Messages" element={<Messages />} />
       <Route path="/HostOrders" element={<HostOrders />} />
+      <Route path="/HostBookings" element={<HostBooking />} />
       <Route path="/HostNavbar" element={<HostNavbar />} />
       <Route path="/Footer" element={<Footer />} />
       <Route path="/StudentOrders" element={<StudentOrders />} />

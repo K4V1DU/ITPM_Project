@@ -28,7 +28,7 @@ function LogoutModal({ onConfirm, onCancel }) {
 }
 
 const NAV_TABS = [
-  { label: "Bookings", href: "/Bookings"   },
+  { label: "Bookings", href: "/HostBookings"   },
   { label: "Orders",   href: "/HostOrders" },
   { label: "Listings", href: "/Listings"   },
 ];
