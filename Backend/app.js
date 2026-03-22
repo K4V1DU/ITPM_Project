@@ -26,6 +26,8 @@ const ContactRouter = require("../Backend/Routes/Contact_Route")
 const FoodOrderRouter = require("../Backend/Routes/FoodOrder_Route")
 const NotificationRouter = require("../Backend/Routes/Notification_Route")
 const favouriteRoute = require("../Backend/Routes/Favourite_Route");
+const BookingRouter = require("../Backend/Routes/Booking_Route");
+
 
 
 
@@ -41,6 +43,8 @@ app.use("/contact", ContactRouter);
 app.use("/FoodOrder", FoodOrderRouter);
 app.use("/Notification", NotificationRouter);
 app.use("/favourite", favouriteRoute);
+app.use("/Booking", BookingRouter);
+
 
 
 
