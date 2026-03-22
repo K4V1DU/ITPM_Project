@@ -57,20 +57,23 @@ export default function StudentNavbar({ activeTab = "" }) {
     clearAll,
   } = useNotifications(userId);
 
-  const [currentUser,   setCurrentUser]   = useState(null);
-  const [userAvatarSrc, setUserAvatarSrc] = useState(
+  const [currentUser,    setCurrentUser]    = useState(null);
+  const [userAvatarSrc,  setUserAvatarSrc]  = useState(
     () => sessionStorage.getItem("studentAvatarDataUrl") || null
   );
-  const [cachedRole, setCachedRole] = useState(
+  const [cachedRole,     setCachedRole]     = useState(
     () => sessionStorage.getItem("studentUserRole") || null
   );
-  const [dropdown,   setDropdown]   = useState(false);
-  const [showLogout, setShowLogout] = useState(false);
-  const [showBell,   setShowBell]   = useState(false);
-  const dropRef = useRef(null);
-  const bellRef = useRef(null);
+  const [dropdown,       setDropdown]       = useState(false);
+  const [showLogout,     setShowLogout]     = useState(false);
+  const [showBell,       setShowBell]       = useState(false);
+  const [unreadMsgCount, setUnreadMsgCount] = useState(0);
 
-  // Fetch user profile + cache avatar as data URL
+  const dropRef    = useRef(null);
+  const bellRef    = useRef(null);
+  const msgPollRef = useRef(null);
+
+  // ── Fetch user profile + cache avatar ────────────────────────────────────
   useEffect(() => {
     if (!userId) return;
     fetch(`${API_BASE}/User/${userId}`)
@@ -114,7 +117,28 @@ export default function StudentNavbar({ activeTab = "" }) {
       .catch(() => {});
   }, [userId]);
 
-  // Close dropdowns on outside click
+  // ── Fetch unread message count + poll every 10s ───────────────────────────
+  const fetchUnreadMessages = async () => {
+    if (!userId) return;
+    try {
+      const res  = await fetch(`${API_BASE}/message/conversations/${userId}`);
+      const raw  = await res.json();
+      const list = raw?.data ?? raw?.result ?? raw;
+      const total = Array.isArray(list)
+        ? list.reduce((sum, conv) => sum + (conv.unreadCount?.[userId] ?? 0), 0)
+        : 0;
+      setUnreadMsgCount(total);
+    } catch { /* silent */ }
+  };
+
+  useEffect(() => {
+    if (!userId) return;
+    fetchUnreadMessages();
+    msgPollRef.current = setInterval(fetchUnreadMessages, 10000);
+    return () => clearInterval(msgPollRef.current);
+  }, [userId]);
+
+  // ── Close dropdowns on outside click ──────────────────────────────────────
   useEffect(() => {
     const h = (e) => {
       if (dropRef.current && !dropRef.current.contains(e.target)) setDropdown(false);
@@ -257,6 +281,8 @@ export default function StudentNavbar({ activeTab = "" }) {
                 ? <img src={userAvatarSrc} alt="Profile" className="snav__user-avatar"
                     onError={() => setUserAvatarSrc(null)} />
                 : <span className="snav__user-icon-wrap"><FaUser className="snav__user-icon" /></span>}
+              {/* Small dot on the pill when there are unread messages */}
+              {unreadMsgCount > 0 && <span className="snav__menu-msg-dot" />}
             </button>
 
             {dropdown && (
@@ -288,10 +314,15 @@ export default function StudentNavbar({ activeTab = "" }) {
                   </div>
                 )}
 
-                {isStudent && (
+                {(isStudent || isHost) && (
                   <div className="snav__dropdown-item"
                     onClick={() => { setDropdown(false); navigate("/Messages"); }}>
                     <FaEnvelope style={{ opacity: 0.7 }} /> Messages
+                    {unreadMsgCount > 0 && (
+                      <span className="snav__dropdown-msg-badge">
+                        {unreadMsgCount > 99 ? "99+" : unreadMsgCount}
+                      </span>
+                    )}
                   </div>
                 )}
 
