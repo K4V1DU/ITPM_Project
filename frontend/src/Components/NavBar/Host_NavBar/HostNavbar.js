@@ -141,7 +141,7 @@ export default function HostNavbar({ activeHref = "" }) {
       <nav className="hn-nav">
 
         <div className="hn-nav__logo-wrap">
-          <a href="/" className="hn-nav__logo">
+          <a href="/Listings" className="hn-nav__logo">
             <img src="/images/logo2.png" alt="Unisewana Logo"
               style={{ height: "32px", width: "auto", display: "block" }} />
           </a>
