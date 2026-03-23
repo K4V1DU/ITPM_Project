@@ -52,7 +52,7 @@ app.use("/Booking", BookingRouter);
 
 
 
-const MONGO_URI = "mongodb+srv://K4V1DU:ekwpjA9nDZid3iqR@cluster0.23nczaf.mongodb.net/testing2?retryWrites=true&w=majority";
+const MONGO_URI = "mongodb+srv://K4V1DU:ekwpjA9nDZid3iqR@cluster0.23nczaf.mongodb.net/UniSewana?retryWrites=true&w=majority";
 
 const connectWithRetry = () => {
   console.log("Attempting to connect to MongoDB...");
