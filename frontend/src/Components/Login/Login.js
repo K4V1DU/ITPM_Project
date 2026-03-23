@@ -14,12 +14,10 @@ export default function Login() {
   const [loading,  setLoading]  = useState(false);
   const [showPass, setShowPass] = useState(false);
 
-  // ── Clear any existing session on mount ──────────────────────────────────
   useEffect(() => {
     localStorage.removeItem("CurrentUserId");
   }, []);
 
-  // ── Submit ───────────────────────────────────────────────────────────────
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -31,23 +29,18 @@ export default function Login() {
     try {
       const res = await axios.post(`${API_BASE}/User/login`, { email, password });
 
-      // Handle common response shapes:
-      // { success, data: { user, token } }  or  { success, data: user }  or  { user }
       const body = res.data;
       const data = body?.data ?? body;
       const user = data?.user ?? data;
 
       if (!user?._id) throw new Error("Invalid response from server.");
 
-      // Store user id
       localStorage.setItem("CurrentUserId", user._id);
 
-      // Role-based redirect
       const role = (user.role ?? "").toLowerCase();
       if (role === "host") {
         navigate("/Listings");
       } else {
-        // student or any other role → Boardings
         navigate("/Boardings");
       }
     } catch (err) {
@@ -64,7 +57,6 @@ export default function Login() {
 
   return (
     <div className="login-page">
-      {/* Background decoration */}
       <div className="login-bg">
         <div className="login-bg__blob login-bg__blob--1" />
         <div className="login-bg__blob login-bg__blob--2" />
@@ -72,7 +64,7 @@ export default function Login() {
       </div>
 
       <div className="login-wrapper">
-        {/* Left panel – branding */}
+        {/* Left panel */}
         <div className="login-panel login-panel--left">
           <div className="login-brand">
             <div className="login-brand__logo">B</div>
@@ -96,7 +88,7 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Right panel – form */}
+        {/* Right panel */}
         <div className="login-panel login-panel--right">
           <div className="login-form-wrapper">
             <div className="login-form-header">
@@ -106,7 +98,6 @@ export default function Login() {
 
             <form className="login-form" onSubmit={handleLogin} noValidate>
 
-              {/* Error banner */}
               {error && (
                 <div className="login-error" role="alert">
                   <span className="login-error__icon">⚠</span>
@@ -139,7 +130,9 @@ export default function Login() {
 
               {/* Password */}
               <div className="login-field">
-                <label className="login-label" htmlFor="password">Password</label>
+                <label className="login-label" htmlFor="password">
+                  Password
+                </label>
                 <div className="login-input-wrap">
                   <span className="login-input-icon">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -177,6 +170,12 @@ export default function Login() {
                     )}
                   </button>
                 </div>
+                
+                <div style={{ textAlign: "right" }}>
+                  <a href="/ForgotPassword" className="login-link" style={{ fontSize: "12px" }}>
+                    Forgot password?
+                  </a>
+                </div>
               </div>
 
               {/* Submit */}
@@ -189,7 +188,7 @@ export default function Login() {
               </button>
 
               <p className="login-signup-hint">
-                Don't have an account? <a href="/register" className="login-link">Create one</a>
+                Don't have an account? <a href="/Register" className="login-link">Create one</a>
               </p>
 
             </form>

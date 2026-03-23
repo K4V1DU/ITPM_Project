@@ -1,0 +1,123 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import "../Register/Register.css";
+
+const API_BASE = "http://localhost:8000";
+
+export default function ForgotPassword() {
+  const navigate = useNavigate();
+  const [email,   setEmail]   = useState("");
+  const [error,   setError]   = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (!email.trim()) { setError("Please enter your email address."); return; }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) { setError("Please enter a valid email address."); return; }
+
+    setLoading(true);
+    try {
+      await axios.post(`${API_BASE}/User/ForgotPassword`, { email });
+      navigate("/ForgotPasswrodOtp", { state: { email } });
+    } catch (err) {
+      setError(err.response?.data?.message ?? "Failed to send OTP. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="reg-page">
+      <div className="reg-bg">
+        <div className="reg-bg__blob reg-bg__blob--1" />
+        <div className="reg-bg__blob reg-bg__blob--2" />
+        <div className="reg-bg__blob reg-bg__blob--3" />
+      </div>
+
+      <div className="reg-wrapper">
+        <div className="reg-panel reg-panel--left">
+          <div className="reg-brand">
+            <div className="reg-brand__logo">B</div>
+            <span className="reg-brand__name">Bodima</span>
+          </div>
+          <div className="reg-panel__content">
+            <h1 className="reg-panel__headline">
+              Forgot your<br />password?
+            </h1>
+            <p className="reg-panel__sub">
+              No worries — enter your registered email and we'll send you a verification code to reset it.
+            </p>
+            <div className="reg-panel__pills">
+              <span className="reg-pill">🔒 Secure Reset</span>
+              <span className="reg-pill">📧 OTP Verified</span>
+              <span className="reg-pill">⚡ Quick</span>
+            </div>
+          </div>
+          <div className="reg-panel__footer">© 2026 Bodima, Inc.</div>
+        </div>
+
+        <div className="reg-panel reg-panel--right">
+          <div className="reg-form-wrapper">
+
+            <div className="reg-form-header">
+              <div className="otp-icon-wrap">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </div>
+              <h2 className="reg-form-title">Reset password</h2>
+              <p className="reg-form-sub">Enter your email to receive a verification code</p>
+            </div>
+
+            <form className="reg-form" onSubmit={handleSubmit} noValidate>
+
+              {error && (
+                <div className="reg-error" role="alert">
+                  <span className="reg-error__icon">⚠</span>
+                  {error}
+                </div>
+              )}
+
+              <div className="reg-field">
+                <label className="reg-label" htmlFor="email">Email Address</label>
+                <div className="reg-input-wrap">
+                  <span className="reg-input-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                      <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                  </span>
+                  <input
+                    id="email"
+                    className={`reg-input${error ? " reg-input--error" : ""}`}
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={e => { setEmail(e.target.value); setError(""); }}
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <button className="reg-btn" type="submit" disabled={loading}>
+                {loading ? <span className="reg-btn__spinner" /> : "Send OTP →"}
+              </button>
+
+              <p className="reg-signup-hint">
+                Remembered it?{" "}
+                <a href="/Login" className="reg-link">Back to Login</a>
+              </p>
+
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
