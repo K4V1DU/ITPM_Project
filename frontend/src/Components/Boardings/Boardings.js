@@ -11,6 +11,7 @@ import {
 import axios from "axios";
 import StudentNavbar from "../NavBar/Student_NavBar/StudentNavbar";
 import Footer from "../NavBar/Footer/Footer";
+import { usePhotoCache, prefetchPhotos } from "../Image_Cache/usePhotoCache";
 
 // ─── Config ───────────────────────────────────────────────────────────────
 const API_BASE = "http://localhost:8000";
@@ -81,8 +82,12 @@ function CardSkeleton() {
 // ─────────────────────────────────────────
 // BOARDING CARD
 // ─────────────────────────────────────────
-function BoardingCard({ acc, imageUrl, onNavigate, isFavourited, onToggleFavourite }) {
+function BoardingCard({ acc, onNavigate, isFavourited, onToggleFavourite }) {
+  const { cachedUrl } = usePhotoCache();
   const [pending, setPending] = useState(false);
+
+  const photoId = acc.images?.[0];
+  const imgSrc  = cachedUrl(photoId);
 
   const handleHeart = async (e) => {
     e.stopPropagation();
@@ -95,12 +100,11 @@ function BoardingCard({ acc, imageUrl, onNavigate, isFavourited, onToggleFavouri
   return (
     <div className="bd-card" onClick={() => onNavigate(acc._id)}>
       <div className="bd-card__image-wrapper">
-        <img
-          src={imageUrl || "https://via.placeholder.com/400x300"}
-          alt={acc.title}
-          className="bd-card__image"
-          onError={e => { e.target.src = "https://via.placeholder.com/400x300"; }}
-        />
+        {imgSrc
+          ? <img src={imgSrc} alt={acc.title} className="bd-card__image" />
+          : photoId
+            ? <div className="bd-card__image-fallback bd-skeleton-box" />
+            : <div className="bd-card__image-fallback" />}
         <button
           className="bd-card__heart"
           onClick={handleHeart}
@@ -228,7 +232,6 @@ const Boarding = () => {
 
   const [accommodations, setAccommodations] = useState([]);
   const [filtered,       setFiltered]       = useState([]);
-  const [imageUrls,      setImageUrls]      = useState({});
   const [loading,        setLoading]        = useState(true);
   const [error,          setError]          = useState(null);
   const [searchInput,    setSearchInput]    = useState("");
@@ -314,24 +317,9 @@ const Boarding = () => {
           setAccommodations(accData);
           setFiltered(accData);
 
-          const urls = {};
-          await Promise.all(
-            accData.map(async acc => {
-              if (acc.images?.length > 0) {
-                try {
-                  const imageRes = await axios.get(`${API_BASE}/Photo/${acc.images[0]}`, {
-                    responseType: "blob",
-                  });
-                  urls[acc._id] = URL.createObjectURL(imageRes.data);
-                } catch {
-                  urls[acc._id] = "https://via.placeholder.com/400x300";
-                }
-              } else {
-                urls[acc._id] = "https://via.placeholder.com/400x300";
-              }
-            })
-          );
-          setImageUrls(urls);
+          // Pre-warm image cache for all cards
+          const photoIds = accData.map(a => a.images?.[0]).filter(Boolean);
+          if (photoIds.length) prefetchPhotos(photoIds);
         }
       } catch (err) {
         setError(err.message);
@@ -440,7 +428,7 @@ const Boarding = () => {
 
         {error && (
           <div className="bd-error">
-            <img src="/images/icon7.jpg" alt="Connection error" className="bd-error__img" />
+            <img src="/images/icon6.jpg" alt="Connection error" className="bd-error__img" />
             <div className="bd-error__title">Connection Error</div>
             <div className="bd-error__msg">Something went wrong. Please check your connection and try again.</div>
             <button className="bd-error__btn" onClick={() => window.location.reload()}>Retry</button>
@@ -456,7 +444,7 @@ const Boarding = () => {
                 ? (
                   <div className="bd-empty">
                     <div className="bd-empty__icon">
-                      <img src="/images/icon4.jpg" alt="No boardings" className="bd-empty__img" />
+                      <img src="/images/icon3.jpg" alt="No boardings" className="bd-empty__img" />
                     </div>
                     <div className="bd-empty__title">No boardings found</div>
                     <div className="bd-empty__sub">Try adjusting your search or filters</div>
@@ -466,7 +454,6 @@ const Boarding = () => {
                     <BoardingCard
                       key={acc._id}
                       acc={acc}
-                      imageUrl={imageUrls[acc._id]}
                       isFavourited={favouriteIds.has(acc._id)}
                       onToggleFavourite={handleToggleFavourite}
                       onNavigate={id => navigate(`/details-Accommodation/${id}`)}
