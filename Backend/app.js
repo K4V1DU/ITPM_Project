@@ -1,3 +1,5 @@
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -51,8 +53,8 @@ app.use("/Booking", BookingRouter);
 
 
 
+const MONGO_URI = process.env.MONGO_URI;
 
-const MONGO_URI = "mongodb+srv://K4V1DU:ekwpjA9nDZid3iqR@cluster0.23nczaf.mongodb.net/UniSewana?retryWrites=true&w=majority";
 
 const connectWithRetry = () => {
   console.log("Attempting to connect to MongoDB...");
