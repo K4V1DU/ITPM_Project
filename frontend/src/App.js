@@ -60,9 +60,9 @@ function App() {
       <Route path="/Register" element={<Register />} />
       <Route path="/ForgotPassword" element={<ForgotPassword />} />
       <Route path="/ForgotPasswrodOtp" element={<ForgotPasswrodOtp />} />
-       <Route path="/ResetPassword" element={<ResetPassword />} />
+      <Route path="/ResetPassword" element={<ResetPassword />} />
       <Route path="/Favourites" element={<Favourites />} />
-
+      
 
 
     </Routes>
