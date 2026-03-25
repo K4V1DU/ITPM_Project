@@ -20,8 +20,13 @@ import HostNavbar from "./Components/NavBar/Host_NavBar/HostNavbar";
 import Footer from "./Components/NavBar/Footer/Footer";
 import StudentOrders from "./Components/Student_Orders/StudentOrders";
 import PaymentHistory from "./Components/Payment_History/HostPayments";
+import Register from "./Components/Register/Register";
+import ForgotPassword from "./Components/ForgotPassword/ForgotPassword";
+import ForgotPasswrodOtp from "./Components/ForgotPasswordOtp/ForgotPasswordOtp";
+import ResetPassword from "./Components/ResetPassword/ResetPassword";
 import Favourites from "./Components/Favourites/Favourites";
 import HostBooking from "./Components/Host_Bookings/HostBooking";
+
 
 
 
@@ -52,6 +57,10 @@ function App() {
       <Route path="/Footer" element={<Footer />} />
       <Route path="/StudentOrders" element={<StudentOrders />} />
       <Route path="/PaymentHistory" element={<PaymentHistory />} />
+      <Route path="/Register" element={<Register />} />
+      <Route path="/ForgotPassword" element={<ForgotPassword />} />
+      <Route path="/ForgotPasswrodOtp" element={<ForgotPasswrodOtp />} />
+       <Route path="/ResetPassword" element={<ResetPassword />} />
       <Route path="/Favourites" element={<Favourites />} />
 
 
