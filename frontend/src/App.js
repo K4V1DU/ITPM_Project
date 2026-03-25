@@ -26,7 +26,7 @@ import ForgotPasswrodOtp from "./Components/ForgotPasswordOtp/ForgotPasswordOtp"
 import ResetPassword from "./Components/ResetPassword/ResetPassword";
 import Favourites from "./Components/Favourites/Favourites";
 import HostBooking from "./Components/Host_Bookings/HostBooking";
-import Home from "./Components/Home_Page/UniSewana"
+
 
 
 
@@ -62,7 +62,7 @@ function App() {
       <Route path="/ForgotPasswrodOtp" element={<ForgotPasswrodOtp />} />
       <Route path="/ResetPassword" element={<ResetPassword />} />
       <Route path="/Favourites" element={<Favourites />} />
-      <Route path="/home" element={<Home />} />
+      
 
 
     </Routes>
