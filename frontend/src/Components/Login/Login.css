@@ -96,6 +96,12 @@
 }
 
 /* ── Brand ───────────────────────────────────────────────────────────────── */
+/* Logo image */
+.login-brand__logo-img {
+  height: 56px;
+  width: auto;
+  object-fit: contain;
+}
 .login-brand {
   display: flex;
   align-items: center;

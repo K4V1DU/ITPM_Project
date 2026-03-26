@@ -1,16 +1,15 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import "./Register.css";
+//import "./OtpVerify.css";
 
 const API_BASE = "http://localhost:8000";
-
 const STEPS = { FORM: "form", OTP: "otp", DONE: "done" };
 
 export default function Register() {
   const navigate = useNavigate();
 
-  // ── Form fields ───────────────────────────────────────────────────────────
   const [role,            setRole]            = useState("student");
   const [name,            setName]            = useState("");
   const [username,        setUsername]        = useState("");
@@ -21,21 +20,21 @@ export default function Register() {
   const [showPass,        setShowPass]        = useState(false);
   const [showConfirm,     setShowConfirm]     = useState(false);
 
-  // ── OTP ───────────────────────────────────────────────────────────────────
-  const [otp,      setOtp]      = useState("");
-  const [otpError, setOtpError] = useState("");
+  // OTP — 6 boxes
+  const [digits,      setDigits]      = useState(["", "", "", "", "", ""]);
+  const [otpError,    setOtpError]    = useState("");
+  const [otpVerified, setOtpVerified] = useState(false);
+  const inputRefs = useRef([]);
 
-  // ── UI state ──────────────────────────────────────────────────────────────
-  const [step,    setStep]    = useState(STEPS.FORM);
-  const [errors,  setErrors]  = useState({});
-  const [loading, setLoading] = useState(false);
-  const [otpLoading, setOtpLoading] = useState(false);
+  const [step,        setStep]        = useState(STEPS.FORM);
+  const [errors,      setErrors]      = useState({});
+  const [loading,     setLoading]     = useState(false);
+  const [otpLoading,  setOtpLoading]  = useState(false);
   const [serverError, setServerError] = useState("");
 
-  // ── Validation ────────────────────────────────────────────────────────────
   const validate = () => {
     const errs = {};
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&^_\-])[A-Za-z\d@$!%*#?&^_\-]{8,}$/;
 
     if (!name.trim())     errs.name     = "Full name is required.";
@@ -49,15 +48,13 @@ export default function Register() {
       errs.email = "Students must use their SLIIT email (@my.sliit.lk).";
     }
 
-    if (phone && !/^\d{10}$/.test(phone)) {
-      errs.phone = "Phone number must be exactly 10 digits.";
-    }
+    if (phone && !/^0\d{9}$/.test(phone))
+      errs.phone = "Phone number must be 10 digits and start with 0 (e.g. 0771234567).";
 
     if (!password) {
       errs.password = "Password is required.";
     } else if (!passwordRegex.test(password)) {
-      errs.password =
-        "Min 8 characters with letters, numbers & a special character (@$!%*#?&^_-).";
+      errs.password = "Min 8 characters with letters, numbers & a special character (@$!%*#?&^_-).";
     }
 
     if (!confirmPassword) {
@@ -69,7 +66,32 @@ export default function Register() {
     return errs;
   };
 
-  // ── Step 1: Send OTP ──────────────────────────────────────────────────────
+  // ── OTP box handlers ──────────────────────────────────────────────
+  const handleDigitChange = (index, value) => {
+    if (!/^\d?$/.test(value)) return;
+    const next = [...digits];
+    next[index] = value;
+    setDigits(next);
+    setOtpError("");
+    if (value && index < 5) inputRefs.current[index + 1]?.focus();
+  };
+
+  const handleKeyDown = (index, e) => {
+    if (e.key === "Backspace" && !digits[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const next = ["", "", "", "", "", ""];
+    pasted.split("").forEach((ch, i) => { next[i] = ch; });
+    setDigits(next);
+    inputRefs.current[Math.min(pasted.length, 5)]?.focus();
+  };
+
+  // ── Step 1: Send OTP ──────────────────────────────────────────────
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setServerError("");
@@ -80,60 +102,60 @@ export default function Register() {
     setLoading(true);
     try {
       await axios.post(`${API_BASE}/User/send-otp`, { email, role });
+      setOtpVerified(false);
+      setDigits(["", "", "", "", "", ""]);
+      setOtpError("");
       setStep(STEPS.OTP);
     } catch (err) {
-      setServerError(
-        err.response?.data?.message ?? "Failed to send OTP. Please try again."
-      );
+      setServerError(err.response?.data?.message ?? "Failed to send OTP. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // ── Step 2: Verify OTP ────────────────────────────────────────────────────
+  // ── Step 2: Verify OTP + Register ────────────────────────────────
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setOtpError("");
 
-    if (!otp.trim() || otp.length !== 6) {
-      setOtpError("Enter the 6-digit OTP sent to your email.");
+    const otp = digits.join("");
+    if (otp.length < 6) {
+      setOtpError("Please enter all 6 digits.");
       return;
     }
 
     setOtpLoading(true);
     try {
       await axios.post(`${API_BASE}/User/verify-otp`, { email, otp });
-      // OTP verified → register
-      await handleRegister();
+      setOtpVerified(true);
+
+      await axios.post(`${API_BASE}/User/register`, {
+        name, username, email, password, phone, role,
+      });
+
+      setStep(STEPS.DONE);
+      setTimeout(() => navigate("/Login"), 2000);
     } catch (err) {
-      setOtpError(err.response?.data?.message ?? "Invalid or expired OTP.");
+      const msg = err.response?.data?.message ?? "Something went wrong.";
+      if (err.response?.status === 400 && !otpVerified) {
+        setOtpError(msg);
+        return;
+      }
+      if (otpVerified) {
+        setOtpError(`Registration failed: ${msg}`);
+        return;
+      }
+      setOtpError(msg);
     } finally {
       setOtpLoading(false);
     }
   };
 
-  // ── Step 3: Register ──────────────────────────────────────────────────────
-  const handleRegister = async () => {
-    try {
-      await axios.post(`${API_BASE}/User/register`, {
-        name,
-        username,
-        email,
-        password,
-        phone,
-        role,
-      });
-      setStep(STEPS.DONE);
-      setTimeout(() => navigate("/login"), 2000);
-    } catch (err) {
-      setOtpError(err.response?.data?.message ?? "Registration failed.");
-      setStep(STEPS.FORM);
-    }
-  };
-
-  // ── Resend OTP ────────────────────────────────────────────────────────────
+  // ── Resend OTP ────────────────────────────────────────────────────
   const handleResend = async () => {
     setOtpError("");
+    setOtpVerified(false);
+    setDigits(["", "", "", "", "", ""]);
     try {
       await axios.post(`${API_BASE}/User/send-otp`, { email, role });
       setOtpError("New OTP sent!");
@@ -142,14 +164,11 @@ export default function Register() {
     }
   };
 
-  // ── Field error helper ────────────────────────────────────────────────────
   const fieldErr = (key) =>
     errors[key] ? <span className="reg-field-err">{errors[key]}</span> : null;
 
-  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="reg-page">
-      {/* Background */}
       <div className="reg-bg">
         <div className="reg-bg__blob reg-bg__blob--1" />
         <div className="reg-bg__blob reg-bg__blob--2" />
@@ -157,16 +176,13 @@ export default function Register() {
       </div>
 
       <div className="reg-wrapper">
-        {/* ── Left branding panel ───────────────────────────────────────── */}
+        {/* Left panel */}
         <div className="reg-panel reg-panel--left">
           <div className="reg-brand">
-            <div className="reg-brand__logo">B</div>
-            <span className="reg-brand__name">Bodima</span>
+            <img src="/images/logo2.png" alt="UniSewana Logo" className="reg-brand__logo-img" />
           </div>
           <div className="reg-panel__content">
-            <h1 className="reg-panel__headline">
-              Join the<br />community.
-            </h1>
+            <h1 className="reg-panel__headline">Join the<br />community.</h1>
             <p className="reg-panel__sub">
               Create your account and connect with boardings, food services, and
               everything a SLIIT student needs — all in one place.
@@ -177,14 +193,14 @@ export default function Register() {
               <span className="reg-pill">✨ Experiences</span>
             </div>
           </div>
-          <div className="reg-panel__footer">© 2026 Bodima, Inc.</div>
+          <div className="reg-panel__footer">© 2026 Unisewana.</div>
         </div>
 
-        {/* ── Right form panel ──────────────────────────────────────────── */}
+        {/* Right panel */}
         <div className="reg-panel reg-panel--right">
           <div className="reg-form-wrapper">
 
-            {/* ── SUCCESS ── */}
+            {/* SUCCESS */}
             {step === STEPS.DONE && (
               <div className="reg-success">
                 <div className="reg-success__icon">✓</div>
@@ -193,13 +209,20 @@ export default function Register() {
               </div>
             )}
 
-            {/* ── OTP STEP ── */}
+            {/* OTP STEP */}
             {step === STEPS.OTP && (
               <>
                 <div className="reg-form-header">
+                  <div className="otp-icon-wrap">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                      <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                  </div>
                   <h2 className="reg-form-title">Verify your email</h2>
                   <p className="reg-form-sub">
-                    We sent a 6-digit OTP to <strong>{email}</strong>.
+                    We sent a 6-digit OTP to{" "}
+                    <strong className="otp-email-highlight">{email}</strong>.
                     <br />It expires in <strong>5 minutes</strong>.
                   </p>
                 </div>
@@ -212,39 +235,36 @@ export default function Register() {
                     </div>
                   )}
 
-                  <div className="reg-field">
-                    <label className="reg-label" htmlFor="otp">OTP Code</label>
-                    <div className="reg-input-wrap">
-                      <span className="reg-input-icon">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                        </svg>
-                      </span>
+                  {/* 6 digit boxes */}
+                  <div className="otp-boxes" onPaste={handlePaste}>
+                    {digits.map((d, i) => (
                       <input
-                        id="otp"
-                        className="reg-input reg-input--otp"
+                        key={i}
+                        ref={el => inputRefs.current[i] = el}
+                        className={`otp-box${d ? " otp-box--filled" : ""}`}
                         type="text"
-                        maxLength={6}
-                        placeholder="— — — — — —"
-                        value={otp}
-                        onChange={e => { setOtp(e.target.value.replace(/\D/g, "")); setOtpError(""); }}
-                        autoFocus
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={d}
+                        onChange={e => handleDigitChange(i, e.target.value)}
+                        onKeyDown={e => handleKeyDown(i, e)}
+                        autoFocus={i === 0}
                       />
-                    </div>
+                    ))}
                   </div>
 
-                  <button className="reg-btn" type="submit" disabled={otpLoading}>
+                  <button className="reg-btn" type="submit"
+                    disabled={otpLoading || digits.join("").length < 6}>
                     {otpLoading ? <span className="reg-btn__spinner" /> : "Verify & Create Account"}
                   </button>
 
                   <p className="reg-signup-hint">
                     Didn't receive it?{" "}
-                    <button type="button" className="reg-link-btn" onClick={handleResend}>
-                      Resend OTP
-                    </button>
+                    <button type="button" className="reg-link-btn" onClick={handleResend}>Resend OTP</button>
                   </p>
                   <p className="reg-signup-hint" style={{ marginTop: 6 }}>
-                    <button type="button" className="reg-link-btn" onClick={() => { setStep(STEPS.FORM); setOtpError(""); }}>
+                    <button type="button" className="reg-link-btn"
+                      onClick={() => { setStep(STEPS.FORM); setOtpError(""); setOtpVerified(false); }}>
                       ← Back to form
                     </button>
                   </p>
@@ -252,7 +272,7 @@ export default function Register() {
               </>
             )}
 
-            {/* ── MAIN FORM ── */}
+            {/* MAIN FORM */}
             {step === STEPS.FORM && (
               <>
                 <div className="reg-form-header">
@@ -261,7 +281,6 @@ export default function Register() {
                 </div>
 
                 <form className="reg-form" onSubmit={handleSendOtp} noValidate>
-
                   {serverError && (
                     <div className="reg-error" role="alert">
                       <span className="reg-error__icon">⚠</span>
@@ -269,17 +288,14 @@ export default function Register() {
                     </div>
                   )}
 
-                  {/* Role Selector */}
+                  {/* Role */}
                   <div className="reg-field">
                     <label className="reg-label">I am a</label>
                     <div className="reg-role-group">
                       {["student", "host"].map((r) => (
-                        <button
-                          key={r}
-                          type="button"
+                        <button key={r} type="button"
                           className={`reg-role-btn${role === r ? " reg-role-btn--active" : ""}`}
-                          onClick={() => { setRole(r); setEmail(""); setErrors({}); }}
-                        >
+                          onClick={() => { setRole(r); setEmail(""); setErrors({}); }}>
                           <span className="reg-role-btn__icon">{r === "student" ? "🎓" : "🏠"}</span>
                           <span>{r === "student" ? "Student" : "Host"}</span>
                         </button>
@@ -290,7 +306,7 @@ export default function Register() {
                     )}
                   </div>
 
-                  {/* Two-column: Name + Username */}
+                  {/* Name + Username */}
                   <div className="reg-row">
                     <div className="reg-field">
                       <label className="reg-label" htmlFor="name">Full Name</label>
@@ -301,31 +317,19 @@ export default function Register() {
                             <circle cx="12" cy="7" r="4"/>
                           </svg>
                         </span>
-                        <input
-                          id="name"
-                          className={`reg-input${errors.name ? " reg-input--error" : ""}`}
-                          type="text"
-                          placeholder="John Doe"
-                          value={name}
-                          onChange={e => { setName(e.target.value); setErrors(p => ({ ...p, name: "" })); }}
-                          autoFocus
-                        />
+                        <input id="name" className={`reg-input${errors.name ? " reg-input--error" : ""}`}
+                          type="text" placeholder="John Doe" value={name} autoFocus
+                          onChange={e => { setName(e.target.value); setErrors(p => ({ ...p, name: "" })); }} />
                       </div>
                       {fieldErr("name")}
                     </div>
-
                     <div className="reg-field">
                       <label className="reg-label" htmlFor="username">Username</label>
                       <div className="reg-input-wrap">
                         <span className="reg-input-icon">@</span>
-                        <input
-                          id="username"
-                          className={`reg-input${errors.username ? " reg-input--error" : ""}`}
-                          type="text"
-                          placeholder="johndoe99"
-                          value={username}
-                          onChange={e => { setUsername(e.target.value); setErrors(p => ({ ...p, username: "" })); }}
-                        />
+                        <input id="username" className={`reg-input${errors.username ? " reg-input--error" : ""}`}
+                          type="text" placeholder="johndoe99" value={username}
+                          onChange={e => { setUsername(e.target.value); setErrors(p => ({ ...p, username: "" })); }} />
                       </div>
                       {fieldErr("username")}
                     </div>
@@ -344,36 +348,32 @@ export default function Register() {
                           <polyline points="22,6 12,13 2,6"/>
                         </svg>
                       </span>
-                      <input
-                        id="email"
-                        className={`reg-input${errors.email ? " reg-input--error" : ""}`}
-                        type="email"
-                        placeholder={role === "student" ? "it21xxxxxx@my.sliit.lk" : "you@example.com"}
+                      <input id="email" className={`reg-input${errors.email ? " reg-input--error" : ""}`}
+                        type="email" placeholder={role === "student" ? "it21xxxxxx@my.sliit.lk" : "you@example.com"}
                         value={email}
-                        onChange={e => { setEmail(e.target.value); setErrors(p => ({ ...p, email: "" })); }}
-                      />
+                        onChange={e => { setEmail(e.target.value); setErrors(p => ({ ...p, email: "" })); }} />
                     </div>
                     {fieldErr("email")}
                   </div>
 
                   {/* Phone */}
                   <div className="reg-field">
-                    <label className="reg-label" htmlFor="phone">Phone Number <span className="reg-optional">(optional)</span></label>
+                    <label className="reg-label" htmlFor="phone">
+                      Phone Number <span className="reg-optional">(optional)</span>
+                    </label>
                     <div className="reg-input-wrap">
                       <span className="reg-input-icon">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
                         </svg>
                       </span>
-                      <input
-                        id="phone"
-                        className={`reg-input${errors.phone ? " reg-input--error" : ""}`}
-                        type="tel"
-                        placeholder="0771234567"
-                        maxLength={10}
-                        value={phone}
-                        onChange={e => { setPhone(e.target.value.replace(/\D/g, "")); setErrors(p => ({ ...p, phone: "" })); }}
-                      />
+                      <input id="phone" className={`reg-input${errors.phone ? " reg-input--error" : ""}`}
+                        type="tel" placeholder="0771234567" maxLength={10} value={phone}
+                        onChange={e => {
+                          const val = e.target.value.replace(/\D/g, "");
+                          setPhone(val);
+                          setErrors(p => ({ ...p, phone: "" }));
+                        }} />
                     </div>
                     {fieldErr("phone")}
                   </div>
@@ -388,14 +388,11 @@ export default function Register() {
                           <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                         </svg>
                       </span>
-                      <input
-                        id="password"
-                        className={`reg-input${errors.password ? " reg-input--error" : ""}`}
+                      <input id="password" className={`reg-input${errors.password ? " reg-input--error" : ""}`}
                         type={showPass ? "text" : "password"}
                         placeholder="Min 8 chars, letters, numbers & symbol"
                         value={password}
-                        onChange={e => { setPassword(e.target.value); setErrors(p => ({ ...p, password: "" })); }}
-                      />
+                        onChange={e => { setPassword(e.target.value); setErrors(p => ({ ...p, password: "" })); }} />
                       <button type="button" className="reg-show-pass" onClick={() => setShowPass(v => !v)} tabIndex={-1}>
                         {showPass ? (
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -412,7 +409,6 @@ export default function Register() {
                       </button>
                     </div>
                     {fieldErr("password")}
-                    {/* Strength hints */}
                     {password && (
                       <div className="reg-pass-hints">
                         <span className={/[A-Za-z]/.test(password) ? "hint--ok" : ""}>Letters</span>
@@ -434,14 +430,10 @@ export default function Register() {
                           <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                         </svg>
                       </span>
-                      <input
-                        id="confirmPassword"
-                        className={`reg-input${errors.confirmPassword ? " reg-input--error" : ""}`}
-                        type={showConfirm ? "text" : "password"}
-                        placeholder="Re-enter your password"
+                      <input id="confirmPassword" className={`reg-input${errors.confirmPassword ? " reg-input--error" : ""}`}
+                        type={showConfirm ? "text" : "password"} placeholder="Re-enter your password"
                         value={confirmPassword}
-                        onChange={e => { setConfirmPassword(e.target.value); setErrors(p => ({ ...p, confirmPassword: "" })); }}
-                      />
+                        onChange={e => { setConfirmPassword(e.target.value); setErrors(p => ({ ...p, confirmPassword: "" })); }} />
                       <button type="button" className="reg-show-pass" onClick={() => setShowConfirm(v => !v)} tabIndex={-1}>
                         {showConfirm ? (
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -460,19 +452,17 @@ export default function Register() {
                     {fieldErr("confirmPassword")}
                   </div>
 
-                  {/* Submit */}
                   <button className="reg-btn" type="submit" disabled={loading}>
                     {loading ? <span className="reg-btn__spinner" /> : "Continue →"}
                   </button>
 
                   <p className="reg-signup-hint">
                     Already have an account?{" "}
-                    <a href="/login" className="reg-link">Sign in</a>
+                    <a href="/Login" className="reg-link">Sign in</a>
                   </p>
                 </form>
               </>
             )}
-
           </div>
         </div>
       </div>
