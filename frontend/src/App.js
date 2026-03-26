@@ -10,7 +10,7 @@ import AddFoodService from "./Components/FoodService_Add/AddFoodService";
 import Login from "./Components/Login/Login";
 import EditFoodService from "./Components/FoodService_Edit/EditFoodService";
 import HostListings from "./Components/Host_Listing/HostListings";
-import HostProfile from "./Components/Host_Profile/HostProfile";
+import UserProfile from "./Components/User_Profile/UserProfile";
 import FoodCheckout from "./Components/Food_Checkout/FoodCheckout";
 import Payment from "./Components/Payment/Payment";
 import PaymentReceipt from "./Components/Payment/PaymentReceipt";
@@ -46,7 +46,9 @@ function App() {
       <Route path="/details-Accommodation/:id" element={<AccommodationDetails />} />
       <Route path="/Foods" element={<Foods />} />
       <Route path="/Listings" element={<HostListings />} />
-      <Route path="/Host-Profile" element={<HostProfile />} />
+      <Route path="/Profile"      element={<UserProfile />} /> 
+      <Route path="/Host-Profile" element={<UserProfile />} /> 
+      <Route path="/UserProfile" element={<UserProfile />} />
       <Route path="/FoodCheckout/:id" element={<FoodCheckout />} />
       <Route path="/Payment" element={<Payment />} />
       <Route path="/PaymentReceipt" element={<PaymentReceipt />} />
