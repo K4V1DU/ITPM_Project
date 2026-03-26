@@ -1,3 +1,5 @@
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -26,6 +28,9 @@ const ContactRouter = require("../Backend/Routes/Contact_Route")
 const FoodOrderRouter = require("../Backend/Routes/FoodOrder_Route")
 const NotificationRouter = require("../Backend/Routes/Notification_Route")
 const favouriteRoute = require("../Backend/Routes/Favourite_Route");
+const messageRoute = require("../Backend/Routes/Message_Route");
+const BookingRouter = require("../Backend/Routes/Booking_Route");
+
 
 
 
@@ -41,17 +46,15 @@ app.use("/contact", ContactRouter);
 app.use("/FoodOrder", FoodOrderRouter);
 app.use("/Notification", NotificationRouter);
 app.use("/favourite", favouriteRoute);
+app.use("/message", messageRoute);
+app.use("/Booking", BookingRouter);
 
 
 
 
 
-<<<<<<< Updated upstream
-const MONGO_URI = "mongodb+srv://K4V1DU:ekwpjA9nDZid3iqR@cluster0.23nczaf.mongodb.net/testing2?retryWrites=true&w=majority";
-=======
-const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://K4V1DU:ekwpjA9nDZid3iqR@cluster0.23nczaf.mongodb.net/UniSewana?retryWrites=true&w=majority";
+const MONGO_URI = process.env.MONGO_URI;
 
->>>>>>> Stashed changes
 
 const connectWithRetry = () => {
   console.log("Attempting to connect to MongoDB...");

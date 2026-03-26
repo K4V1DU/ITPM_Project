@@ -13,6 +13,7 @@ import {
 import "./Foods.css";
 import StudentNavbar from "../NavBar/Student_NavBar/StudentNavbar";
 import Footer from "../NavBar/Footer/Footer";
+import { usePhotoCache, prefetchPhotos } from "../Image_Cache/usePhotoCache";
 
 // ─── Config ───────────────────────────────────────────────────────────────
 const API_BASE = "http://localhost:8000";
@@ -117,13 +118,11 @@ function CardSkeleton() {
 // FOOD SERVICE CARD
 // ─────────────────────────────────────────
 function FoodServiceCard({ service, onNavigate, isFavourited, onToggleFavourite }) {
-  const [imgSrc,  setImgSrc]  = useState(null);
+  const { cachedUrl } = usePhotoCache();
   const [pending, setPending] = useState(false);
 
-  useEffect(() => {
-    const id = service.iconImage ?? service.BackgroundImage;
-    if (id) setImgSrc(photoSrc(id));
-  }, [service]);
+  const photoId = service.iconImage ?? service.BackgroundImage;
+  const imgSrc  = cachedUrl(photoId);
 
   const rating    = service.ratingAverage ?? 0;
   const rateCount = service.ratingCount   ?? 0;
@@ -142,9 +141,10 @@ function FoodServiceCard({ service, onNavigate, isFavourited, onToggleFavourite 
     <div className="fs-card" onClick={() => onNavigate(service._id)}>
       <div className="fs-card__image-wrapper">
         {imgSrc
-          ? <img src={imgSrc} alt={service.kitchenName} className="fs-card__image"
-              onError={() => setImgSrc(null)} />
-          : <div className="fs-card__image-fallback">{icon}</div>}
+          ? <img src={imgSrc} alt={service.kitchenName} className="fs-card__image" />
+          : photoId
+            ? <div className="fs-card__image-wrapper fs-skeleton-box" style={{ position:"static", height:"100%" }} />
+            : <div className="fs-card__image-fallback">{icon}</div>}
 
         <div className={`fs-card__status ${open ? "fs-card__status--open" : "fs-card__status--closed"}`}>
           <span className="fs-card__status-dot" />
@@ -392,6 +392,12 @@ export default function Foods() {
         );
         setServices(enriched);
         setFiltered(enriched);
+
+        // Pre-warm image cache for all cards
+        const photoIds = enriched
+          .map(s => s.iconImage ?? s.BackgroundImage)
+          .filter(Boolean);
+        if (photoIds.length) prefetchPhotos(photoIds);
       })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
@@ -502,7 +508,7 @@ export default function Foods() {
 
         {error && (
           <div className="fsl-error">
-            <img src="/images/icon7.jpg" alt="Connection error" className="fsl-error__img" />
+            <img src="/images/icon6.jpg" alt="Connection error" className="fsl-error__img" />
             <div className="fsl-error__title">Connection Error</div>
             <div className="fsl-error__msg">Something went wrong. Please check your connection and try again.</div>
             <button className="fsl-error__btn" onClick={() => window.location.reload()}>Retry</button>
@@ -517,7 +523,7 @@ export default function Foods() {
               : filtered.length === 0
                 ? <div className="fsl-empty">
                     <div className="fsl-empty__icon">
-                      <img src="/images/icon5.jpg" alt="No food services" className="fsl-empty__img" />
+                      <img src="/images/icon2.jpg" alt="No food services" className="fsl-empty__img" />
                     </div>
                     <div className="fsl-empty__title">No food services found</div>
                     <div className="fsl-empty__sub">Try adjusting your search or filters</div>

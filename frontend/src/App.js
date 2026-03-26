@@ -14,7 +14,7 @@ import HostProfile from "./Components/Host_Profile/HostProfile";
 import FoodCheckout from "./Components/Food_Checkout/FoodCheckout";
 import Payment from "./Components/Payment/Payment";
 import PaymentReceipt from "./Components/Payment/PaymentReceipt";
-import Messages from "./Components/Message/Message";
+import Messages from "./Components/Message/Messages";
 import HostOrders from "./Components/Host_Orders/HostOrders";
 import HostNavbar from "./Components/NavBar/Host_NavBar/HostNavbar";
 import Footer from "./Components/NavBar/Footer/Footer";
@@ -25,6 +25,7 @@ import ForgotPassword from "./Components/ForgotPassword/ForgotPassword";
 import ForgotPasswrodOtp from "./Components/ForgotPasswordOtp/ForgotPasswordOtp";
 import ResetPassword from "./Components/ResetPassword/ResetPassword";
 import Favourites from "./Components/Favourites/Favourites";
+import HostBooking from "./Components/Host_Bookings/HostBooking";
 
 
 
@@ -51,6 +52,7 @@ function App() {
       <Route path="/PaymentReceipt" element={<PaymentReceipt />} />
       <Route path="/Messages" element={<Messages />} />
       <Route path="/HostOrders" element={<HostOrders />} />
+      <Route path="/HostBookings" element={<HostBooking />} />
       <Route path="/HostNavbar" element={<HostNavbar />} />
       <Route path="/Footer" element={<Footer />} />
       <Route path="/StudentOrders" element={<StudentOrders />} />
@@ -58,9 +60,9 @@ function App() {
       <Route path="/Register" element={<Register />} />
       <Route path="/ForgotPassword" element={<ForgotPassword />} />
       <Route path="/ForgotPasswrodOtp" element={<ForgotPasswrodOtp />} />
-       <Route path="/ResetPassword" element={<ResetPassword />} />
+      <Route path="/ResetPassword" element={<ResetPassword />} />
       <Route path="/Favourites" element={<Favourites />} />
-
+      
 
 
     </Routes>

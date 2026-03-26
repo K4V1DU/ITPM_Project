@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef } from "react";
+import "./AddFoodService.css";
 import {
   GoogleMap,
   useJsApiLoader,
@@ -9,7 +10,7 @@ import {
   Trash2, RefreshCw, X, ChevronRight, ChevronLeft,
   Home, UtensilsCrossed, Coffee, Croissant, Truck, ShoppingBag,
   MapPin, Crosshair, Upload, Leaf, Flame, Wheat, Sprout,
-  CheckCircle, Loader2, Image as ImageIcon, Plus, Store, Clock,
+  CheckCircle, Loader2, Image as ImageIcon, Plus, Clock,
 } from "lucide-react";
 import axios from "axios";
 
@@ -76,327 +77,6 @@ const emptyMenuItem = () => ({
   imagePreview: null, imageFile: null, imageId: null, imageUploading: false,
 });
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap');
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'DM Sans', sans-serif; background: #f5f5f5; color: #1c1c1e; -webkit-font-smoothing: antialiased; }
-  .afs-root { min-height: 100vh; background: #f5f5f5; }
-
-  /* ── Top Bar (white - form) ── */
-  .afs-topbar {
-    background: #fff; border-bottom: 1px solid #e8e8e8; position: sticky; top: 0; z-index: 100;
-    padding: 0 32px; height: 58px;
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .afs-topbar-brand { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700; color: #1c1c1e; letter-spacing: -0.2px; }
-  .afs-topbar-brand-dot { width: 30px; height: 30px; background: #e67e22; border-radius: 7px; display: flex; align-items: center; justify-content: center; color: #fff; }
-  .afs-topbar-brand span { color: #e67e22; }
-  .afs-exit-btn {
-    display: flex; align-items: center; gap: 6px;
-    background: #f5f5f5; border: 1px solid #e8e8e8;
-    color: #444; padding: 7px 16px; border-radius: 8px;
-    font-size: 13px; font-weight: 500; cursor: pointer; font-family: inherit; transition: all 0.15s;
-  }
-  .afs-exit-btn:hover { background: #1c1c1e; color: #fff; border-color: #1c1c1e; }
-
-  /* ── Top Bar (black - landing) ── */
-  .afs-topbar.dark { background: #1c1c1e; border-bottom: none; }
-  .afs-topbar.dark .afs-topbar-brand { color: #fff; }
-  .afs-topbar.dark .afs-exit-btn {
-    background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.15); color: rgba(255,255,255,0.75);
-  }
-  .afs-topbar.dark .afs-exit-btn:hover { background: rgba(255,255,255,0.18); color: #fff; border-color: rgba(255,255,255,0.3); }
-
-  /* ── Polished Horizontal Progress Bar ── */
-  .afs-progress-wrapper { background: #fff; border-bottom: 1px solid #ebebeb; padding: 0 32px; }
-  .afs-progress-steps {
-    max-width: 680px; margin: 0 auto;
-    display: flex; align-items: center;
-    padding: 20px 0;
-  }
-  .afs-progress-step { display: flex; flex-direction: column; align-items: center; gap: 8px; position: relative; z-index: 1; }
-  .afs-progress-bubble {
-    width: 40px; height: 40px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 700; font-family: 'DM Mono', monospace;
-    border: 2.5px solid #e0e0e0; background: #fff; color: #bbb;
-    transition: all 0.3s ease;
-    box-shadow: 0 0 0 5px #f5f5f5;
-  }
-  .afs-progress-step.active .afs-progress-bubble {
-    border-color: #e67e22; background: #e67e22; color: #fff;
-    box-shadow: 0 0 0 5px rgba(230,126,34,0.14);
-  }
-  .afs-progress-step.done .afs-progress-bubble {
-    border-color: #1c1c1e; background: #1c1c1e; color: #fff;
-    box-shadow: 0 0 0 5px rgba(28,28,30,0.07);
-  }
-  .afs-progress-label { font-size: 11px; font-weight: 600; color: #bbb; text-transform: uppercase; letter-spacing: 0.7px; white-space: nowrap; transition: color 0.3s; }
-  .afs-progress-step.active .afs-progress-label { color: #e67e22; }
-  .afs-progress-step.done  .afs-progress-label { color: #1c1c1e; }
-  .afs-progress-line {
-    flex: 1; height: 2.5px; background: #e8e8e8; margin-bottom: 28px;
-    border-radius: 2px; overflow: hidden; position: relative;
-  }
-  .afs-progress-line-fill {
-    position: absolute; left: 0; top: 0; height: 100%;
-    background: #1c1c1e; transition: width 0.4s ease;
-    border-radius: 2px;
-  }
-
-  /* ── Layout ── */
-  .afs-layout { max-width: 740px; margin: 0 auto; padding: 32px 24px 60px; }
-
-  /* ── Card ── */
-  .afs-card { background: #fff; border-radius: 16px; border: 1px solid #ebebeb; padding: 36px 32px; margin-bottom: 16px; box-shadow: 0 1px 6px rgba(0,0,0,0.04); }
-  .afs-card-title { font-size: 21px; font-weight: 700; color: #1c1c1e; margin-bottom: 4px; letter-spacing: -0.3px; }
-  .afs-card-subtitle { font-size: 13px; color: #999; margin-bottom: 28px; }
-
-  /* ── Form Elements ── */
-  .afs-field { margin-bottom: 22px; }
-  .afs-label { display: block; font-size: 13px; font-weight: 600; color: #1c1c1e; margin-bottom: 8px; }
-  .afs-label span { font-weight: 400; color: #bbb; margin-left: 4px; }
-  .afs-hint { font-size: 12px; color: #aaa; margin-top: 5px; display: block; }
-  .afs-input, .afs-textarea, .afs-select {
-    width: 100%; padding: 11px 14px; font-size: 14px; font-family: 'DM Sans', sans-serif;
-    border: 1.5px solid #e8e8e8; border-radius: 9px; outline: none;
-    color: #1c1c1e; background: #fafafa; transition: border-color 0.15s, box-shadow 0.15s; -webkit-appearance: none;
-  }
-  .afs-input:focus, .afs-textarea:focus, .afs-select:focus {
-    border-color: #e67e22; background: #fff; box-shadow: 0 0 0 3px rgba(230,126,34,0.12);
-  }
-  .afs-textarea { resize: vertical; min-height: 88px; line-height: 1.55; }
-  .afs-select { cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 13px center; background-color: #fafafa; padding-right: 34px; }
-  .afs-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .afs-field-footer { display: flex; justify-content: flex-end; margin-top: 5px; }
-  .afs-char-count { font-size: 11px; font-family: 'DM Mono', monospace; color: #ddd; }
-  .afs-char-count.warn { color: #e67e22; }
-  .afs-divider { height: 1px; background: #f0f0f0; margin: 24px 0; }
-
-  /* ── Service Type Grid ── */
-  .afs-type-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-  .afs-type-card { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 10px; border-radius: 11px; border: 1.5px solid #e8e8e8; background: #fafafa; cursor: pointer; transition: all 0.15s; text-align: center; }
-  .afs-type-card:hover { border-color: #e67e22; background: #fff4ec; }
-  .afs-type-card.selected { border-color: #e67e22; background: #fff4ec; box-shadow: 0 0 0 3px rgba(230,126,34,0.14); }
-  .afs-type-icon { width: 38px; height: 38px; border-radius: 9px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #888; transition: all 0.15s; }
-  .afs-type-card.selected .afs-type-icon { background: #e67e22; color: #fff; }
-  .afs-type-name { font-size: 12px; font-weight: 700; color: #1c1c1e; }
-  .afs-type-desc { font-size: 11px; color: #aaa; line-height: 1.3; }
-
-  /* ── Time Picker ── */
-  .afs-time-row { display: flex; align-items: flex-end; gap: 10px; }
-  .afs-time-group { display: flex; flex-direction: column; gap: 5px; flex: 1; }
-  .afs-time-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #aaa; }
-  .afs-time-divider { display: flex; align-items: center; padding-bottom: 11px; color: #ccc; }
-
-  /* ── Service Options ── */
-  .afs-option-row { display: flex; gap: 12px; }
-  .afs-option-card { flex: 1; display: flex; align-items: center; gap: 12px; padding: 15px 16px; border-radius: 11px; border: 1.5px solid #e8e8e8; background: #fafafa; cursor: pointer; transition: all 0.15s; }
-  .afs-option-card:hover { border-color: #e67e22; }
-  .afs-option-card.active { border-color: #e67e22; background: #fff4ec; }
-  .afs-option-icon-box { width: 38px; height: 38px; border-radius: 9px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #888; flex-shrink: 0; transition: all 0.15s; }
-  .afs-option-card.active .afs-option-icon-box { background: #e67e22; color: #fff; }
-  .afs-option-name { flex: 1; font-size: 14px; font-weight: 600; color: #1c1c1e; }
-  .afs-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
-  .afs-badge.on  { background: #fff4ec; color: #e67e22; border: 1px solid rgba(230,126,34,0.3); }
-  .afs-badge.off { background: #f3f3f3; color: #aaa; border: 1px solid #e8e8e8; }
-
-  /* ── Map ── */
-  .afs-map-wrapper { border-radius: 10px; overflow: hidden; border: 1px solid #e8e8e8; margin-bottom: 12px; }
-  .afs-map-loading {
-    height: 420px; border-radius: 10px; border: 1px solid #e8e8e8; margin-bottom: 12px;
-    background: #fafafa; display: flex; align-items: center; justify-content: center;
-    gap: 12px; font-size: 14px; font-weight: 500; color: #888;
-  }
-  .afs-map-error {
-    height: 420px; border-radius: 10px; border: 1px solid #e8e8e8; margin-bottom: 12px;
-    background: #fafafa; display: flex; align-items: center; justify-content: center;
-    gap: 16px; font-size: 14px; color: #1c1c1e; padding: 24px;
-  }
-  .afs-map-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-  .afs-map-btn { display: flex; align-items: center; gap: 7px; background: #fff; border: 1.5px solid #e8e8e8; color: #1c1c1e; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; font-family: inherit; }
-  .afs-map-btn:hover { background: #fff4ec; border-color: #e67e22; color: #e67e22; }
-
-  /* ── Upload Zones ── */
-  .afs-upload-zone { border: 1.5px dashed #d8d8d8; border-radius: 10px; padding: 30px 20px; text-align: center; cursor: pointer; background: #fafafa; transition: all 0.15s; }
-  .afs-upload-zone:hover { border-color: #e67e22; background: #fff4ec; }
-  .afs-upload-icon { width: 44px; height: 44px; border-radius: 10px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #aaa; margin: 0 auto 10px; }
-  .afs-upload-text { font-size: 13px; font-weight: 600; color: #1c1c1e; }
-  .afs-upload-hint { font-size: 12px; color: #aaa; margin-top: 4px; }
-  .afs-photo-preview { position: relative; display: block; }
-  .afs-preview-icon { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; display: block; border: 3px solid #e8e8e8; }
-  .afs-preview-bg { width: 100%; max-height: 200px; object-fit: cover; border-radius: 10px; display: block; }
-  .afs-photo-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 6px; }
-  .afs-icon-btn { width: 32px; height: 32px; border-radius: 7px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity 0.15s, transform 0.1s; backdrop-filter: blur(6px); }
-  .afs-icon-btn:hover { opacity: 0.85; transform: scale(1.07); }
-  .afs-icon-btn.del { background: rgba(28,28,30,0.85); color: #fff; }
-  .afs-icon-btn.upd { background: rgba(230,126,34,0.9); color: #fff; }
-
-  /* ── Menu Cards ── */
-  .afs-menu-card { background: #fafafa; border: 1px solid #ebebeb; border-radius: 13px; padding: 24px; margin-bottom: 14px; }
-  .afs-menu-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid #f0f0f0; }
-  .afs-menu-header-left { display: flex; align-items: center; gap: 10px; }
-  .afs-menu-num { width: 28px; height: 28px; border-radius: 7px; background: #e67e22; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; font-family: 'DM Mono', monospace; }
-  .afs-menu-title { font-size: 15px; font-weight: 600; color: #1c1c1e; }
-  .afs-remove-btn { display: flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #e8e8e8; color: #aaa; padding: 6px 13px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: inherit; }
-  .afs-remove-btn:hover { background: #1c1c1e; color: #fff; border-color: #1c1c1e; }
-
-  /* ── Dietary Tags ── */
-  .afs-tags-row { display: flex; flex-wrap: wrap; gap: 8px; }
-  .afs-tag-btn { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; border: 1.5px solid; font-family: inherit; }
-  .afs-tag-check { font-size: 11px; font-weight: 700; }
-
-  /* ── Availability Toggle ── */
-  .afs-avail { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 9px; cursor: pointer; font-size: 13px; font-weight: 600; border: 1.5px solid; user-select: none; transition: all 0.15s; }
-  .afs-avail.on  { background: #fff4ec; color: #e67e22; border-color: rgba(230,126,34,0.3); }
-  .afs-avail.off { background: #f5f5f5; color: #aaa; border-color: #e8e8e8; }
-  .afs-avail-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  .afs-avail.on  .afs-avail-dot { background: #e67e22; }
-  .afs-avail.off .afs-avail-dot { background: #ccc; }
-
-  .afs-item-img { width: 100%; max-height: 160px; object-fit: cover; border-radius: 9px; display: block; }
-  .afs-img-uploading { position: absolute; inset: 0; background: rgba(0,0,0,0.4); border-radius: 9px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; font-size: 13px; gap: 8px; }
-
-  .afs-add-item-btn { width: 100%; padding: 14px; background: #fff; border: 1.5px dashed #d8d8d8; border-radius: 11px; color: #aaa; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.15s; font-family: inherit; margin-bottom: 20px; }
-  .afs-add-item-btn:hover { background: #fff4ec; border-color: #e67e22; color: #e67e22; }
-
-  /* ── Review / Summary ── */
-  .afs-section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #aaa; margin-bottom: 12px; }
-  .afs-summary-table { width: 100%; border-collapse: collapse; }
-  .afs-summary-table tr { border-bottom: 1px solid #f0f0f0; }
-  .afs-summary-table tr:last-child { border-bottom: none; }
-  .afs-summary-table td { padding: 10px 0; font-size: 13px; vertical-align: top; }
-  .afs-summary-table td:first-child { color: #999; width: 38%; }
-  .afs-summary-table td:last-child { font-weight: 600; color: #1c1c1e; text-align: right; }
-
-  /* ── Food Service Preview Card (review page) ── */
-  .afs-service-card { border-radius: 14px; overflow: hidden; border: 1px solid #e8e8e8; background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.07); margin-bottom: 28px; }
-  .afs-service-card-cover { width: 100%; height: 155px; object-fit: cover; display: block; }
-  .afs-service-card-cover-placeholder { width: 100%; height: 155px; background: linear-gradient(135deg, #1c1c1e 0%, #2e2e2e 100%); display: flex; align-items: center; justify-content: center; }
-  .afs-service-card-body { padding: 0 18px 18px; position: relative; }
-  .afs-service-card-avatar {
-    position: absolute; top: -50px; left: 18px;
-    width: 108px; height: 108px; border-radius: 50%;
-    border: 4px solid #fff; overflow: hidden;
-    background: #e67e22;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .afs-service-card-avatar img { width: 100%; height: 100%; object-fit: cover; }
-  .afs-service-card-info { padding-top: 68px; }
-  .afs-service-card-name { font-size: 17px; font-weight: 800; color: #1c1c1e; letter-spacing: -0.3px; margin-bottom: 4px; }
-  .afs-service-card-meta { font-size: 12px; color: #999; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-  .afs-service-card-meta span { display: flex; align-items: center; gap: 5px; }
-  .afs-service-card-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
-  .afs-chip { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
-  .afs-chip.orange { background: #fff4ec; color: #e67e22; border: 1px solid rgba(230,126,34,0.25); }
-  .afs-chip.dark   { background: #f3f3f3; color: #1c1c1e; border: 1px solid #e8e8e8; }
-
-  /* ── Menu Preview Rows ── */
-  .afs-menu-preview-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
-  .afs-menu-preview-row:last-child { border-bottom: none; }
-  .afs-menu-preview-thumb { width: 42px; height: 42px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
-  .afs-menu-preview-noimg { width: 42px; height: 42px; background: #f3f3f3; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #ccc; flex-shrink: 0; }
-  .afs-menu-preview-name { flex: 1; font-weight: 600; color: #1c1c1e; }
-  .afs-menu-preview-cat { background: #f3f3f3; color: #888; padding: 3px 9px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-  .afs-menu-preview-price { font-weight: 700; color: #e67e22; font-family: 'DM Mono', monospace; min-width: 90px; text-align: right; }
-
-  /* ── Checkboxes ── */
-  .afs-check-label { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: #444; cursor: pointer; padding: 8px 0; line-height: 1.5; }
-  .afs-check-label input[type=checkbox] { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; cursor: pointer; accent-color: #e67e22; }
-
-  /* ── Save Progress ── */
-  .afs-save-bar { display: flex; align-items: center; gap: 12px; background: #fff4ec; border: 1px solid rgba(230,126,34,0.3); border-radius: 10px; padding: 13px 16px; margin-bottom: 16px; font-size: 13px; font-weight: 500; color: #c0641a; }
-  .afs-spin { animation: afs-spin 0.8s linear infinite; flex-shrink: 0; }
-  @keyframes afs-spin { to { transform: rotate(360deg); } }
-
-  /* ── Navigation Buttons ── */
-  .afs-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 28px; padding-top: 20px; border-top: 1px solid #f0f0f0; gap: 12px; }
-  .afs-btn-secondary { display: flex; align-items: center; gap: 6px; background: #fff; border: 1.5px solid #e8e8e8; color: #444; padding: 10px 22px; border-radius: 9px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; font-family: inherit; }
-  .afs-btn-secondary:hover:not(:disabled) { background: #1c1c1e; color: #fff; border-color: #1c1c1e; }
-  .afs-btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
-  .afs-btn-primary { display: flex; align-items: center; gap: 6px; background: #e67e22; color: #fff; border: none; padding: 10px 28px; border-radius: 9px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; margin-left: auto; font-family: inherit; }
-  .afs-btn-primary:hover:not(:disabled) { background: #d35400; transform: translateY(-1px); }
-  .afs-btn-primary:disabled { background: #ccc; cursor: not-allowed; }
-  .afs-btn-save { display: flex; align-items: center; gap: 6px; background: #1c1c1e; color: #fff; border: none; padding: 10px 28px; border-radius: 9px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.15s; margin-left: auto; font-family: inherit; }
-  .afs-btn-save:hover:not(:disabled) { background: #e67e22; transform: translateY(-1px); }
-  .afs-btn-save:disabled { background: #ccc; cursor: not-allowed; }
-
-  /* ════════════════════════════════════════
-     LANDING PAGE
-  ════════════════════════════════════════ */
-  .afs-landing { min-height: calc(100vh - 58px); display: flex; flex-direction: column; }
-
-  /* Hero */
-  .afs-hero { position: relative; height: 500px; overflow: hidden; }
-  .afs-hero-bg {
-    position: absolute; inset: 0;
-    background-image: url('/images/foodbg1.png');
-    background-size: cover; background-position: center;
-    transform: scale(1.04);
-  }
-  .afs-hero-overlay { position: absolute; inset: 0; background: linear-gradient(160deg, rgba(28, 28, 30, 0.23) 0%, rgba(28, 28, 30, 0.5) 100%); }
-  .afs-hero-content {
-    position: relative; z-index: 2; height: 100%;
-    max-width: 740px; margin: 0 auto; padding: 0 32px;
-    display: flex; flex-direction: column; justify-content: center;
-    padding-top: 30px;
-  }
-  .afs-hero-title { font-size: 52px; font-weight: 800; color: #fff; line-height: 1.08; letter-spacing: -1.5px; margin-bottom: 16px; }
-  .afs-hero-title em { color: #e67e22; font-style: normal; }
-  .afs-hero-sub { font-size: 16px; color: rgba(255,255,255,0.6); line-height: 1.65; max-width: 480px; margin-bottom: 36px; }
-  .afs-hero-cta {
-    display: inline-flex; align-items: center; gap: 10px;
-    background: #e67e22; color: #fff; border: none;
-    padding: 15px 36px; font-size: 15px; font-weight: 700; border-radius: 11px;
-    cursor: pointer; transition: all 0.2s; font-family: inherit; width: fit-content;
-    box-shadow: 0 6px 24px rgba(230,126,34,0.45);
-  }
-  .afs-hero-cta:hover { background: #d35400; transform: translateY(-2px); box-shadow: 0 10px 32px rgba(230,126,34,0.5); }
-
-  /* Stats strip */
-  .afs-stats-strip { background: #1c1c1e; }
-  .afs-stats-inner { max-width: 740px; margin: 0 auto; padding: 0 32px; display: flex; }
-  .afs-stat { flex: 1; padding: 20px 0; display: flex; align-items: center; gap: 14px; border-right: 1px solid rgba(255,255,255,0.08); }
-  .afs-stat:last-child { border-right: none; }
-  .afs-stat-icon { width: 38px; height: 38px; border-radius: 9px; background: rgba(230,126,34,0.2); display: flex; align-items: center; justify-content: center; color: #e67e22; flex-shrink: 0; }
-  .afs-stat-num { font-size: 19px; font-weight: 800; color: #fff; font-family: 'DM Mono', monospace; }
-  .afs-stat-label { font-size: 12px; color: rgba(255,255,255,0.45); }
-
-  /* How it works */
-  .afs-how { flex: 1; background: #f5f5f5; padding: 52px 32px 60px; }
-  .afs-how-inner { max-width: 740px; margin: 0 auto; }
-  .afs-how-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #bbb; margin-bottom: 8px; }
-  .afs-how-heading { font-size: 28px; font-weight: 800; color: #1c1c1e; letter-spacing: -0.5px; margin-bottom: 32px; }
-  .afs-how-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-  .afs-how-card { background: #fff; border-radius: 16px; border: 1px solid #ebebeb; overflow: hidden; transition: box-shadow 0.2s, transform 0.2s; box-shadow: 0 1px 5px rgba(0,0,0,0.04); }
-  .afs-how-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,0.09); transform: translateY(-3px); }
-  .afs-how-img { width: 100%; height: 120px; object-fit: cover; display: block; }
-  .afs-how-body { padding: 18px 18px 20px; }
-  .afs-how-num { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 7px; background: #e67e22; color: #fff; font-size: 12px; font-weight: 800; font-family: 'DM Mono', monospace; margin-bottom: 10px; }
-  .afs-how-title { font-size: 14px; font-weight: 700; color: #1c1c1e; margin-bottom: 5px; }
-  .afs-how-desc { font-size: 12px; color: #999; line-height: 1.55; }
-
-  /* ── Responsive ── */
-  @media (max-width: 640px) {
-    .afs-type-grid { grid-template-columns: 1fr 1fr; }
-    .afs-option-row { flex-direction: column; }
-    .afs-row { grid-template-columns: 1fr; }
-    .afs-time-row { flex-direction: column; gap: 8px; }
-    .afs-time-divider { display: none; }
-    .afs-hero-title { font-size: 34px; }
-    .afs-hero { height: 420px; }
-    .afs-how-grid { grid-template-columns: 1fr; }
-    .afs-stats-inner { flex-direction: column; }
-    .afs-stat { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.08); padding: 14px 0; }
-    .afs-card { padding: 22px 16px; }
-    .afs-menu-card { padding: 16px; }
-    .afs-progress-wrapper { padding: 0 12px; }
-  }
-`;
-
 // ─── Component ────────────────────────────────────────────────────────────────
 function AddFoodService() {
   const navigate       = useNavigate();
@@ -428,7 +108,7 @@ function AddFoodService() {
   const [bgImageId,     setBgImageId]     = useState(null);
   const [updatingField, setUpdatingField] = useState(null);
 
-  const [menuItems, setMenuItems] = useState([emptyMenuItem()]);
+  const [menuItems,  setMenuItems]  = useState([emptyMenuItem()]);
   const [isVerified, setIsVerified] = useState(false);
   const [isAgreed,   setIsAgreed]   = useState(false);
 
@@ -495,7 +175,7 @@ function AddFoodService() {
     inp.onchange = e => handleMenuItemImageSelect(i, e); inp.click();
   };
 
-  // ── Kitchen photos (deferred) ──────────────────────────────────────────────
+  // ── Kitchen photos (deferred) ─────────────────────────────────────────────
   const handleIconSelect = (e) => {
     const file = e.target.files[0]; if (!file) return;
     setIconPreview(URL.createObjectURL(file)); setIconFile(file); setIconImageId(null); e.target.value=null;
@@ -611,13 +291,17 @@ function AddFoodService() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="afs-root">
-      <style>{styles}</style>
 
       {/* Top Bar */}
       <div className={`afs-topbar ${!showForm ? "dark" : ""}`}>
-        <div className="afs-topbar-brand">
-          <div className="afs-topbar-brand-dot"><Store size={15} /></div>
-          Food<span>Service</span>
+        <div className="hn-nav__logo-wrap">
+          <a href="/Listings" className="hn-nav__logo">
+            <img
+              src={showForm ? "/images/logo2.png" : "/images/logo6.png"}
+              alt="Unisewana Logo"
+              style={{ height: "32px", width: "auto", display: "block" }}
+            />
+          </a>
         </div>
         <button className="afs-exit-btn" onClick={handleExit}><X size={14} /> Exit</button>
       </div>
@@ -625,7 +309,7 @@ function AddFoodService() {
       {/* ── LANDING ── */}
       {!showForm && (
         <div className="afs-hero" style={{ height: "calc(100vh - 58px)" }}>
-          <div className="afs-hero-bg" />
+          <div className="afs-hero-bg" style={{ backgroundImage: "url('/images/foodbg1.png')" }} />
           <div className="afs-hero-overlay" />
           <div className="afs-hero-content">
             <h1 className="afs-hero-title">Share your food.<br /><em>Grow your business.</em></h1>
@@ -957,7 +641,7 @@ function AddFoodService() {
                           onBlur={e => {
                             const v = Number(e.target.value);
                             if (e.target.value === "") return;
-                            if (v < 100)   updateMenuItem(index, "price", "100");
+                            if (v < 100)        updateMenuItem(index, "price", "100");
                             else if (v > 10000) updateMenuItem(index, "price", "10000");
                           }}
                           min="100" max="10000" placeholder="350" />
@@ -969,7 +653,7 @@ function AddFoodService() {
                           onBlur={e => {
                             const v = Number(e.target.value);
                             if (e.target.value === "") return;
-                            if (v < 1)   updateMenuItem(index, "prepTime", "1");
+                            if (v < 1)        updateMenuItem(index, "prepTime", "1");
                             else if (v > 120) updateMenuItem(index, "prepTime", "120");
                           }}
                           min="1" max="120" />
@@ -1050,21 +734,17 @@ function AddFoodService() {
                 <div className="afs-card-title">Review & publish</div>
                 <div className="afs-card-subtitle">Here's how your listing will look — images upload on save</div>
 
-                {/* ── Live Food Service Preview Card ── */}
                 <div className="afs-section-label" style={{ marginBottom: 14 }}>Listing preview</div>
                 <div className="afs-service-card">
-                  {/* Cover / Background */}
                   {bgPreview
                     ? <img src={bgPreview} alt="cover" className="afs-service-card-cover" />
                     : <div className="afs-service-card-cover-placeholder"><ImageIcon size={28} color="#555" /></div>
                   }
-                  {/* Body */}
                   <div className="afs-service-card-body">
-                    {/* Circle avatar icon */}
                     <div className="afs-service-card-avatar">
                       {iconPreview
                         ? <img src={iconPreview} alt="icon" />
-                        : <Store size={40} color="#fff" />
+                        : <UtensilsCrossed size={40} color="#fff" />
                       }
                     </div>
                     <div className="afs-service-card-info">
@@ -1084,7 +764,6 @@ function AddFoodService() {
 
                 <div className="afs-divider" />
 
-                {/* Kitchen details */}
                 <div style={{ marginBottom: 24 }}>
                   <div className="afs-section-label">Kitchen details</div>
                   <table className="afs-summary-table">
@@ -1105,7 +784,6 @@ function AddFoodService() {
 
                 <div className="afs-divider" />
 
-                {/* Menu preview */}
                 <div style={{ marginBottom: 24 }}>
                   <div className="afs-section-label">Menu — {menuItems.length} item(s)</div>
                   {menuItems.map((item, i) => (
@@ -1122,7 +800,6 @@ function AddFoodService() {
 
                 <div className="afs-divider" />
 
-                {/* Confirmation checkboxes */}
                 <div style={{ marginBottom: 20 }}>
                   <div className="afs-section-label">Confirmation</div>
                   <label className="afs-check-label">

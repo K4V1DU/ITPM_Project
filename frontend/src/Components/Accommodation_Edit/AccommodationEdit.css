@@ -110,7 +110,7 @@
   padding: 0 32px;
 }
 .ae-progress-steps {
-  max-width: 680px;
+  max-width: 860px;   /* ↑ widened to match card */
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -178,10 +178,10 @@
 }
 
 /* ══════════════════════════════════════════════════════════
-   LAYOUT
+   LAYOUT  ← wider body
 ══════════════════════════════════════════════════════════ */
 .ae-layout {
-  max-width: 740px;
+  max-width: 900px;   /* ↑ was 740px */
   margin: 0 auto;
   padding: 32px 24px 60px;
 }
@@ -190,7 +190,7 @@
    STATE SCREENS (loading / error)
 ══════════════════════════════════════════════════════════ */
 .ae-state-screen {
-  max-width: 740px;
+  max-width: 900px;
   margin: 60px auto;
   padding: 60px 40px;
   display: flex;
@@ -213,7 +213,7 @@
   background: #fff;
   border-radius: 16px;
   border: 1px solid #ebebeb;
-  padding: 36px 32px;
+  padding: 36px 40px;   /* ↑ was 36px 32px */
   margin-bottom: 16px;
   box-shadow: 0 1px 6px rgba(0,0,0,0.04);
 }
@@ -475,22 +475,20 @@
 .ae-upload-hint { font-size: 12px; color: #aaa; margin-top: 4px; }
 
 /* ══════════════════════════════════════════════════════════
-   PHOTO GRID
+   PHOTO GRID  ← always one row of 5
 ══════════════════════════════════════════════════════════ */
 .ae-photo-grid {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);  /* ↑ was flex + wrap */
   gap: 10px;
-  flex-wrap: wrap;
   margin-bottom: 8px;
 }
 .ae-photo-box {
-  width: 120px;
-  height: 120px;
+  aspect-ratio: 1 / 1;   /* ↑ square, scales with grid — no fixed px */
   border-radius: 10px;
   overflow: hidden;
   border: 1.5px solid #e8e8e8;
   background: #f5f5f5;
-  flex-shrink: 0;
 }
 /* Note: AccommodationEdit.js uses ae-photo-box-inner (hyphen, not BEM __) */
 .ae-photo-box-inner {
@@ -844,6 +842,11 @@
 /* ══════════════════════════════════════════════════════════
    RESPONSIVE
 ══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .ae-layout         { max-width: 100%; }
+  .ae-progress-steps { max-width: 100%; }
+}
+
 @media (max-width: 640px) {
   .ae-topbar           { padding: 0 16px; }
   .ae-topbar-center    { display: none; }
@@ -854,7 +857,8 @@
   .ae-amenities-grid   { grid-template-columns: 1fr 1fr; }
   .ae-option-row       { flex-direction: column; }
   .ae-row, .ae-three-cols { grid-template-columns: 1fr; }
-  .ae-photo-box        { width: 90px; height: 90px; }
+  /* keep 5-col grid on small screens, allow horizontal scroll if needed */
+  .ae-photo-grid       { grid-template-columns: repeat(5, minmax(56px, 1fr)); }
   .ae-nav              { flex-wrap: wrap; }
   .ae-btn-primary,
   .ae-btn-save-final   { margin-left: 0; flex: 1; justify-content: center; }
