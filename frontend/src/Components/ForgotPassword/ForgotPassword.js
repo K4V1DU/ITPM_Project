@@ -42,8 +42,11 @@ export default function ForgotPassword() {
       <div className="reg-wrapper">
         <div className="reg-panel reg-panel--left">
           <div className="reg-brand">
-            <div className="reg-brand__logo">B</div>
-            <span className="reg-brand__name">Bodima</span>
+           <img
+              src="/images/logo2.png"
+              alt="Bodima Logo"
+              className="reg-brand__logo-img"
+            />
           </div>
           <div className="reg-panel__content">
             <h1 className="reg-panel__headline">
@@ -58,7 +61,7 @@ export default function ForgotPassword() {
               <span className="reg-pill">⚡ Quick</span>
             </div>
           </div>
-          <div className="reg-panel__footer">© 2026 Bodima, Inc.</div>
+          <div className="reg-panel__footer">© 2026 Unisewana.</div>
         </div>
 
         <div className="reg-panel reg-panel--right">

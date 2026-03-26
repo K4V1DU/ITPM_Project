@@ -67,8 +67,11 @@ export default function Login() {
         {/* Left panel */}
         <div className="login-panel login-panel--left">
           <div className="login-brand">
-            <div className="login-brand__logo">B</div>
-            <span className="login-brand__name">Bodima</span>
+            <img
+              src="/images/logo2.png"
+              alt="UniSewana Logo"
+              className="login-brand__logo-img"
+            />
           </div>
           <div className="login-panel__content">
             <h1 className="login-panel__headline">
@@ -84,7 +87,7 @@ export default function Login() {
             </div>
           </div>
           <div className="login-panel__footer">
-            © 2026 Bodima, Inc.
+            © 2026 Unisewana.
           </div>
         </div>
 
