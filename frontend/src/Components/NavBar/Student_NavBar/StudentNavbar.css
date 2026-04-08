@@ -14,6 +14,10 @@
   from { opacity: 0; transform: scale(0.88); }
   to   { opacity: 1; transform: scale(1);    }
 }
+@keyframes mobileMenuSlide {
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -34,7 +38,7 @@
   overflow: visible;
 }
 
-.snav__left  { display: flex; align-items: center; }
+.snav__left  { display: flex; align-items: center; gap: 10px; }
 .snav__tabs  { align-self: stretch; }
 .snav__right { display: flex; gap: 14px; align-items: center; justify-content: flex-end; }
 
@@ -219,12 +223,6 @@
 .snav-modal__btn--danger       { background: #dc2626; color: #fff; }
 .snav-modal__btn--danger:hover { background: #b91c1c; }
 
-/* ── Responsive ── */
-@media (max-width: 768px) {
-  .snav            { padding: 0 20px; grid-template-columns: auto 1fr auto; gap: 12px; }
-  .snav__tabs      { display: none; }
-}
-
 /* ════════════════════════════════════════
    BELL ICON
 ════════════════════════════════════════ */
@@ -371,4 +369,144 @@
   min-width: 20px;
   text-align: center;
   line-height: 1.4;
+}
+
+/* ════════════════════════════════════════
+   MOBILE NAV DROPDOWN (near logo)
+════════════════════════════════════════ */
+
+/* The small chevron/hamburger toggle button beside the logo */
+.snav__mobile-toggle {
+  display: none; /* hidden on desktop */
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1.5px solid #ebebeb;
+  background: #fff;
+  cursor: pointer;
+  color: #545454;
+  font-size: 13px;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.snav__mobile-toggle:hover {
+  background: #f7f7f7;
+  border-color: #ccc;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.snav__mobile-toggle--open {
+  background: #fff4ef;
+  border-color: #FF6B2B;
+  color: #FF6B2B;
+}
+
+/* Wrapper to anchor the dropdown */
+.snav__mobile-nav {
+  position: relative;
+  display: none; /* hidden on desktop */
+  align-items: center;
+  align-self: center;   /* sit at the vertical midpoint of the navbar */
+  margin-top: 2px;      /* nudge to optically match the logo baseline */
+}
+
+/* The dropdown panel */
+.snav__mobile-menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 230px;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+  border: 1px solid #f0f0f0;
+  padding: 8px 0;
+  z-index: 9999;
+  animation: mobileMenuSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Section label inside mobile menu */
+.snav__mobile-menu__label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #aaa;
+  padding: 8px 16px 4px;
+}
+
+/* Individual link row */
+.snav__mobile-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1b1b1b;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.13s, color 0.13s;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+}
+.snav__mobile-menu__item:hover       { background: #f7f7f7; }
+.snav__mobile-menu__item--active     { color: #FF6B2B; font-weight: 700; }
+.snav__mobile-menu__item--active svg { color: #FF6B2B; }
+.snav__mobile-menu__item--host {
+  color: #1b1b1b;
+  font-weight: 600;
+}
+.snav__mobile-menu__item--login {
+  color: #FF6B2B;
+  font-weight: 700;
+}
+.snav__mobile-menu__divider {
+  height: 1px;
+  background: #ebebeb;
+  margin: 6px 0;
+}
+
+/* Active dot indicator */
+.snav__mobile-menu__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #FF6B2B;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .snav {
+    padding: 0 16px;
+    grid-template-columns: auto 1fr auto;
+    gap: 0;
+  }
+
+  /* Hide desktop tabs and host/login button */
+  .snav__tabs      { display: none; }
+  .snav__host-btn  { display: none; }
+
+  /* Show the mobile nav toggle next to the logo */
+  .snav__mobile-nav    { display: flex; }
+  .snav__mobile-toggle { display: flex; }
+
+  /* Shrink bell dropdown so it doesn't overflow on small screens */
+  .snav__bell-dropdown {
+    width: 280px;
+    right: -10px;
+  }
+
+  /* Keep the right-side items compact */
+  .snav__right { gap: 8px; }
+}
+
+@media (max-width: 400px) {
+  .snav__bell-dropdown { width: calc(100vw - 32px); right: -50px; }
 }
