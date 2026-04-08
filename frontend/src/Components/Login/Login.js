@@ -40,7 +40,10 @@ export default function Login() {
       const role = (user.role ?? "").toLowerCase();
       if (role === "host") {
         navigate("/Listings");
-      } else {
+      } else if (role === "admin"){
+        navigate("/AdminDashBoard");
+      } 
+      else {
         navigate("/Boardings");
       }
     } catch (err) {

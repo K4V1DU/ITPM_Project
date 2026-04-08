@@ -5,7 +5,7 @@ import {
   FaCamera, FaEdit, FaSave, FaTimes, FaLock, FaTrash,
   FaShieldAlt, FaCheckCircle, FaSignOutAlt, FaArrowLeft, FaKey,
 } from "react-icons/fa";
-import AdminNavBar from "./AdminNavBar";
+import AdminNavBar from '../../NavBar/Admin_NavBar/AdminNavBar';
 import "./AdminProfile.css";
 
 const API_BASE = "http://localhost:8000";
@@ -97,11 +97,28 @@ export default function AdminProfile() {
               if (res.ok) {
                 const blob = await res.blob();
                 const reader = new FileReader();
-                reader.onload = () => {
-                  const dataUrl = reader.result;
-                  sessionStorage.setItem(cacheKey, dataUrl);
-                  sessionStorage.setItem("adminAvatarDataUrl", dataUrl);
-                  setAvatarSrc(dataUrl);
+                reader.onload = (ev) => {
+                  const img = new Image();
+                  img.src = ev.target.result;
+                  img.onload = () => {
+                    const canvas = document.createElement("canvas");
+                    const MAX = 200;
+                    let w = img.width;
+                    let h = img.height;
+                    if (w > h) { if (w > MAX) { h = Math.round((h * MAX) / w); w = MAX; } }
+                    else       { if (h > MAX) { w = Math.round((w * MAX) / h); h = MAX; } }
+                    canvas.width  = w;
+                    canvas.height = h;
+                    canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+                    const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+                    try {
+                      sessionStorage.setItem(cacheKey, dataUrl);
+                      sessionStorage.setItem("adminAvatarDataUrl", dataUrl);
+                    } catch (err) {
+                      console.warn("sessionStorage quota:", err);
+                    }
+                    setAvatarSrc(dataUrl);
+                  };
                 };
                 reader.readAsDataURL(blob);
               }
@@ -134,33 +151,57 @@ export default function AdminProfile() {
     if (!file) return;
     setAvatarUploading(true);
     try {
+      // 1. Backend එකට upload කරනවා
       const formData = new FormData();
       formData.append("photo", file);
-      const uploadRes  = await fetch(`${API_BASE}/Photo`, { method: "POST", body: formData });
+      const uploadRes = await fetch(`${API_BASE}/Photo`, { method: "POST", body: formData });
       if (!uploadRes.ok) throw new Error();
       const uploadData = await uploadRes.json();
-      const photoId    = unwrap(uploadData)?._id ?? uploadData._id;
+      const photoId = unwrap(uploadData)?._id ?? uploadData._id;
 
+      // 2. User record update කරනවා
       const updateRes = await fetch(`${API_BASE}/User/${userId}`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ profileImage: photoId }),
       });
       if (!updateRes.ok) throw new Error();
 
+      // 3. Image compress කරලා sessionStorage save කරනවා
       const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result;
-        sessionStorage.setItem("adminAvatarDataUrl",         dataUrl);
-        sessionStorage.setItem("adminAvatarDataUrl_profile", dataUrl);
-        sessionStorage.setItem("adminAvatarPhotoId",         String(photoId));
-        setAvatarSrc(dataUrl);
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.src = ev.target.result;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const MAX = 200;
+          let w = img.width;
+          let h = img.height;
+          if (w > h) { if (w > MAX) { h = Math.round((h * MAX) / w); w = MAX; } }
+          else       { if (h > MAX) { w = Math.round((w * MAX) / h); h = MAX; } }
+          canvas.width  = w;
+          canvas.height = h;
+          canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
+          try {
+            sessionStorage.setItem("adminAvatarDataUrl",         dataUrl);
+            sessionStorage.setItem("adminAvatarDataUrl_profile", dataUrl);
+            sessionStorage.setItem("adminAvatarPhotoId",         String(photoId));
+          } catch (err) {
+            console.warn("sessionStorage quota:", err);
+          }
+          setAvatarSrc(dataUrl);
+        };
       };
       reader.readAsDataURL(file);
+
       setUser(u => ({ ...u, profileImage: photoId }));
       setToast({ message: "Profile photo updated!", type: "success" });
     } catch {
       setToast({ message: "Failed to upload photo.", type: "error" });
-    } finally { setAvatarUploading(false); }
+    } finally {
+      setAvatarUploading(false);
+    }
   };
 
   // ── Save profile ───────────────────────────────────────────────────────────
@@ -184,11 +225,11 @@ export default function AdminProfile() {
   const handlePasswordChange = async () => {
     setPwError("");
     const re = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&^_-])[A-Za-z\d@$!%*#?&^_-]{8,}$/;
-    if (!pwForm.current)        return setPwError("Enter your current password.");
-    if (!pwForm.next)           return setPwError("Enter a new password.");
-    if (!re.test(pwForm.next))  return setPwError("Min 8 chars with letters, numbers & a special character.");
-    if (pwForm.next !== pwForm.confirm) return setPwError("Passwords do not match.");
-    if (pwForm.next === pwForm.current) return setPwError("New password cannot be the same as current.");
+    if (!pwForm.current)                    return setPwError("Enter your current password.");
+    if (!pwForm.next)                       return setPwError("Enter a new password.");
+    if (!re.test(pwForm.next))              return setPwError("Min 8 chars with letters, numbers & a special character.");
+    if (pwForm.next !== pwForm.confirm)     return setPwError("Passwords do not match.");
+    if (pwForm.next === pwForm.current)     return setPwError("New password cannot be the same as current.");
 
     setSaving(true);
     try {
@@ -204,12 +245,14 @@ export default function AdminProfile() {
     } finally { setSaving(false); }
   };
 
+  // ── Logout ─────────────────────────────────────────────────────────────────
   const handleLogout = () => {
     localStorage.removeItem("CurrentUserId");
     sessionStorage.clear();
     navigate("/Login");
   };
 
+  // ── Cancel edit ────────────────────────────────────────────────────────────
   const cancelEdit = () => {
     setForm({ name: user.name ?? "", phone: user.phone ?? "", address: user.address ?? "", about: user.about ?? "" });
     setEditMode(false);
@@ -264,7 +307,7 @@ export default function AdminProfile() {
       <div className="ap-container">
         <div className="ap-card">
 
-          {/* Avatar section — identical layout to UserProfile */}
+          {/* Avatar section */}
           <div className="ap-avatar-section">
             <div className="ap-avatar-wrap">
               <div className="ap-avatar">
@@ -384,7 +427,7 @@ export default function AdminProfile() {
                     : <div className="ap-field__value">{user.about || <span className="ap-empty">Not set</span>}</div>}
                 </div>
 
-                {/* Platform stats — admin-specific, mirrors host stats in UserProfile */}
+                {/* Platform stats */}
                 <div className="ap-field ap-field--full">
                   <label className="ap-field__label"><FaShieldAlt /> Platform Overview</label>
                   <div className="ap-admin-stats">
@@ -459,7 +502,7 @@ export default function AdminProfile() {
                 </div>
               </div>
 
-              {/* Account actions — no delete for admin, only logout */}
+              {/* Account actions */}
               <div className="ap-section__header" style={{ marginTop: 32 }}>
                 <h3 className="ap-section__title">Account Actions</h3>
               </div>
