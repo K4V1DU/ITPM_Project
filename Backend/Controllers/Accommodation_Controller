@@ -1,4 +1,4 @@
-const Accommodation = require("../models/Accommodation");
+const Accommodation = require("../Models/Accommodation");
 
 // ==============================
 // Add New Accommodation

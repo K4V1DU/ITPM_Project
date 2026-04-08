@@ -1,5 +1,5 @@
-const MenuItem = require("../models/MenuItem");
-const FoodService = require("../models/FoodService");
+const MenuItem = require("../Models/MenuItem");
+const FoodService = require("../Models/FoodService");
 
 // ==============================
 // Add New Menu Item

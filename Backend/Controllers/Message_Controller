@@ -1,4 +1,4 @@
-const { Conversation, Message } = require("../models/Message");
+const { Conversation, Message } = require("../Models/Message");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET OR CREATE CONVERSATION

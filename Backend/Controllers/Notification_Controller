@@ -1,5 +1,5 @@
 // controllers/Notification_Controller.js
-const Notification = require("../models/Notification");
+const Notification = require("../Models/Notification");
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 // Call this from any other controller to create a notification.

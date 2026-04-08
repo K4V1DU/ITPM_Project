@@ -1,4 +1,4 @@
-const Photo = require("../models/Photo");
+const Photo = require("../Models/Photo");
 
 // ==============================
 // Add New Photo

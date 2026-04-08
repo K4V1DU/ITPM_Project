@@ -1,5 +1,5 @@
-const FoodOrder = require("../models/FoodOrder");
-const User = require("../models/User");
+const FoodOrder = require("../Models/FoodOrder");
+const User = require("../Models/User");
 
 // ==============================
 // Create New Order
@@ -160,7 +160,7 @@ const getOrdersByOwner = async (req, res) => {
     const { ownerId } = req.params;
 
     // Step 1: Find all food services belonging to this owner
-    const FoodService = require("../models/FoodService");
+    const FoodService = require("../Models/FoodService");
     const foodServices = await FoodService.find({ owner: ownerId }).select("_id");
 
     if (!foodServices.length) {
