@@ -293,53 +293,121 @@
 /* ── Page Wrapper ── */
 .fs-wrapper { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
 
-/* ── Restaurant Header ── */
+/* ══ RESTAURANT HEADER ══
+   Outer container is now a column so the bottom row can be full width.
+   ─────────────────────────────────────────────────────────────────── */
 .fs-restaurant-header {
   padding: 28px 0 0;
   display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── TOP ROW: logo + info columns + action buttons ── */
+.fs-restaurant-header__top {
+  display: flex;
   gap: 20px;
   align-items: flex-start;
+  width: 100%;
 }
+
 .fs-restaurant-header__logo {
-  width: 96px; height: 96px;
+  width: 96px;
+  height: 96px;
   border-radius: 12px;
   border: 2px solid #e2e2e2;
   flex-shrink: 0;
   background: linear-gradient(135deg,#FF6B2B,#e85a1a);
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 42px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.12);
 }
+
 .fs-restaurant-header__info {
   flex: 1;
-  min-width: 0; /* prevents overflow pushing layout */
+  min-width: 0;
 }
+
 .fs-restaurant-header__title {
-  font-size: 28px; font-weight: 800; color: #000;
-  letter-spacing: -0.5px; margin-bottom: 6px; line-height: 1.2;
+  font-size: 28px;
+  font-weight: 800;
+  color: #000;
+  letter-spacing: -0.5px;
+  margin-bottom: 6px;
+  line-height: 1.2;
 }
+
 .fs-restaurant-header__meta {
-  display: flex; align-items: center; gap: 8px;
-  flex-wrap: wrap; font-size: 14px; color: #757575; margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  color: #757575;
+  margin-bottom: 12px;
 }
+
+.fs-restaurant-header__badges-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  /* No bottom margin — spacing handled by __bottom's top margin */
+}
+
 .fs-restaurant-header__badge {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 12px; border-radius: 20px; font-size: 13px;
-  font-weight: 500; border: 1px solid #e2e2e2; background: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid #e2e2e2;
+  background: #fff;
 }
+
 .fs-restaurant-header__status-dot {
-  width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
 }
-.fs-restaurant-header__address {
-  font-size: 13px; color: #757575;
-  white-space: normal;
-  word-break: break-word;
-}
-.fs-restaurant-header__description {
-  font-size: 13px; color: #757575; line-height: 1.55; margin-top: 6px;
-}
+
 .fs-restaurant-header__actions {
-  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* ── BOTTOM ROW: full-width address + description ── */
+.fs-restaurant-header__bottom {
+  width: 100%;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fs-restaurant-header__address {
+  font-size: 13px;
+  color: #757575;
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  line-height: 1.5;
+}
+
+.fs-restaurant-header__description {
+  font-size: 13px;
+  color: #757575;
+  line-height: 1.6;
+  /* Full text — no clamping */
 }
 
 /* ── Action Buttons ── */
@@ -847,11 +915,16 @@ body { padding-bottom: 60px; }
     border-radius: 12px;
   }
 
-  /* ── Restaurant header — full mobile restructure ── */
+  /* ── Restaurant header outer — stays column, no changes needed ── */
   .fs-restaurant-header {
     padding: 14px 0 0;
+  }
+
+  /* ── TOP ROW: relative so actions can be absolute ── */
+  .fs-restaurant-header__top {
+    position: relative;
     gap: 12px;
-    flex-wrap: nowrap;
+    padding-right: 84px; /* room for the two action buttons stacked */
     align-items: flex-start;
   }
 
@@ -863,16 +936,18 @@ body { padding-bottom: 60px; }
     flex-shrink: 0;
   }
 
+  /* Info column — no padding-right hack needed anymore */
   .fs-restaurant-header__info {
     flex: 1;
-    min-width: 0; /* critical — stops overflow pushing layout */
+    min-width: 0;
+    padding-right: 0;
   }
 
   .fs-restaurant-header__title {
     font-size: 18px;
     margin-bottom: 5px;
     letter-spacing: -0.3px;
-    white-space: normal;   /* allow wrapping */
+    white-space: normal;
     word-break: break-word;
   }
 
@@ -880,52 +955,55 @@ body { padding-bottom: 60px; }
     font-size: 12px;
     gap: 5px;
     margin-bottom: 8px;
-    flex-wrap: wrap;
   }
 
-  /* Open/Closed + hours badge */
   .fs-restaurant-header__badge {
     font-size: 12px;
     padding: 5px 10px;
     gap: 5px;
-    flex-wrap: wrap;
-    row-gap: 2px;
   }
 
-  /* Delivery / Pickup row */
-  .fs-restaurant-header__info > div {
-    flex-wrap: wrap;
+  /* Hide hours text on small screens — keep open/closed label */
+  .fs-restaurant-header__time {
+    display: none;
   }
 
-  .fs-restaurant-header__address {
-    font-size: 12px;
-    white-space: normal;
-    word-break: break-word;
-  }
-
-  /* Clamp description to 3 lines on mobile */
-  .fs-restaurant-header__description {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    font-size: 12px;
-    line-height: 1.5;
-    margin-top: 5px;
-    color: #757575;
-  }
-
-  /* Action buttons — top-right, aligned to top of row */
+  /* Action buttons — absolute top-right of the top row */
   .fs-restaurant-header__actions {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
     flex-shrink: 0;
-    align-self: flex-start;
-    margin-top: 2px;
-    gap: 8px;
   }
 
   .fs-action-btn {
     width: 36px;
     height: 36px;
+  }
+
+  /* ── BOTTOM ROW: full-width on mobile, no truncation ── */
+  .fs-restaurant-header__bottom {
+    margin-top: 12px;
+    padding-top: 12px;
+    gap: 5px;
+  }
+
+  .fs-restaurant-header__address {
+    font-size: 12px;
+    align-items: flex-start;
+  }
+
+  .fs-restaurant-header__description {
+    font-size: 12px;
+    line-height: 1.55;
+    /* Full text — not clamped */
+    display: block;
+    -webkit-line-clamp: unset;
+    overflow: visible;
   }
 
   /* ── Three-dot dropdown stays usable on mobile ── */
@@ -1000,6 +1078,10 @@ body { padding-bottom: 60px; }
    RESPONSIVE — 480px (small phones)
    ───────────────────────────────────────── */
 @media (max-width: 480px) {
+
+  .fs-restaurant-header__top {
+    padding-right: 80px;
+  }
 
   .fs-restaurant-header__logo {
     width: 60px;

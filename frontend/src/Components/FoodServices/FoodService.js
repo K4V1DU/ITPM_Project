@@ -1181,7 +1181,6 @@ export default function FoodService() {
     );
   }
 
-  // ── Error state — icon7.jpg ───────────────────────────────────────────
   if (errorService) {
     return (
       <div style={{ fontFamily: FONT }}>
@@ -1282,261 +1281,279 @@ export default function FoodService() {
 
       {/* ══ WRAPPER ══ */}
       <div className="fs-wrapper">
-        {/* Restaurant header */}
+
+        {/* ══ RESTAURANT HEADER ══ */}
         <div className="fs-restaurant-header">
-          <div className="fs-restaurant-header__logo">
-            {service?.iconImage ? (
-              <img
-                src={photoSrc(service.iconImage)}
-                alt="icon"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  borderRadius: 10,
-                  objectFit: "cover",
-                }}
-              />
-            ) : (
-              "🍗"
-            )}
-          </div>
 
-          <div className="fs-restaurant-header__info">
-            {loadingService ? (
-              <>
-                <Skeleton h={32} w="60%" mb={10} />
-                <Skeleton h={16} w="80%" mb={12} />
-                <Skeleton h={16} w="40%" />
-              </>
-            ) : (
-              <>
-                <h1 className="fs-restaurant-header__title">{kitchenName}</h1>
-                <div className="fs-restaurant-header__meta">
-                  <span style={{ fontWeight: 600, color: "#1b1b1b" }}>
-                    ⭐ {liveRatingAvg.toFixed(1)}
-                  </span>
-                  {[`(${liveRatingCount} ratings)`, service?.serviceType]
-                    .filter(Boolean)
-                    .map((t) => (
-                      <span key={t} style={{ display: "contents" }}>
-                        <span style={{ color: "#ccc" }}>•</span>
-                        <span>{t}</span>
-                      </span>
-                    ))}
-                </div>
-                <div
+          {/* ── TOP ROW: logo + name/meta/badges + actions ── */}
+          <div className="fs-restaurant-header__top">
+            <div className="fs-restaurant-header__logo">
+              {service?.iconImage ? (
+                <img
+                  src={photoSrc(service.iconImage)}
+                  alt="icon"
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    flexWrap: "wrap",
-                    marginBottom: 14,
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: 10,
+                    objectFit: "cover",
                   }}
-                >
-                  <span className="fs-restaurant-header__badge">
-                    <span
-                      className="fs-restaurant-header__status-dot"
-                      style={{ background: isOpen ? "#038a3a" : "#dc2626" }}
-                    />
-                    <span
-                      style={{
-                        color: isOpen ? "#038a3a" : "#dc2626",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {isOpen ? "Open" : "Closed"}
-                    </span>
-                    <span style={{ color: "#545454" }}>
-                      · {openTime} – {closeTime}
-                    </span>
-                  </span>
-                  {canDeliver && (
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: "#038a3a",
-                        fontWeight: 600,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                    >
-                      <FaMotorcycle /> Delivery
-                    </span>
-                  )}
-                  {canPickup && (
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: "#0369a1",
-                        fontWeight: 600,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                    >
-                      <FaShoppingBag /> Pickup
-                    </span>
-                  )}
-                </div>
-                {address && (
-                  <div className="fs-restaurant-header__address">
-                    <FaMapMarkerAlt style={{ fontSize: 12 }} /> {address}
-                  </div>
-                )}
-                {service?.description && (
-                  <div
-                    className="fs-restaurant-header__description"
-                    style={{ fontSize: 13, color: "#757575", marginTop: 6 }}
-                  >
-                    {service.description}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          <div className="fs-restaurant-header__actions">
-            {/* Favourite heart button — connected to API */}
-            <button
-              className={`fs-action-btn${isFavourited ? " fs-action-btn--favourited" : ""}`}
-              onClick={handleToggleFavourite}
-              disabled={favPending}
-              style={{ opacity: favPending ? 0.6 : 1 }}
-              title={
-                isFavourited ? "Remove from favourites" : "Save to favourites"
-              }
-            >
-              {isFavourited ? (
-                <FaHeart style={{ color: ORANGE, fontSize: 16 }} />
+                />
               ) : (
-                <FaRegHeart style={{ color: "#444", fontSize: 16 }} />
+                "🍗"
               )}
-            </button>
+            </div>
 
-            <div ref={actionMenuRef} style={{ position: "relative" }}>
-              <button
-                className="fs-action-btn"
-                onClick={() => setShowActionMenu((p) => !p)}
-              >
-                <FaEllipsisH style={{ color: "#444", fontSize: 15 }} />
-              </button>
-              {showActionMenu && (
-                <div className="fs-action-dropdown">
-                  <div className="fs-action-dropdown__host">
-                    <div className="fs-action-dropdown__host-avatar">
-                      {ownerUser?.profileImage ? (
-                        <img
-                          src={
-                            /^[a-f\d]{24}$/i.test(ownerUser.profileImage)
-                              ? photoSrc(ownerUser.profileImage)
-                              : ownerUser.profileImage
-                          }
-                          alt="host"
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            borderRadius: "50%",
-                            objectFit: "cover",
-                          }}
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
-                      ) : (
-                        <FaUserCircle style={{ fontSize: 36, color: "#bbb" }} />
-                      )}
-                    </div>
-                    <div>
-                      <div className="fs-action-dropdown__host-label">
-                        Hosted by
-                      </div>
-                      <div className="fs-action-dropdown__host-name">
-                        {ownerUser?.name ?? "Host"}
-                      </div>
-                      <div className="fs-action-dropdown__host-since">
-                        {ownerUser?.createdAt
-                          ? `Member since ${new Date(ownerUser.createdAt).getFullYear()}`
-                          : "Bodima Host"}
-                      </div>
-                    </div>
+            <div className="fs-restaurant-header__info">
+              {loadingService ? (
+                <>
+                  <Skeleton h={32} w="60%" mb={10} />
+                  <Skeleton h={16} w="80%" mb={12} />
+                  <Skeleton h={16} w="40%" />
+                </>
+              ) : (
+                <>
+                  <h1 className="fs-restaurant-header__title">{kitchenName}</h1>
+                  <div className="fs-restaurant-header__meta">
+                    <span style={{ fontWeight: 600, color: "#1b1b1b" }}>
+                      ⭐ {liveRatingAvg.toFixed(1)}
+                    </span>
+                    {[`(${liveRatingCount} ratings)`, service?.serviceType]
+                      .filter(Boolean)
+                      .map((t) => (
+                        <span key={t} style={{ display: "contents" }}>
+                          <span style={{ color: "#ccc" }}>•</span>
+                          <span>{t}</span>
+                        </span>
+                      ))}
                   </div>
-                  <div className="fs-action-dropdown__divider" />
-                  <button
-                    className="fs-action-dropdown__item fs-action-dropdown__item--primary"
-                    onClick={async () => {
-                      setShowActionMenu(false);
-                      if (!isLoggedIn || !isStudent) {
-                        setShowLoginRequired(true);
-                        return;
-                      }
-                      const hostId = service?.owner?._id ?? service?.owner;
-                      if (!hostId) {
-                        showToast("Host info not available.");
-                        return;
-                      }
-                      try {
-                        showToast("Opening chat…");
-                        const res = await fetch(
-                          `${API_BASE}/message/conversation`,
-                          {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              senderId: userId,
-                              receiverId: hostId,
-                            }),
-                          },
-                        );
-                        const raw = await res.json();
-                        const conv = raw?.data ?? raw?.result ?? raw;
-                        navigate("/Messages", {
-                          state: { openConversationId: conv._id },
-                        });
-                      } catch {
-                        showToast("Failed to open chat. Try again.");
-                      }
+                  <div
+                    className="fs-restaurant-header__badges-row"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      flexWrap: "wrap",
                     }}
                   >
-                    <FaCommentAlt style={{ fontSize: 13 }} /> Message Host
-                  </button>
-                  <button
-                    className="fs-action-dropdown__item"
-                    onClick={() => {
-                      setShowActionMenu(false);
-                    }}
-                  >
-                    <FaUserCircle style={{ fontSize: 14 }} /> View Host Profile
-                  </button>
-                  <div className="fs-action-dropdown__divider" />
-                  <button
-                    className="fs-action-dropdown__item"
-                    onClick={() => {
-                      setShowActionMenu(false);
-                      navigator.clipboard?.writeText(window.location.href);
-                      showToast("Link copied!");
-                    }}
-                  >
-                    <FaShare style={{ fontSize: 13 }} /> Share this kitchen
-                  </button>
-                  <button
-                    className="fs-action-dropdown__item fs-action-dropdown__item--danger"
-                    onClick={() => {
-                      setShowActionMenu(false);
-                      if (!isLoggedIn) {
-                        setShowLoginRequired(true);
-                        return;
-                      }
-                      showToast("Report submitted. Thank you.");
-                    }}
-                  >
-                    <FaFlag style={{ fontSize: 13 }} /> Report
-                  </button>
+                    <span className="fs-restaurant-header__badge">
+                      <span
+                        className="fs-restaurant-header__status-dot"
+                        style={{ background: isOpen ? "#038a3a" : "#dc2626" }}
+                      />
+                      <span
+                        style={{
+                          color: isOpen ? "#038a3a" : "#dc2626",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {isOpen ? "Open" : "Closed"}
+                      </span>
+                      <span
+                        className="fs-restaurant-header__time"
+                        style={{ color: "#545454" }}
+                      >
+                        · {openTime} – {closeTime}
+                      </span>
+                    </span>
+                    {canDeliver && (
+                      <span
+                        className="fs-restaurant-header__badge fs-restaurant-header__badge--mode"
+                        style={{
+                          fontSize: 12,
+                          color: "#038a3a",
+                          fontWeight: 600,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <FaMotorcycle /> Delivery
+                      </span>
+                    )}
+                    {canPickup && (
+                      <span
+                        className="fs-restaurant-header__badge fs-restaurant-header__badge--mode"
+                        style={{
+                          fontSize: 12,
+                          color: "#0369a1",
+                          fontWeight: 600,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <FaShoppingBag /> Pickup
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="fs-restaurant-header__actions">
+              {/* Favourite heart button */}
+              <button
+                className={`fs-action-btn${isFavourited ? " fs-action-btn--favourited" : ""}`}
+                onClick={handleToggleFavourite}
+                disabled={favPending}
+                style={{ opacity: favPending ? 0.6 : 1 }}
+                title={
+                  isFavourited ? "Remove from favourites" : "Save to favourites"
+                }
+              >
+                {isFavourited ? (
+                  <FaHeart style={{ color: ORANGE, fontSize: 16 }} />
+                ) : (
+                  <FaRegHeart style={{ color: "#444", fontSize: 16 }} />
+                )}
+              </button>
+
+              <div ref={actionMenuRef} style={{ position: "relative" }}>
+                <button
+                  className="fs-action-btn"
+                  onClick={() => setShowActionMenu((p) => !p)}
+                >
+                  <FaEllipsisH style={{ color: "#444", fontSize: 15 }} />
+                </button>
+                {showActionMenu && (
+                  <div className="fs-action-dropdown">
+                    <div className="fs-action-dropdown__host">
+                      <div className="fs-action-dropdown__host-avatar">
+                        {ownerUser?.profileImage ? (
+                          <img
+                            src={
+                              /^[a-f\d]{24}$/i.test(ownerUser.profileImage)
+                                ? photoSrc(ownerUser.profileImage)
+                                : ownerUser.profileImage
+                            }
+                            alt="host"
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              borderRadius: "50%",
+                              objectFit: "cover",
+                            }}
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
+                          />
+                        ) : (
+                          <FaUserCircle style={{ fontSize: 36, color: "#bbb" }} />
+                        )}
+                      </div>
+                      <div>
+                        <div className="fs-action-dropdown__host-label">
+                          Hosted by
+                        </div>
+                        <div className="fs-action-dropdown__host-name">
+                          {ownerUser?.name ?? "Host"}
+                        </div>
+                        <div className="fs-action-dropdown__host-since">
+                          {ownerUser?.createdAt
+                            ? `Member since ${new Date(ownerUser.createdAt).getFullYear()}`
+                            : "Bodima Host"}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="fs-action-dropdown__divider" />
+                    <button
+                      className="fs-action-dropdown__item fs-action-dropdown__item--primary"
+                      onClick={async () => {
+                        setShowActionMenu(false);
+                        if (!isLoggedIn || !isStudent) {
+                          setShowLoginRequired(true);
+                          return;
+                        }
+                        const hostId = service?.owner?._id ?? service?.owner;
+                        if (!hostId) {
+                          showToast("Host info not available.");
+                          return;
+                        }
+                        try {
+                          showToast("Opening chat…");
+                          const res = await fetch(
+                            `${API_BASE}/message/conversation`,
+                            {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                senderId: userId,
+                                receiverId: hostId,
+                              }),
+                            },
+                          );
+                          const raw = await res.json();
+                          const conv = raw?.data ?? raw?.result ?? raw;
+                          navigate("/Messages", {
+                            state: { openConversationId: conv._id },
+                          });
+                        } catch {
+                          showToast("Failed to open chat. Try again.");
+                        }
+                      }}
+                    >
+                      <FaCommentAlt style={{ fontSize: 13 }} /> Message Host
+                    </button>
+                    <button
+                      className="fs-action-dropdown__item"
+                      onClick={() => {
+                        setShowActionMenu(false);
+                      }}
+                    >
+                      <FaUserCircle style={{ fontSize: 14 }} /> View Host Profile
+                    </button>
+                    <div className="fs-action-dropdown__divider" />
+                    <button
+                      className="fs-action-dropdown__item"
+                      onClick={() => {
+                        setShowActionMenu(false);
+                        navigator.clipboard?.writeText(window.location.href);
+                        showToast("Link copied!");
+                      }}
+                    >
+                      <FaShare style={{ fontSize: 13 }} /> Share this kitchen
+                    </button>
+                    <button
+                      className="fs-action-dropdown__item fs-action-dropdown__item--danger"
+                      onClick={() => {
+                        setShowActionMenu(false);
+                        if (!isLoggedIn) {
+                          setShowLoginRequired(true);
+                          return;
+                        }
+                        showToast("Report submitted. Thank you.");
+                      }}
+                    >
+                      <FaFlag style={{ fontSize: 13 }} /> Report
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          {/* ── END TOP ROW ── */}
+
+          {/* ── BOTTOM ROW: full-width address + description ── */}
+          {!loadingService && (address || service?.description) && (
+            <div className="fs-restaurant-header__bottom">
+              {address && (
+                <div className="fs-restaurant-header__address">
+                  <FaMapMarkerAlt style={{ fontSize: 12, flexShrink: 0 }} />
+                  {address}
+                </div>
+              )}
+              {service?.description && (
+                <div className="fs-restaurant-header__description">
+                  {service.description}
                 </div>
               )}
             </div>
-          </div>
+          )}
+          {/* ── END BOTTOM ROW ── */}
+
         </div>
+        {/* ══ END RESTAURANT HEADER ══ */}
 
         <div className="fs-divider" />
 
