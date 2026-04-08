@@ -1,7 +1,7 @@
 // routes/Notification_Route.js
 const express    = require("express");
 const router     = express.Router();
-const ctrl       = require("../controllers/Notification_Controller");
+const ctrl       = require("../Controllers/Notification_Controller");
 
 // POST /Notification                         — insert a notification
 router.post("/",                   ctrl.insertNotification);

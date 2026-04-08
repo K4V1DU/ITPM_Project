@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { addReview, getReviewById, getReviews, updateReview, deleteReview } = require("../controllers/Review_Controller");
+const { addReview, getReviewById, getReviews, updateReview, deleteReview } = require("../Controllers/Review_Controller");
 
 router.get("/:id",  getReviewById); 
 router.get("/",     getReviews);

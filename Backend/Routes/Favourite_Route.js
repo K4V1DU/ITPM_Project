@@ -7,7 +7,7 @@ const {
   getUserFavourites,
   checkFavourite,
   getFavouriteCount,
-} = require("../controllers/Favourite_Controller");
+} = require("../Controllers/Favourite_Controller");
 
 // Add / Remove
 router.post("/",    addFavourite);
