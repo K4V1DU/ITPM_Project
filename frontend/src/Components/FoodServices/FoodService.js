@@ -740,15 +740,41 @@ export default function FoodService() {
   // ── Owner state ───────────────────────
   const [ownerUser, setOwnerUser] = useState(null);
 
+  // ── Mobile sticky checkout bar ────────
+  const [isCartVisible, setIsCartVisible] = useState(false);
+
   const sectionRefs = useRef({});
   const toastTimer = useRef(null);
   const actionMenuRef = useRef(null);
   const activeCategoriesRef = useRef([]);
+  // NEW: ref attached to the cart aside element
+  const cartRef = useRef(null);
 
   const userId = localStorage.getItem("CurrentUserId");
   const isLoggedIn = !!userId;
   const userRole = currentUser?.role ?? null;
   const isStudent = userRole === "student";
+
+  // ── IntersectionObserver: track cart visibility (mobile only) ─────────
+  useEffect(() => {
+    if (!cartRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsCartVisible(entry.isIntersecting);
+      },
+      {
+        // Cart is "visible" when at least 30% of it appears in the viewport
+        threshold: 0.3,
+      }
+    );
+    observer.observe(cartRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // ── Scroll to cart handler ────────────────────────────────────────────
+  const scrollToCart = () => {
+    cartRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   // ── Fetch current user ────────────────────────────────────────────────
   useEffect(() => {
@@ -1136,6 +1162,25 @@ export default function FoodService() {
     }
   };
 
+  // ── Checkout handler (shared between cart button and sticky bar) ───────
+  const handleCheckout = () => {
+    if (!isLoggedIn || !isStudent) {
+      setShowLoginRequired(true);
+    } else {
+      navigate(`/FoodCheckout/${FOOD_SERVICE_ID}`, {
+        state: {
+          cartItems,
+          cartTotal,
+          orderType,
+          deliveryFee,
+          orderTotal,
+          service,
+          foodServiceId: FOOD_SERVICE_ID,
+        },
+      });
+    }
+  };
+
   // ── Derived ───────────────────────────────────────────────────────────
   const kitchenName = service?.kitchenName ?? "Loading…";
   const address = service?.address ?? "";
@@ -1155,6 +1200,10 @@ export default function FoodService() {
   );
   activeCategoriesRef.current = activeCategories;
   const previewReviews = reviews.slice(0, 4);
+
+  // ── Whether to show the sticky bar ────────────────────────────────────
+  // Show if: cart has items AND cart section not currently visible AND kitchen is open
+  const showStickyBar = cartItems.length > 0 && !isCartVisible && isOpen;
 
   // ── Guards ────────────────────────────────────────────────────────────
   if (!FOOD_SERVICE_ID) {
@@ -1640,8 +1689,8 @@ export default function FoodService() {
             )}
           </main>
 
-          {/* Cart */}
-          <aside className="fs-cart">
+          {/* Cart — ref attached here for IntersectionObserver */}
+          <aside className="fs-cart" ref={cartRef}>
             <div className="fs-cart__box">
               <div className="fs-cart__header">
                 <div className="fs-cart__title">
@@ -1758,23 +1807,7 @@ export default function FoodService() {
                   disabled={cartItems.length === 0 || !isOpen}
                   className="fs-cart__checkout-btn"
                   style={{ fontFamily: FONT }}
-                  onClick={() => {
-                    if (!isLoggedIn || !isStudent) {
-                      setShowLoginRequired(true);
-                    } else {
-                      navigate(`/FoodCheckout/${FOOD_SERVICE_ID}`, {
-                        state: {
-                          cartItems,
-                          cartTotal,
-                          orderType,
-                          deliveryFee,
-                          orderTotal,
-                          service,
-                          foodServiceId: FOOD_SERVICE_ID,
-                        },
-                      });
-                    }
-                  }}
+                  onClick={handleCheckout}
                 >
                   {!isOpen ? (
                     <span style={{ margin: "0 auto" }}>Kitchen is Closed</span>
@@ -2110,6 +2143,36 @@ export default function FoodService() {
 
       <div className={`fs-toast${toast.show ? " fs-toast--visible" : ""}`}>
         {toast.msg}
+      </div>
+
+      {/* ══ MOBILE STICKY CHECKOUT BAR ══
+          Only rendered in CSS on screens ≤ 1024px.
+          Appears when cart has items, kitchen is open, and cart section
+          is not currently in the viewport. Clicking scrolls to the cart. */}
+      <div
+        className={`fs-mobile-checkout-bar${showStickyBar ? " fs-mobile-checkout-bar--visible" : ""}`}
+        style={{ fontFamily: FONT }}
+      >
+        <button
+          className="fs-mobile-checkout-bar__btn"
+          onClick={scrollToCart}
+          style={{ fontFamily: FONT }}
+        >
+          {/* Left: cart icon + item count badge */}
+          <div className="fs-mobile-checkout-bar__left">
+            <div className="fs-mobile-checkout-bar__icon-wrap">
+              <FaShoppingCart style={{ fontSize: 16 }} />
+              <span className="fs-mobile-checkout-bar__badge">{cartCount}</span>
+            </div>
+            <span className="fs-mobile-checkout-bar__label">
+              {orderType === "delivery" ? "Go to checkout" : "Place pickup order"}
+            </span>
+          </div>
+          {/* Right: total */}
+          <span className="fs-mobile-checkout-bar__total">
+            LKR {orderTotal.toLocaleString()}
+          </span>
+        </button>
       </div>
 
       <style>{`
