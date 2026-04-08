@@ -16,7 +16,8 @@ import Footer from "../NavBar/Footer/Footer";
 import { usePhotoCache, prefetchPhotos } from "../Image_Cache/usePhotoCache";
 
 // ─── Config ───────────────────────────────────────────────────────────────
-const API_BASE = "http://localhost:8000";
+const API_BASE = process.env.REACT_APP_API_BASE_URL;
+
 const photoSrc = (id) => id ? `${API_BASE}/Photo/${id}` : null;
 function unwrap(raw) { return raw?.data ?? raw?.result ?? raw; }
 

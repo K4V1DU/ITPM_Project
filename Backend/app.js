@@ -12,31 +12,28 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Multer Setup for Photo Uploads
+// Multer Setup
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// Import Routes
-const AccommodationRouter = require("../Backend/Routes/Accommodation_Route");
-const PhotoRouter = require("../Backend/Routes/Photo_Route"); 
-const ReviewRouter = require("../Backend/Routes/Review_Route"); 
-const UserRouter = require("../Backend/Routes/User_Route"); 
-const MenuItemRouter = require("../Backend/Routes/MenuItem_Route"); 
-const FoodServiceRouter = require("../Backend/Routes/FoodService_Route"); 
-const PaymentRouter = require("../Backend/Routes/Payment_Route");
-const ContactRouter = require("../Backend/Routes/Contact_Route")
-const FoodOrderRouter = require("../Backend/Routes/FoodOrder_Route")
-const NotificationRouter = require("../Backend/Routes/Notification_Route")
-const favouriteRoute = require("../Backend/Routes/Favourite_Route");
-const messageRoute = require("../Backend/Routes/Message_Route");
-const BookingRouter = require("../Backend/Routes/Booking_Route");
-
-
-
+// Import Routes — use relative paths from THIS file
+const AccommodationRouter = require("./Routes/Accommodation_Route");
+const PhotoRouter = require("./Routes/Photo_Route");
+const ReviewRouter = require("./Routes/Review_Route");
+const UserRouter = require("./Routes/User_Route");
+const MenuItemRouter = require("./Routes/MenuItem_Route");
+const FoodServiceRouter = require("./Routes/FoodService_Route");
+const PaymentRouter = require("./Routes/Payment_Route");
+const ContactRouter = require("./Routes/Contact_Route");
+const FoodOrderRouter = require("./Routes/FoodOrder_Route");
+const NotificationRouter = require("./Routes/Notification_Route");
+const favouriteRoute = require("./Routes/Favourite_Route");
+const messageRoute = require("./Routes/Message_Route");
+const BookingRouter = require("./Routes/Booking_Route");
 
 // Mount Routes
 app.use("/Accommodation", AccommodationRouter);
-app.use("/Photo", PhotoRouter); 
+app.use("/Photo", PhotoRouter);
 app.use("/Review", ReviewRouter);
 app.use("/User", UserRouter);
 app.use("/MenuItem", MenuItemRouter);
@@ -49,34 +46,20 @@ app.use("/favourite", favouriteRoute);
 app.use("/message", messageRoute);
 app.use("/Booking", BookingRouter);
 
-
-
-
-
+// MongoDB Connection
 const MONGO_URI = process.env.MONGO_URI;
 
+mongoose.connect(MONGO_URI, {
+  serverSelectionTimeoutMS: 30000,
+  family: 4
+})
+  .then(() => console.log("✅ Connected to MongoDB"))
+  .catch((err) => console.error("❌ MongoDB connection failed:", err.message));
 
-const connectWithRetry = () => {
-  console.log("Attempting to connect to MongoDB...");
-  
-  mongoose.connect(MONGO_URI, {
-    serverSelectionTimeoutMS: 4000, 
-    family: 4 
-  })
-    .then(() => {
-      console.log("✅ Connected to MongoDB");
-      const PORT = 8000;
-      app.listen(PORT, () => {
-        console.log(`🚀 Server running on port ${PORT}`);
-      });
-    })
-    .catch((err) => {
-      console.error("MongoDB connection failed");
-      console.log("Retrying in 3 seconds...");
-      // Wait 5 seconds before retrying
-      setTimeout(connectWithRetry, 4000);
-    });
-};
+// For local development only
+if (process.env.NODE_ENV !== "production") {
+  app.listen(8000, () => console.log("🚀 Server running on port 8000"));
+}
 
-// Start the connection process
-connectWithRetry();
+// ✅ Export for Vercel
+module.exports = app;
