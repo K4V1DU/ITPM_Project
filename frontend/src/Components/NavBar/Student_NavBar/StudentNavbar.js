@@ -20,9 +20,6 @@ import { useNotifications } from "../../../hooks/useNotifications";
 const API_BASE = "http://localhost:8000";
 const FONT = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
-// ─────────────────────────────────────────
-// LOGOUT MODAL
-// ─────────────────────────────────────────
 function LogoutModal({ onConfirm, onCancel }) {
   return (
     <div className="snav-overlay" onClick={onCancel}>
@@ -45,11 +42,6 @@ function LogoutModal({ onConfirm, onCancel }) {
   );
 }
 
-// ─────────────────────────────────────────
-// STUDENT NAVBAR
-// Props:
-//   activeTab  — "Boardings" | "Foods" | ""
-// ─────────────────────────────────────────
 export default function StudentNavbar({ activeTab = "" }) {
   const navigate = useNavigate();
   const userId   = localStorage.getItem("CurrentUserId");
@@ -62,7 +54,7 @@ export default function StudentNavbar({ activeTab = "" }) {
     clearAll,
   } = useNotifications(userId);
 
-  const [currentUser,    setCurrentUser]    = useState(null);
+  const [currentUser,     setCurrentUser]    = useState(null);
   const [userAvatarSrc,  setUserAvatarSrc]  = useState(
     () => sessionStorage.getItem("studentAvatarDataUrl") || null
   );
@@ -73,14 +65,13 @@ export default function StudentNavbar({ activeTab = "" }) {
   const [showLogout,     setShowLogout]     = useState(false);
   const [showBell,       setShowBell]       = useState(false);
   const [unreadMsgCount, setUnreadMsgCount] = useState(0);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);   // ← new
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const dropRef      = useRef(null);
   const bellRef      = useRef(null);
-  const mobileRef    = useRef(null);               // ← new
+  const mobileRef    = useRef(null);
   const msgPollRef   = useRef(null);
 
-  // ── Fetch user profile + cache avatar ────────────────────────────────────
   useEffect(() => {
     if (!userId) return;
     fetch(`${API_BASE}/User/${userId}`)
@@ -124,7 +115,6 @@ export default function StudentNavbar({ activeTab = "" }) {
       .catch(() => {});
   }, [userId]);
 
-  // ── Fetch unread message count + poll every 10s ───────────────────────────
   const fetchUnreadMessages = async () => {
     if (!userId) return;
     try {
@@ -145,7 +135,6 @@ export default function StudentNavbar({ activeTab = "" }) {
     return () => clearInterval(msgPollRef.current);
   }, [userId]);
 
-  // ── Close all dropdowns on outside click ──────────────────────────────────
   useEffect(() => {
     const h = (e) => {
       if (dropRef.current   && !dropRef.current.contains(e.target))   setDropdown(false);
@@ -177,7 +166,6 @@ export default function StudentNavbar({ activeTab = "" }) {
 
   const currentPath = window.location.pathname;
 
-  // Close mobile menu and navigate
   const mobileNavigate = (path) => {
     setMobileMenuOpen(false);
     navigate(path);
@@ -186,8 +174,6 @@ export default function StudentNavbar({ activeTab = "" }) {
   return (
     <>
       <nav className="snav" style={{ fontFamily: FONT }}>
-
-        {/* Left — logo + mobile nav toggle */}
         <div className="snav__left">
           <a href="/Boardings" className="snav__logo">
             <img
@@ -197,7 +183,6 @@ export default function StudentNavbar({ activeTab = "" }) {
             />
           </a>
 
-          {/* ── Mobile dropdown anchor (only visible on mobile) ── */}
           <div className="snav__mobile-nav" ref={mobileRef}>
             <button
               className={`snav__mobile-toggle${mobileMenuOpen ? " snav__mobile-toggle--open" : ""}`}
@@ -209,8 +194,6 @@ export default function StudentNavbar({ activeTab = "" }) {
 
             {mobileMenuOpen && (
               <div className="snav__mobile-menu">
-
-                {/* Page links */}
                 <div className="snav__mobile-menu__label">Navigate</div>
                 {TABS.map(({ label, href, icon }) => {
                   const active = currentPath === href || activeTab === label;
@@ -227,7 +210,6 @@ export default function StudentNavbar({ activeTab = "" }) {
                   );
                 })}
 
-                {/* Host page link */}
                 {isHost && (
                   <>
                     <div className="snav__mobile-menu__divider" />
@@ -240,7 +222,6 @@ export default function StudentNavbar({ activeTab = "" }) {
                   </>
                 )}
 
-                {/* Login link (not logged in) */}
                 {!isLoggedIn && (
                   <>
                     <div className="snav__mobile-menu__divider" />
@@ -257,7 +238,6 @@ export default function StudentNavbar({ activeTab = "" }) {
           </div>
         </div>
 
-        {/* Centre — tabs (desktop only) */}
         <div className="snav__tabs">
           {TABS.map(({ label, href }) => {
             const active = currentPath === href || activeTab === label;
@@ -271,9 +251,7 @@ export default function StudentNavbar({ activeTab = "" }) {
           })}
         </div>
 
-        {/* Right — host btn (desktop) + bell + avatar */}
         <div className="snav__right">
-          {/* Desktop-only Login / Host Page buttons */}
           {!isLoggedIn && (
             <button className="snav__host-btn" onClick={() => navigate("/Login")}>
               Login
@@ -285,7 +263,6 @@ export default function StudentNavbar({ activeTab = "" }) {
             </button>
           )}
 
-          {/* Bell */}
           <div className="snav__bell-wrap" ref={bellRef}>
             <button className="snav__bell-btn"
               onClick={() => { setShowBell(p => !p); setDropdown(false); }}
@@ -347,7 +324,6 @@ export default function StudentNavbar({ activeTab = "" }) {
             )}
           </div>
 
-          {/* Combined burger + avatar pill */}
           <div ref={dropRef} className="snav__dropdown">
             <button className="snav__menu-btn" onClick={() => setDropdown((p) => !p)}>
               <FaBars className="snav__menu-icon" />
