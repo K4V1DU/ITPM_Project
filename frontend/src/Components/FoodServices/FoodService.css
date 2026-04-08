@@ -19,6 +19,10 @@
   from { opacity: 0; transform: scale(0.88); }
   to   { opacity: 1; transform: scale(1); }
 }
+@keyframes fsBarSlideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
 
 /* ── Base ── */
 *, *::before, *::after { box-sizing: border-box; }
@@ -354,7 +358,6 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  /* No bottom margin — spacing handled by __bottom's top margin */
 }
 
 .fs-restaurant-header__badge {
@@ -407,7 +410,6 @@
   font-size: 13px;
   color: #757575;
   line-height: 1.6;
-  /* Full text — no clamping */
 }
 
 /* ── Action Buttons ── */
@@ -875,6 +877,119 @@
 /* ── Page bottom padding for fixed footer ── */
 body { padding-bottom: 60px; }
 
+/* ══════════════════════════════════════════════════
+   MOBILE STICKY CHECKOUT BAR
+   Hidden on desktop (> 1024px), shown on tablet/mobile.
+   ══════════════════════════════════════════════════ */
+.fs-mobile-checkout-bar {
+  /* Hidden on desktop — only activates via media query */
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .fs-mobile-checkout-bar {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    padding: 12px 16px;
+    /* Smooth safe-area support for notched phones */
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    background: transparent;
+    /* Hidden by default; shown when --visible is applied */
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(110%);
+    transition:
+      opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      transform 0.35s cubic-bezier(0.34, 1.3, 0.64, 1);
+  }
+
+  .fs-mobile-checkout-bar--visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .fs-mobile-checkout-bar__btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    background: linear-gradient(135deg, #FF6B2B 0%, #e85a1a 100%);
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow:
+      0 4px 20px rgba(255, 107, 43, 0.45),
+      0 1px 4px rgba(0, 0, 0, 0.15);
+    transition: opacity 0.18s, transform 0.15s;
+    /* Prevent text selection on tap */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .fs-mobile-checkout-bar__btn:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+
+  .fs-mobile-checkout-bar__left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .fs-mobile-checkout-bar__icon-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+
+  .fs-mobile-checkout-bar__badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    background: #fff;
+    color: #FF6B2B;
+    border-radius: 9px;
+    font-size: 11px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  }
+
+  .fs-mobile-checkout-bar__label {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+  }
+
+  .fs-mobile-checkout-bar__total {
+    font-size: 15px;
+    font-weight: 800;
+    opacity: 0.95;
+    letter-spacing: -0.3px;
+  }
+}
+
 /* ─────────────────────────────────────────
    RESPONSIVE — 1024px (tablet)
    ───────────────────────────────────────── */
@@ -890,6 +1005,9 @@ body { padding-bottom: 60px; }
   .fs-sidebar { display: none; }
   .fs-cart    { position: static; }
   .fs-footer  { padding: 14px 20px; }
+
+  /* Add bottom padding so cart is never hidden behind the sticky bar */
+  body { padding-bottom: 90px; }
 }
 
 /* ─────────────────────────────────────────
@@ -924,7 +1042,7 @@ body { padding-bottom: 60px; }
   .fs-restaurant-header__top {
     position: relative;
     gap: 12px;
-    padding-right: 84px; /* room for the two action buttons stacked */
+    padding-right: 84px;
     align-items: flex-start;
   }
 
@@ -936,7 +1054,6 @@ body { padding-bottom: 60px; }
     flex-shrink: 0;
   }
 
-  /* Info column — no padding-right hack needed anymore */
   .fs-restaurant-header__info {
     flex: 1;
     min-width: 0;
@@ -985,7 +1102,7 @@ body { padding-bottom: 60px; }
     height: 36px;
   }
 
-  /* ── BOTTOM ROW: full-width on mobile, no truncation ── */
+  /* ── BOTTOM ROW ── */
   .fs-restaurant-header__bottom {
     margin-top: 12px;
     padding-top: 12px;
@@ -1000,7 +1117,6 @@ body { padding-bottom: 60px; }
   .fs-restaurant-header__description {
     font-size: 12px;
     line-height: 1.55;
-    /* Full text — not clamped */
     display: block;
     -webkit-line-clamp: unset;
     overflow: visible;
@@ -1064,13 +1180,13 @@ body { padding-bottom: 60px; }
     border-radius: 10px;
   }
 
-  /* ── Toast — above any bottom bar ── */
-  .fs-toast { bottom: 80px; max-width: calc(100vw - 40px); white-space: normal; text-align: center; }
+  /* ── Toast — above sticky bar ── */
+  .fs-toast { bottom: 100px; max-width: calc(100vw - 40px); white-space: normal; text-align: center; }
 
   /* ── Cart — full width card ── */
   .fs-cart__box { border-radius: 12px; }
 
-  /* ── General modal — full-width on small screens ── */
+  /* ── General modal ── */
   .fs-gen-modal { padding: 28px 20px 22px; border-radius: 16px; }
 }
 
@@ -1117,4 +1233,12 @@ body { padding-bottom: 60px; }
   }
 
   .fs-map__container { height: 240px; }
+
+  /* Sticky bar label text smaller on very small phones */
+  .fs-mobile-checkout-bar__label {
+    font-size: 14px;
+  }
+  .fs-mobile-checkout-bar__total {
+    font-size: 14px;
+  }
 }
