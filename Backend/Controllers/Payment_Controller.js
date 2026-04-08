@@ -3,7 +3,7 @@ const FoodService   = require("../Models/FoodService");
 const Accommodation = require("../Models/Accommodation");
 const fetch         = (...args) => import("node-fetch").then(({ default: f }) => f(...args));
 const exifr         = require("exifr");
-const pdfParse      = require("pdf-parse");
+const pdfParse = require("pdf-parse-fork");
 
 // ─── Plan Config ─────────────────────────────────────────────────────────────
 const PLANS = {
