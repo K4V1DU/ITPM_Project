@@ -22,7 +22,7 @@ import HostNavbar from "../NavBar/Host_NavBar/HostNavbar";
 import Footer from "../NavBar/Footer/Footer";
 import "./HostBooking.css";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = process.env.REACT_APP_API_BASE_URL;
 // ✅ FIX 1: correct base path — matches router.js mount point
 const BOOKING_API = `${API_BASE}/Booking`;
 const ORANGE = "#FF6B2B";

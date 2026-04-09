@@ -9,7 +9,7 @@ import StudentNavbar from "../NavBar/Student_NavBar/StudentNavbar";
 import Footer from "../NavBar/Footer/Footer";
 
 // ─── Config ───────────────────────────────────────────────────────────────
-const API_BASE = "http://localhost:8000";
+const API_BASE = process.env.REACT_APP_API_BASE_URL;
 function unwrap(raw) { return raw?.data ?? raw?.result ?? raw; }
 
 // ─── Availability check ───────────────────────────────────────────────────

@@ -21,7 +21,7 @@ import HostNavbar from "../NavBar/Host_NavBar/HostNavbar";
 import Footer from "../NavBar/Footer/Footer";
 import "./HostOrders.css";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = process.env.REACT_APP_API_BASE_URL;
 const ORDER_API = `${API_BASE}/FoodOrder`;
 const ORANGE = "#FF6B2B";
 

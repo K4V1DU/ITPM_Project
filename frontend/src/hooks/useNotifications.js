@@ -1,7 +1,7 @@
 // hooks/useNotifications.js
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const BASE_URL = "http://localhost:8000";
+const BASE_URL = process.env.REACT_APP_API_BASE_URL;
 const POLL_MS  = 30_000;
 
 export function useNotifications(userId) {

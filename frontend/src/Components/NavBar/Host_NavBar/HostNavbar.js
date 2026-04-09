@@ -9,7 +9,7 @@ import { fetchPhoto } from "../../Image_Cache/usePhotoCache";
 import { useNotifications } from "../../../hooks/useNotifications";
 import "./HostNavbar.css";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = process.env.REACT_APP_API_BASE_URL;
 function unwrap(raw) { return raw?.data ?? raw?.result ?? raw; }
 
 function LogoutModal({ onConfirm, onCancel }) {

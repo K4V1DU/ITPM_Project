@@ -15,7 +15,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-const BASE_URL = "http://localhost:8000";
+const BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 // Module-level cache — survives re-renders and component unmounts
 // { [photoId]: { url: string, status: "loading"|"ready"|"error" } }

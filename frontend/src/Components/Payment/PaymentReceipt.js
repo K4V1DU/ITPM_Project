@@ -9,7 +9,7 @@ import {
 } from "react-icons/fa";
 import "./PaymentReceipt.css";
 
-const BASE_URL = "http://localhost:8000";
+const BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 async function sendNotification({ recipient, type, title, message, link, refId, refType }) {
   try {

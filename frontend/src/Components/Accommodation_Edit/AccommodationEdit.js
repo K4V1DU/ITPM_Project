@@ -14,7 +14,7 @@ import { MdApartment, MdHouse, MdBedroomParent, MdKey } from "react-icons/md";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const GOOGLE_MAPS_API_KEY = "AIzaSyDKKnxSMEUkZyZiLT83DXCJhR4eplblzKA";
-const BASE_URL            = "http://localhost:8000";
+const BASE_URL            = process.env.REACT_APP_API_BASE_URL;
 const SLIIT_LOCATION      = { lat: 6.9147, lng: 79.9727 };
 const LIBRARIES           = ["places"];
 const mapContainerStyle   = { width: "100%", height: "420px", borderRadius: "10px" };

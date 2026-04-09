@@ -4,7 +4,7 @@ import axios from "axios";
 import "./Register.css";
 //import "./OtpVerify.css";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = process.env.REACT_APP_API_BASE_URL;
 const STEPS = { FORM: "form", OTP: "otp", DONE: "done" };
 
 export default function Register() {

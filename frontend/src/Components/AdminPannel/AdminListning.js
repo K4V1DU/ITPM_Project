@@ -4,7 +4,7 @@ import { FaHome, FaUtensils, FaSearch, FaTrash, FaCheckCircle, FaTimesCircle } f
 import AdminNavBar from '../NavBar/Admin_NavBar/AdminNavBar';
 import './AdminDashBoard.css';
 
-const API_BASE  = "http://localhost:8000";
+const API_BASE  = process.env.REACT_APP_API_BASE_URL;
 const unwrap    = (r) => r?.data ?? r?.result ?? r;
 const fmtDate   = (d) => d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
 const isExpired = (d) => d && new Date(d) < new Date();

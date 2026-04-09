@@ -6,7 +6,7 @@ import {
 } from "react-icons/fa";
 import "../Admin_NavBar/AdminNavBar.css";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = process.env.REACT_APP_API_BASE_URL;
 function unwrap(raw) { return raw?.data ?? raw?.result ?? raw; }
 
 function LogoutModal({ onConfirm, onCancel }) {

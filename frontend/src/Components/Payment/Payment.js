@@ -11,7 +11,7 @@ import {
   FaShieldAlt,
 } from "react-icons/fa";
 
-const BASE_URL = "http://localhost:8000";
+const BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 // ─── Notification helper — fire-and-forget ────────────────────────────────────
 async function sendNotification({

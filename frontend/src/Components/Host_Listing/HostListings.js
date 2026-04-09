@@ -12,7 +12,7 @@ import Footer from "../NavBar/Footer/Footer";
 import { usePhotoCache, CachedImg, prefetchPhotos } from "../Image_Cache/usePhotoCache";
 import "./HostListings.css";
 
-const BASE_URL = "http://localhost:8000";
+const BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 const isListingLive = (item) => {

@@ -17,7 +17,7 @@ import {
 import "./StudentNavbar.css";
 import { useNotifications } from "../../../hooks/useNotifications";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = process.env.REACT_APP_API_BASE_URL;
 const FONT = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
 function LogoutModal({ onConfirm, onCancel }) {

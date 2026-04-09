@@ -4,7 +4,7 @@ import { FaCreditCard, FaSearch, FaCheckCircle, FaTimesCircle, FaFileImage } fro
 import AdminNavBar from '../NavBar/Admin_NavBar/AdminNavBar';
 import './AdminDashBoard.css';
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = process.env.REACT_APP_API_BASE_URL;
 const unwrap   = (r) => r?.data ?? r?.result ?? r;
 const fmtTime  = (d) => d ? new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
 
