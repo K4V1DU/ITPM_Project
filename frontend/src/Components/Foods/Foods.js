@@ -509,7 +509,7 @@ export default function Foods() {
 
         {error && (
           <div className="fsl-error">
-            <img src="/images/icon6.jpg" alt="Connection error" className="fsl-error__img" />
+            <img src="/Images/icon6.jpg" alt="Connection error" className="fsl-error__img" />
             <div className="fsl-error__title">Connection Error</div>
             <div className="fsl-error__msg">Something went wrong. Please check your connection and try again.</div>
             <button className="fsl-error__btn" onClick={() => window.location.reload()}>Retry</button>
@@ -524,7 +524,7 @@ export default function Foods() {
               : filtered.length === 0
                 ? <div className="fsl-empty">
                     <div className="fsl-empty__icon">
-                      <img src="/images/icon2.jpg" alt="No food services" className="fsl-empty__img" />
+                      <img src="/Images/icon2.jpg" alt="No food services" className="fsl-empty__img" />
                     </div>
                     <div className="fsl-empty__title">No food services found</div>
                     <div className="fsl-empty__sub">Try adjusting your search or filters</div>

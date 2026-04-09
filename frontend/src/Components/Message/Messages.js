@@ -483,7 +483,7 @@ export default function Messages() {
         <main className="msg-chat">
           {!activeConv ? (
             <div className="msg-chat__empty">
-              <img src="/images/icon9.png" alt="Messages" className="msg-chat__empty-img" />
+              <img src="/Images/icon9.png" alt="Messages" className="msg-chat__empty-img" />
               <h2 className="msg-chat__empty-title">Your Messages</h2>
               <p className="msg-chat__empty-sub">Select a conversation to start chatting</p>
             </div>

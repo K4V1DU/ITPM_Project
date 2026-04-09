@@ -71,7 +71,7 @@ export default function Login() {
         <div className="login-panel login-panel--left">
           <div className="login-brand">
             <img
-              src="/images/logo2.png"
+              src="/Images/logo2.png"
               alt="UniSewana Logo"
               className="login-brand__logo-img"
             />

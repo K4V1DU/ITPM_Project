@@ -297,7 +297,7 @@ function AddFoodService() {
         <div className="hn-nav__logo-wrap">
           <a href="/Listings" className="hn-nav__logo">
             <img
-              src={showForm ? "/images/logo2.png" : "/images/logo6.png"}
+              src={showForm ? "/Images/logo2.png" : "/Images/logo6.png"}
               alt="Unisewana Logo"
               style={{ height: "32px", width: "auto", display: "block" }}
             />

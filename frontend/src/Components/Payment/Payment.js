@@ -309,7 +309,7 @@ export default function Payment() {
           <div style={s.contextBanner}>
             <div style={s.contextEmoji}>
   <img
-    src={listingType === "food" ? "/images/icon3.jpg" : "/images/icon2.jpg"}
+    src={listingType === "food" ? "/Images/icon3.jpg" : "/Images/icon2.jpg"}
     alt={listingType === "food" ? "Food Service" : "Accommodation"}
     style={{ width: "36px", height: "36px", objectFit: "cover", borderRadius: "8px" }}
   />

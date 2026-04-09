@@ -1247,7 +1247,7 @@ export default function FoodService() {
           }}
         >
           <img
-            src="/images/icon7.jpg"
+            src="/Images/icon7.jpg"
             alt="Connection error"
             style={{ width: 140, height: 140, objectFit: "cover" }}
           />

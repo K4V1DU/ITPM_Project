@@ -98,7 +98,7 @@ export default function ForgotPasswordOtp() {
         <div className="reg-panel reg-panel--left">
           <div className="reg-brand">
             <img
-              src="/images/logo2.png"
+              src="/Images/logo2.png"
               alt="Bodima Logo"
               className="reg-brand__logo-img"
             />

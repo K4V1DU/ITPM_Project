@@ -356,7 +356,7 @@ function EmptyState({ type, onAdd }) {
     <div className="empty-state">
       <div className="empty-illustration">
         <img
-          src={type === "food" ? "/images/icon3.jpg" : "/images/icon2.jpg"}
+          src={type === "food" ? "/Images/icon3.jpg" : "/Images/icon2.jpg"}
           alt={type === "food" ? "Food Service" : "Accommodation"}
           className="empty-illustration__img"
         />
@@ -397,7 +397,7 @@ function CreateListingModal({ onClose, onSelect }) {
       key: "accommodation",
       label: "Accommodation",
       icon: (
-        <img src="/images/icon2.jpg" alt="Accommodation" className="cl-option__img"
+        <img src="/Images/icon2.jpg" alt="Accommodation" className="cl-option__img"
           onError={e => { e.currentTarget.style.display="none"; }} />
       ),
     },
@@ -405,7 +405,7 @@ function CreateListingModal({ onClose, onSelect }) {
       key: "food",
       label: "Food Service",
       icon: (
-        <img src="/images/icon3.jpg" alt="Food Service" className="cl-option__img"
+        <img src="/Images/icon3.jpg" alt="Food Service" className="cl-option__img"
           onError={e => { e.currentTarget.style.display="none"; }} />
       ),
     },
@@ -654,7 +654,7 @@ export default function HostListings() {
           </div>
         ) : error ? (
           <div className="hl-error">
-            <img src="/images/icon7.jpg" alt="Connection error" className="hl-error__img" />
+            <img src="/Images/icon7.jpg" alt="Connection error" className="hl-error__img" />
             <div className="hl-error__title">Connection Error</div>
             <div className="hl-error__msg">Something went wrong. Please check your connection and try again.</div>
             <button className="hl-error__btn" onClick={() => window.location.reload()}>Retry</button>

@@ -269,7 +269,7 @@ function EmptyState({ tab }) {
     <div className="fav-empty">
       <div className="fav-empty__img-wrap">
         <img
-          src={tab === "accommodations" ? "/images/icon4.jpg" : "/images/icon5.jpg"}
+          src={tab === "accommodations" ? "/Images/icon4.jpg" : "/Images/icon5.jpg"}
           alt={tab === "accommodations" ? "No boardings saved" : "No food services saved"}
           className="fav-empty__img"
         />
@@ -374,7 +374,7 @@ export default function Favourites() {
       <div className="fav-header">
         <div className="fav-header__inner">
           <div className="fav-header__icon">
-            <img src="/images/icon1.jpg" alt="Favourites" className="fav-header__icon-img" />
+            <img src="/Images/icon1.jpg" alt="Favourites" className="fav-header__icon-img" />
           </div>
           <div>
             <h1 className="fav-header__title">My Favourites</h1>

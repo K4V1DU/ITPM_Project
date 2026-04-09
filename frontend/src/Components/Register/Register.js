@@ -179,7 +179,7 @@ export default function Register() {
         {/* Left panel */}
         <div className="reg-panel reg-panel--left">
           <div className="reg-brand">
-            <img src="/images/logo2.png" alt="UniSewana Logo" className="reg-brand__logo-img" />
+            <img src="/Images/logo2.png" alt="UniSewana Logo" className="reg-brand__logo-img" />
           </div>
           <div className="reg-panel__content">
             <h1 className="reg-panel__headline">Join the<br />community.</h1>

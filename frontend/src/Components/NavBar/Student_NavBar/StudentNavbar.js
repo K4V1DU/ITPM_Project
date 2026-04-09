@@ -177,7 +177,7 @@ export default function StudentNavbar({ activeTab = "" }) {
         <div className="snav__left">
           <a href="/Boardings" className="snav__logo">
             <img
-              src="/images/logo2.png"
+              src="/Images/logo2.png"
               alt="Unisewana Logo"
               style={{ height: "32px", width: "auto", display: "block" }}
             />
