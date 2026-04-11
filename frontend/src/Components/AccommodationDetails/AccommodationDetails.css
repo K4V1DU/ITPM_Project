@@ -44,22 +44,42 @@
 .acd-vitem { display:flex;align-items:flex-start;gap:10px;background:#fff5f5;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;font-size:13px;color:#dc2626; }
 .acd-vitem__icon { flex-shrink:0;margin-top:1px;font-size:14px; }
 
-/* ── Hero ── */
-.acd-hero { width:100%;max-width:1200px;margin:16px auto;height:280px;overflow:hidden;position:relative;border-radius:16px;background:linear-gradient(135deg,#FF6B2B 0%,#e85a1a 50%,#c44010 100%);display:flex;align-items:center;justify-content:center; }
+/* ── Hero — desktop only ── */
+.acd-hero {
+  width:100%; max-width:1200px; margin:16px auto;
+  height:280px; overflow:hidden; position:relative;
+  border-radius:16px;
+  background:linear-gradient(135deg,#FF6B2B 0%,#e85a1a 50%,#c44010 100%);
+  display:flex; align-items:center; justify-content:center;
+}
 .acd-hero__dots { position:absolute;inset:0;opacity:.07;background-image:radial-gradient(circle,#fff 1px,transparent 1px);background-size:28px 28px; }
 .acd-hero__grad { position:absolute;inset:0;background:linear-gradient(to bottom,transparent 50%,rgba(0,0,0,.3) 100%); }
+
+/* Hide hero entirely on mobile */
+.acd-hero-wrap { display:block; }
 
 .acd-wrapper { max-width:1200px;margin:0 auto;padding:0 24px; }
 
 /* ── Listing header ── */
 .acd-lhdr { padding:28px 0 0;display:flex;gap:20px;align-items:flex-start; }
 .acd-lhdr__logo { width:96px;height:96px;border-radius:12px;border:2px solid #e2e2e2;flex-shrink:0;background:linear-gradient(135deg,#FF6B2B,#e85a1a);display:flex;align-items:center;justify-content:center;font-size:42px;box-shadow:0 4px 16px rgba(0,0,0,.12);overflow:hidden; }
-.acd-lhdr__info { flex:1; }
+.acd-lhdr__info { flex:1;min-width:0; }
 .acd-lhdr__title { font-size:28px;font-weight:800;color:#000;letter-spacing:-.5px;margin-bottom:6px;line-height:1.2; }
 .acd-lhdr__meta { display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;color:#757575;margin-bottom:12px; }
 .acd-lhdr__badges { display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px; }
 .acd-lhdr__addr { font-size:13px;color:#757575; }
 .acd-lhdr__actions { display:flex;align-items:center;gap:10px;flex-shrink:0; }
+
+/* Description shown under header on mobile */
+.acd-lhdr__desc {
+  display:none;
+  font-size:14px;
+  color:#545454;
+  line-height:1.65;
+  margin-top:12px;
+  padding-top:12px;
+  border-top:1px solid #f0f0f0;
+}
 
 .acd-pill { display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid #e2e2e2;background:#fff; }
 
@@ -130,113 +150,41 @@
 .acd-bcard__per       { font-size:14px;color:#757575; }
 .acd-bcard__rating    { display:flex;align-items:center;gap:6px;margin-bottom:18px;font-size:14px; }
 
-/* ══════════════════════════════════════════
-   DATE / TIME PICKERS  — matches screenshot
-══════════════════════════════════════════ */
+/* ══ DATE / TIME PICKERS ══ */
 .acd-pickers { display:flex;flex-direction:column;gap:0;margin-bottom:12px; }
 
-/* 2-column date+time row */
 .acd-pickers__row {
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  border:1px solid #e2e2e2;
-  border-radius:12px;
-  overflow:hidden;
-  margin-bottom:10px;
+  display:grid; grid-template-columns:1fr 1fr;
+  border:1px solid #e2e2e2; border-radius:12px;
+  overflow:hidden; margin-bottom:10px;
 }
-
-.acd-pickers__cell {
-  padding:12px 14px;
-  display:flex;
-  flex-direction:column;
-  gap:4px;
-  background:#fff;
-}
+.acd-pickers__cell { padding:12px 14px;display:flex;flex-direction:column;gap:4px;background:#fff; }
 .acd-pickers__cell--left  { border-right:1px solid #e2e2e2; }
-.acd-pickers__cell--right { }
-
-.acd-pickers__cell:focus-within {
-  background:#fff8f5;
-}
-
-.acd-pickers__cell-label {
-  font-size:10px;
-  font-weight:700;
-  text-transform:uppercase;
-  letter-spacing:.07em;
-  color:#1b1b1b;
-  display:flex;
-  align-items:center;
-}
-
-/* Native input — visible, no chrome tricks */
-.acd-pickers__cell-input {
-  width:100%;
-  border:none;
-  outline:none;
-  font-size:13px;
-  font-weight:500;
-  color:#1b1b1b;
-  background:transparent;
-  padding:0;
-  cursor:pointer;
-  /* keep the native calendar/clock icon visible */
-  -webkit-appearance:none;
-  appearance:none;
-  font-family:inherit;
-}
-/* Re-add the browser calendar/clock icon via padding */
+.acd-pickers__cell:focus-within { background:#fff8f5; }
+.acd-pickers__cell-label { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1b1b1b;display:flex;align-items:center; }
+.acd-pickers__cell-input { width:100%;border:none;outline:none;font-size:13px;font-weight:500;color:#1b1b1b;background:transparent;padding:0;cursor:pointer;-webkit-appearance:none;appearance:none;font-family:inherit; }
 input[type="date"].acd-pickers__cell-input,
-input[type="time"].acd-pickers__cell-input {
-  -webkit-appearance:textfield;
-  appearance:textfield;
-}
-/* Placeholder color when empty */
+input[type="time"].acd-pickers__cell-input { -webkit-appearance:textfield;appearance:textfield; }
 .acd-pickers__cell-input::-webkit-datetime-edit-text,
 .acd-pickers__cell-input::-webkit-datetime-edit-month-field,
 .acd-pickers__cell-input::-webkit-datetime-edit-day-field,
 .acd-pickers__cell-input::-webkit-datetime-edit-year-field,
 .acd-pickers__cell-input::-webkit-datetime-edit-hour-field,
 .acd-pickers__cell-input::-webkit-datetime-edit-minute-field,
-.acd-pickers__cell-input::-webkit-datetime-edit-ampm-field {
-  color:#1b1b1b;
-}
+.acd-pickers__cell-input::-webkit-datetime-edit-ampm-field { color:#1b1b1b; }
 .acd-pickers__cell-input:invalid::-webkit-datetime-edit { color:#bbb; }
 
-/* Note field */
-.acd-pickers__note-wrap {
-  border:1px solid #e2e2e2;
-  border-radius:12px;
-  padding:12px 14px;
-  background:#fff;
-  margin-bottom:0;
-}
+.acd-pickers__note-wrap { border:1px solid #e2e2e2;border-radius:12px;padding:12px 14px;background:#fff;margin-bottom:0; }
 .acd-pickers__note-wrap:focus-within { border-color:#FF6B2B;box-shadow:0 0 0 3px rgba(255,107,43,.08); }
-.acd-pickers__note-label {
-  font-size:10px;font-weight:700;text-transform:uppercase;
-  letter-spacing:.07em;color:#1b1b1b;margin-bottom:6px;
-}
-.acd-pickers__note-input {
-  width:100%;border:none;outline:none;font-size:13px;
-  color:#1b1b1b;background:transparent;font-family:inherit;
-}
+.acd-pickers__note-label { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1b1b1b;margin-bottom:6px; }
+.acd-pickers__note-input { width:100%;border:none;outline:none;font-size:13px;color:#1b1b1b;background:transparent;font-family:inherit; }
 .acd-pickers__note-input::placeholder { color:#aaa; }
 
 /* ══ BOOKING BUTTON STATES ══ */
-.acd-bookbtn {
-  width:100%; padding:15px;
-  background:linear-gradient(135deg,#FF6B2B 0%,#e85a1a 100%);
-  color:#fff; border:none; border-radius:12px;
-  font-size:16px; font-weight:700; cursor:pointer;
-  display:flex; justify-content:center; align-items:center; gap:8px;
-  transition:opacity .18s, transform .12s;
-  animation:pulseRing 2.5s infinite;
-  margin-top:4px;
-}
+.acd-bookbtn { width:100%;padding:15px;background:linear-gradient(135deg,#FF6B2B 0%,#e85a1a 100%);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;display:flex;justify-content:center;align-items:center;gap:8px;transition:opacity .18s,transform .12s;animation:pulseRing 2.5s infinite;margin-top:4px; }
 .acd-bookbtn:hover:not(:disabled) { opacity:.9; }
 .acd-bookbtn:active:not(:disabled){ transform:scale(.98); }
 .acd-bookbtn:disabled { cursor:not-allowed;animation:none; }
-
 .acd-bookbtn--green { background:linear-gradient(135deg,#16a34a,#15803d);animation:none;cursor:pointer; }
 .acd-bookbtn--green:hover { opacity:.9; }
 .acd-bookbtn--amber { background:#fff7ed;color:#c2410c;border:2px solid #fcd9c4;animation:none; }
@@ -333,17 +281,78 @@ input[type="time"].acd-pickers__cell-input {
 .acd-toast--green { background:#16a34a; }
 .acd-toast--red   { background:#dc2626; }
 
-/* ── Responsive ── */
+/* ══════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════ */
 @media(max-width:1024px){
   .acd-wrapper { padding:0 16px; }
   .acd-grid    { grid-template-columns:1fr; }
   .acd-sidebar { position:static; }
 }
+
 @media(max-width:768px){
+  /* Hide the big hero banner */
+  .acd-hero-wrap { display:none; }
+
+  /* Compact header card — matches food details style */
+  .acd-lhdr {
+    padding:16px 0 0;
+    gap:14px;
+    align-items:flex-start;
+  }
+
+  /* Smaller logo on mobile */
+  .acd-lhdr__logo {
+    width:72px;
+    height:72px;
+    border-radius:10px;
+    font-size:30px;
+    flex-shrink:0;
+  }
+
+  .acd-lhdr__title {
+    font-size:18px;
+    font-weight:800;
+    margin-bottom:4px;
+  }
+
+  .acd-lhdr__meta {
+    font-size:13px;
+    gap:5px;
+    margin-bottom:8px;
+  }
+
+  .acd-lhdr__badges {
+    gap:6px;
+    margin-bottom:0;
+  }
+
+  /* Show description under the header row on mobile */
+  .acd-lhdr__desc {
+    display:block;
+  }
+
+  /* Actions stay top-right but smaller gap */
+  .acd-lhdr__actions {
+    gap:8px;
+  }
+
+  /* Divider tighter on mobile */
+  .acd-divider {
+    margin:14px 0 0;
+  }
+
+  /* Reviews single column */
   .acd-revs__grid { grid-template-columns:1fr; }
   .acd-rcard__inner--left  { padding-right:0;border-right:none; }
   .acd-rcard__inner--right { padding-left:0; }
-  .acd-gallery__main { height:260px; }
-  .acd-lhdr { flex-direction:column; }
-  .acd-lhdr__actions { align-self:flex-end; }
+
+  /* Gallery shorter on mobile */
+  .acd-gallery__main { height:220px; }
+
+  /* Address below header row */
+  .acd-lhdr__addr {
+    font-size:12px;
+    margin-top:6px;
+  }
 }
