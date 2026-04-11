@@ -87,6 +87,7 @@
 /* ── Right section ── */
 .hn-nav__right {
   display: flex; align-items: center; gap: 8px; justify-content: flex-end;
+  position: relative;
 }
 
 /* ── Switch to exploring link (desktop only) ── */
@@ -185,7 +186,7 @@
    BELL ICON
 ════════════════════════════════════════ */
 .hn-bell-wrap {
-  position: relative; display: flex; align-items: center;
+  display: flex; align-items: center;
 }
 .hn-bell-btn {
   position: relative;
