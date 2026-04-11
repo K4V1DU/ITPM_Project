@@ -69,13 +69,6 @@ export default function Login() {
       <div className="login-wrapper">
         {/* Left panel */}
         <div className="login-panel login-panel--left">
-          <div className="login-brand">
-            <img
-              src="/Images/logo2.png"
-              alt="UniSewana Logo"
-              className="login-brand__logo-img"
-            />
-          </div>
           <div className="login-panel__content">
             <h1 className="login-panel__headline">
               Your home<br />away from<br />home.
@@ -83,11 +76,6 @@ export default function Login() {
             <p className="login-panel__sub">
               Find boardings, food services, and everything you need — all in one place built for SLIIT students.
             </p>
-            <div className="login-panel__pills">
-              <span className="login-pill">🏠 Boardings</span>
-              <span className="login-pill">🍽️ Food Services</span>
-              <span className="login-pill">✨ Experiences</span>
-            </div>
           </div>
           <div className="login-panel__footer">
             © 2026 Unisewana.
@@ -97,6 +85,16 @@ export default function Login() {
         {/* Right panel */}
         <div className="login-panel login-panel--right">
           <div className="login-form-wrapper">
+
+            {/* Logo on right side */}
+            <div className="login-brand">
+              <img
+                src="/Images/logo2.png"
+                alt="UniSewana Logo"
+                className="login-brand__logo-img"
+              />
+            </div>
+
             <div className="login-form-header">
               <h2 className="login-form-title">Welcome back</h2>
               <p className="login-form-sub">Sign in to your account to continue</p>
@@ -198,18 +196,6 @@ export default function Login() {
               </p>
 
             </form>
-
-            {/* Role hint */}
-            <div className="login-role-hint">
-              <div className="login-role-hint__item">
-                <span className="login-role-hint__icon">🎓</span>
-                <span><strong>Student</strong> — access Boardings &amp; Food Services</span>
-              </div>
-              <div className="login-role-hint__item">
-                <span className="login-role-hint__icon">🏠</span>
-                <span><strong>Host</strong> — manage your listings</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>

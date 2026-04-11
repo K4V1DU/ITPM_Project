@@ -95,37 +95,24 @@
   padding: 48px 32px;
 }
 
-/* ── Brand ───────────────────────────────────────────────────────────────── */
-/* Logo image */
-.login-brand__logo-img {
-  height: 56px;
-  width: auto;
-  object-fit: contain;
-}
+/* ── Brand (now on right panel) ──────────────────────────────────────────── */
 .login-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  margin-bottom: 28px;
   animation: fadeSlideDown 0.6s ease both;
 }
-.login-brand__logo {
-  width: 44px; height: 44px;
-  background: rgba(255,255,255,0.25);
-  border: 2px solid rgba(255,255,255,0.5);
-  border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  font-family: 'Fraunces', serif;
-  font-size: 22px; font-weight: 700; color: #fff;
-}
-.login-brand__name {
-  font-family: 'Fraunces', serif;
-  font-size: 22px; font-weight: 600; color: #fff;
-  letter-spacing: -0.5px;
+.login-brand__logo-img {
+  height: 52px;
+  width: auto;
+  object-fit: contain;
 }
 
 /* ── Left panel content ──────────────────────────────────────────────────── */
 .login-panel__content {
   animation: fadeSlideUp 0.7s 0.15s ease both;
+  margin-top: auto;
+  margin-bottom: auto;
 }
 .login-panel__headline {
   font-family: 'Fraunces', serif;
@@ -136,18 +123,7 @@
 .login-panel__sub {
   font-size: 15px; line-height: 1.65;
   color: rgba(255,255,255,0.82);
-  max-width: 320px; margin-bottom: 32px;
-}
-.login-panel__pills {
-  display: flex; flex-wrap: wrap; gap: 10px;
-}
-.login-pill {
-  background: rgba(255,255,255,0.18);
-  border: 1.5px solid rgba(255,255,255,0.35);
-  color: #fff;
-  padding: 7px 16px; border-radius: 20px;
-  font-size: 13px; font-weight: 500;
-  backdrop-filter: blur(4px);
+  max-width: 320px;
 }
 
 .login-panel__footer {
@@ -260,22 +236,6 @@
 }
 .login-link { color: #e67e22; font-weight: 600; text-decoration: none; }
 .login-link:hover { text-decoration: underline; }
-
-/* ── Role hint ───────────────────────────────────────────────────────────── */
-.login-role-hint {
-  margin-top: 32px;
-  background: #fff7f0;
-  border: 1.5px solid #f0d8c0;
-  border-radius: 12px;
-  padding: 16px 18px;
-  display: flex; flex-direction: column; gap: 10px;
-}
-.login-role-hint__item {
-  display: flex; align-items: center; gap: 10px;
-  font-size: 13px; color: #555;
-}
-.login-role-hint__icon { font-size: 18px; flex-shrink: 0; }
-.login-role-hint__item strong { color: #1a1a1a; }
 
 /* ── Animations ──────────────────────────────────────────────────────────── */
 @keyframes fadeSlideDown {
