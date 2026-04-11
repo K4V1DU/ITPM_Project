@@ -285,13 +285,10 @@
     min-height: 100vh;
   }
 
-  /* Orange top strip — compact, only subtitle visible */
   .login-panel--left {
     width: 100%;
-    padding: 28px 24px 24px;
+    padding: 32px 24px 28px;
     justify-content: flex-start;
-    gap: 0;
-    /* Don't let it grow taller than needed */
     flex: 0 0 auto;
   }
 
@@ -299,24 +296,22 @@
     margin: 0;
   }
 
-  /* --- NEW: Reduced headline font size for tablet --- */
+  /* --- UPDATED: Increased headline size for tablet --- */
   .login-panel__headline {
-    font-size: 36px;
-    margin-bottom: 12px;
+    font-size: 48px;
+    margin-bottom: 14px;
   }
 
   .login-panel__sub {
-    font-size: 14px;
+    font-size: 15px;
     max-width: 100%;
     color: rgba(255, 255, 255, 0.9);
   }
 
-  /* Hide footer on mobile to keep strip tight */
   .login-panel__footer {
     display: none;
   }
 
-  /* Form panel fills the rest */
   .login-panel--right {
     flex: 1;
     padding: 32px 24px 40px;
@@ -339,17 +334,17 @@
 /* ── Mobile ──────────────────────────────────────────────────────────────── */
 @media (max-width: 480px) {
   .login-panel--left {
-    padding: 22px 20px 20px;
+    padding: 26px 20px 24px;
   }
 
-  /* --- NEW: Further reduced headline font size for mobile --- */
+  /* --- UPDATED: Increased headline size for mobile --- */
   .login-panel__headline {
-    font-size: 28px;
-    margin-bottom: 8px;
+    font-size: 38px;
+    margin-bottom: 10px;
   }
 
   .login-panel__sub {
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.55;
   }
 
@@ -362,7 +357,7 @@
   }
 
   .login-input {
-    font-size: 16px; /* prevents iOS zoom on focus */
+    font-size: 16px; 
     padding: 12px 14px 12px 42px;
   }
 
