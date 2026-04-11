@@ -40,10 +40,9 @@ export default function Login() {
       const role = (user.role ?? "").toLowerCase();
       if (role === "host") {
         navigate("/Listings");
-      } else if (role === "admin"){
+      } else if (role === "admin") {
         navigate("/AdminDashBoard");
-      } 
-      else {
+      } else {
         navigate("/Boardings");
       }
     } catch (err) {
@@ -67,7 +66,8 @@ export default function Login() {
       </div>
 
       <div className="login-wrapper">
-        {/* Left panel */}
+
+        {/* Left / Top orange panel */}
         <div className="login-panel login-panel--left">
           <div className="login-panel__content">
             <h1 className="login-panel__headline">
@@ -82,22 +82,17 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Right panel */}
+        {/* Right / Bottom form panel */}
         <div className="login-panel login-panel--right">
           <div className="login-form-wrapper">
 
-            {/* Logo on right side */}
+            {/* Logo */}
             <div className="login-brand">
               <img
                 src="/Images/logo2.png"
                 alt="UniSewana Logo"
                 className="login-brand__logo-img"
               />
-            </div>
-
-            <div className="login-form-header">
-              <h2 className="login-form-title">Welcome back</h2>
-              <p className="login-form-sub">Sign in to your account to continue</p>
             </div>
 
             <form className="login-form" onSubmit={handleLogin} noValidate>
@@ -134,9 +129,7 @@ export default function Login() {
 
               {/* Password */}
               <div className="login-field">
-                <label className="login-label" htmlFor="password">
-                  Password
-                </label>
+                <label className="login-label" htmlFor="password">Password</label>
                 <div className="login-input-wrap">
                   <span className="login-input-icon">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -174,7 +167,6 @@ export default function Login() {
                     )}
                   </button>
                 </div>
-                
                 <div style={{ textAlign: "right" }}>
                   <a href="/ForgotPassword" className="login-link" style={{ fontSize: "12px" }}>
                     Forgot password?
@@ -184,20 +176,18 @@ export default function Login() {
 
               {/* Submit */}
               <button className="login-btn" type="submit" disabled={loading}>
-                {loading ? (
-                  <span className="login-btn__spinner" />
-                ) : (
-                  "Sign in"
-                )}
+                {loading ? <span className="login-btn__spinner" /> : "Sign in"}
               </button>
 
               <p className="login-signup-hint">
-                Don't have an account? <a href="/Register" className="login-link">Create one</a>
+                Don't have an account?{" "}
+                <a href="/Register" className="login-link">Create one</a>
               </p>
 
             </form>
           </div>
         </div>
+
       </div>
     </div>
   );
