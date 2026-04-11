@@ -8,7 +8,7 @@ import {
   FaExclamationTriangle, FaCommentAlt, FaUserCircle, FaFlag,
   FaEllipsisH, FaSignInAlt, FaExclamationCircle, FaCalendarAlt,
   FaChevronLeft, FaChevronRight, FaPen, FaTrash, FaEdit, FaKey,
-  FaCheckCircle, FaClock, FaTimesCircle,
+  FaCheckCircle, FaClock, FaTimesCircle, FaChevronUp,
 } from "react-icons/fa";
 import StudentNavbar from "../NavBar/Student_NavBar/StudentNavbar";
 import Footer from "../NavBar/Footer/Footer";
@@ -288,9 +288,14 @@ const AccommodationDetails=()=>{
   const[editingReview,setEditingReview]=useState(null);
   const[deletingId,setDeletingId]=useState(null);
   const[reviewActBusy,setReviewActBusy]=useState(false);
+  /* ── NEW: floating Book Now button visibility ── */
+  const[showFloatBtn,setShowFloatBtn]=useState(true);
 
   const menuRef=useRef(null);
   const toastRef=useRef(null);
+  /* ── NEW: ref for the booking sidebar card ── */
+  const bookingCardRef=useRef(null);
+
   const userId=localStorage.getItem("CurrentUserId");
   const isLoggedIn=!!userId;
   const isStudent=currentUser?.role==="student";
@@ -300,6 +305,22 @@ const AccommodationDetails=()=>{
     setToast({show:true,msg,type});
     clearTimeout(toastRef.current);
     toastRef.current=setTimeout(()=>setToast({show:false,msg:"",type:""}),3000);
+  };
+
+  /* ── NEW: IntersectionObserver — hide float btn when booking card visible ── */
+  useEffect(()=>{
+    if(!bookingCardRef.current) return;
+    const obs=new IntersectionObserver(
+      ([entry])=>{ setShowFloatBtn(!entry.isIntersecting); },
+      { threshold:0.3 }
+    );
+    obs.observe(bookingCardRef.current);
+    return()=>obs.disconnect();
+  },[]);
+
+  /* ── NEW: scroll to booking card ── */
+  const scrollToBooking=()=>{
+    bookingCardRef.current?.scrollIntoView({behavior:"smooth",block:"center"});
   };
 
   useEffect(()=>{
@@ -493,11 +514,9 @@ const AccommodationDetails=()=>{
     <div style={{fontFamily:FONT,background:"#fff",color:"#1b1b1b",fontSize:14,lineHeight:1.5}}>
       <StudentNavbar activeTab="Boardings"/>
 
-      {/* ── NO HERO — removed entirely ── */}
-
       <div className="acd-wrapper">
 
-        {/* ── LISTING HEADER — food card style ── */}
+        {/* ── LISTING HEADER ── */}
         <div className="acd-lhdr">
 
           {/* Logo / host avatar */}
@@ -533,7 +552,7 @@ const AccommodationDetails=()=>{
               )}
             </div>
 
-            {/* Save + menu actions */}
+            {/* Save + menu actions — stacked vertically on mobile */}
             <div className="acd-lhdr__actions">
               <button
                 className={`acd-iconbtn${isSaved?" acd-iconbtn--saved":""}`}
@@ -575,16 +594,12 @@ const AccommodationDetails=()=>{
             </div>
           </div>
 
-          {/* Full-width below row: description first, then badges — no left indent */}
+          {/* Full-width below row */}
           {!loading && acc && (
             <div className="acd-lhdr__below">
-
-              {/* Description — full width, on top */}
               {acc?.description && (
                 <div className="acd-lhdr__desc-text">{acc.description}</div>
               )}
-
-              {/* Badges — full width, below description */}
               <div className="acd-lhdr__badges">
                 <span className={`acd-pill ${acc.isAvailable ? "acd-pill--green" : "acd-pill--red"}`}>
                   <span className={`acd-pill__dot ${acc.isAvailable ? "acd-pill__dot--green" : "acd-pill__dot--red"}`}/>
@@ -624,7 +639,6 @@ const AccommodationDetails=()=>{
             </div>
           )}
 
-          {/* Loading skeleton for below section */}
           {loading && (
             <div className="acd-lhdr__below">
               <Skel h={14} w="80%" r={6} mb={4}/>
@@ -726,9 +740,9 @@ const AccommodationDetails=()=>{
             )}
           </main>
 
-          {/* BOOKING SIDEBAR */}
+          {/* BOOKING SIDEBAR — attach ref here */}
           <aside className="acd-sidebar">
-            <div className="acd-bcard">
+            <div className="acd-bcard" ref={bookingCardRef}>
               <div className="acd-bcard__price-row">
                 {acc?.pricePerMonth
                   ?<><span className="acd-bcard__price">Rs {acc.pricePerMonth?.toLocaleString()}</span><span className="acd-bcard__per"> / month</span></>
@@ -870,6 +884,26 @@ const AccommodationDetails=()=>{
       )}
 
       <Footer/>
+
+      {/* ── FLOATING BOOK NOW BUTTON (mobile only) ── */}
+      {!loading && acc && (
+        <div className={`acd-float-book${showFloatBtn?" acd-float-book--visible":""}`}>
+          <div className="acd-float-book__inner">
+            <div className="acd-float-book__price">
+              {acc?.pricePerMonth
+                ? <><strong>Rs {acc.pricePerMonth?.toLocaleString()}</strong><span> / mo</span></>
+                : <span>View booking</span>}
+            </div>
+            <button
+              className="acd-float-book__btn"
+              style={{fontFamily:FONT}}
+              onClick={scrollToBooking}
+            >
+              <FaChevronUp style={{fontSize:13}}/> Book Now
+            </button>
+          </div>
+        </div>
+      )}
 
       {showReviewModal&&<ReviewModal onClose={()=>setShowReviewModal(false)} onSubmit={handleReviewSubmit} busy={reviewSaving}/>}
       {editingReview&&<ReviewModal isEdit initialStars={editingReview.rating??0} initialText={editingReview.comment??""} onClose={()=>setEditingReview(null)} onSubmit={handleEditSubmit} busy={reviewActBusy}/>}
