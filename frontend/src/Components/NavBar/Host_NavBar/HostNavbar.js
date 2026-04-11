@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import {
   FaBars, FaUser,
   FaSignOutAlt, FaEnvelope, FaCreditCard,
-  FaBell,
+  FaBell, FaChevronDown, FaChevronUp,
+  FaCalendarCheck, FaClipboardList, FaHome, FaCompass,
 } from "react-icons/fa";
-import { fetchPhoto } from "../../Image_Cache/usePhotoCache";
 import { useNotifications } from "../../../hooks/useNotifications";
 import "./HostNavbar.css";
 
@@ -28,9 +28,9 @@ function LogoutModal({ onConfirm, onCancel }) {
 }
 
 const NAV_TABS = [
-  { label: "Bookings", href: "/HostBookings"   },
-  { label: "Orders",   href: "/HostOrders" },
-  { label: "Listings", href: "/Listings"   },
+  { label: "Bookings", href: "/HostBookings", icon: <FaCalendarCheck /> },
+  { label: "Orders",   href: "/HostOrders",   icon: <FaClipboardList /> },
+  { label: "Listings", href: "/Listings",     icon: <FaHome /> },
 ];
 
 export default function HostNavbar({ activeHref = "" }) {
@@ -41,7 +41,6 @@ export default function HostNavbar({ activeHref = "" }) {
     notifications,
     unreadCount,
     markRead,
-    markAllRead,
     deleteOne: deleteNotification,
     clearAll,
   } = useNotifications(userId);
@@ -54,9 +53,11 @@ export default function HostNavbar({ activeHref = "" }) {
   const [showBell,       setShowBell]       = useState(false);
   const [showLogout,     setShowLogout]     = useState(false);
   const [unreadMsgCount, setUnreadMsgCount] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const dropdownRef = useRef(null);
   const bellRef     = useRef(null);
+  const mobileRef   = useRef(null);
   const msgPollRef  = useRef(null);
 
   // ── Fetch user profile + avatar ───────────────────────────────────────────
@@ -124,6 +125,8 @@ export default function HostNavbar({ activeHref = "" }) {
         setShowDropdown(false);
       if (bellRef.current && !bellRef.current.contains(e.target))
         setShowBell(false);
+      if (mobileRef.current && !mobileRef.current.contains(e.target))
+        setMobileMenuOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -136,17 +139,52 @@ export default function HostNavbar({ activeHref = "" }) {
     navigate("/Login");
   };
 
+  const currentPath = window.location.pathname;
+
   return (
     <>
       <nav className="hn-nav">
 
+        {/* ── Left: Logo + Mobile chevron toggle ── */}
         <div className="hn-nav__logo-wrap">
           <a href="/Listings" className="hn-nav__logo">
             <img src="/Images/logo2.png" alt="Unisewana Logo"
               style={{ height: "32px", width: "auto", display: "block" }} />
           </a>
+
+          {/* Mobile nav toggle — bare arrow only, no box */}
+          <div className="hn-mobile-nav" ref={mobileRef}>
+            <button
+              className={`hn-mobile-toggle${mobileMenuOpen ? " hn-mobile-toggle--open" : ""}`}
+              onClick={() => setMobileMenuOpen(p => !p)}
+              aria-label="Navigation menu"
+            >
+              {mobileMenuOpen ? <FaChevronUp /> : <FaChevronDown />}
+            </button>
+
+            {mobileMenuOpen && (
+              <div className="hn-mobile-menu">
+                <div className="hn-mobile-menu__label">Navigate</div>
+                {NAV_TABS.map(({ label, href, icon }) => {
+                  const active = href === activeHref || href === currentPath;
+                  return (
+                    <a
+                      key={label}
+                      href={href}
+                      className={`hn-mobile-menu__item${active ? " hn-mobile-menu__item--active" : ""}`}
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      {icon} {label}
+                      {active && <span className="hn-mobile-menu__dot" />}
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
+        {/* ── Centre: Desktop tabs ── */}
         <div className="hn-nav__center">
           {NAV_TABS.map(({ label, href }) => (
             <a key={label} href={href}
@@ -157,8 +195,10 @@ export default function HostNavbar({ activeHref = "" }) {
           ))}
         </div>
 
+        {/* ── Right: Switch link (desktop) + Bell + Hamburger dropdown ── */}
         <div className="hn-nav__right">
 
+          {/* "Switch to exploring" — desktop only, moves to dropdown on mobile */}
           <a href="/Boardings" className="hn-switch-link">Switch to exploring</a>
 
           {/* Bell */}
@@ -232,7 +272,6 @@ export default function HostNavbar({ activeHref = "" }) {
                 ? <img src={userAvatarSrc} alt="Profile" className="hn-user-avatar"
                     onError={() => setUserAvatarSrc(null)} />
                 : <span className="hn-user-icon-wrap"><FaUser className="hn-user-icon" /></span>}
-              {/* Unread message dot on the pill */}
               {unreadMsgCount > 0 && <span className="hn-menu-msg-dot" />}
             </button>
 
@@ -247,14 +286,17 @@ export default function HostNavbar({ activeHref = "" }) {
                     <div className="hn-dropdown__divider" />
                   </>
                 )}
+
                 <div className="hn-dropdown__item"
                   onClick={() => { setShowDropdown(false); navigate("/Host-Profile"); }}>
                   <FaUser style={{ opacity: 0.55 }} /> Profile
                 </div>
+
                 <div className="hn-dropdown__item"
                   onClick={() => { setShowDropdown(false); navigate("/PaymentHistory"); }}>
                   <FaCreditCard style={{ opacity: 0.55 }} /> Payments
                 </div>
+
                 <div className="hn-dropdown__item"
                   onClick={() => { setShowDropdown(false); navigate("/Messages"); }}>
                   <FaEnvelope style={{ opacity: 0.55 }} /> Messages
@@ -264,7 +306,15 @@ export default function HostNavbar({ activeHref = "" }) {
                     </span>
                   )}
                 </div>
+
+                {/* Switch to exploring — mobile only (hidden on desktop via CSS) */}
+                <div className="hn-dropdown__item hn-dropdown__item--switch"
+                  onClick={() => { setShowDropdown(false); navigate("/Boardings"); }}>
+                  <FaCompass style={{ opacity: 0.55 }} /> Switch to exploring
+                </div>
+
                 <div className="hn-dropdown__divider" />
+
                 <div className="hn-dropdown__item hn-dropdown__item--danger"
                   onClick={() => { setShowDropdown(false); setShowLogout(true); }}>
                   <FaSignOutAlt style={{ opacity: 0.65 }} /> Logout
