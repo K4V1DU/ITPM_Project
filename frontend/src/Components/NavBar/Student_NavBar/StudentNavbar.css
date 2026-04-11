@@ -11,28 +11,17 @@
   to   { opacity: 1; transform: scale(1);    }
 }
 
-/* Updated mobile animations to handle horizontal centering persistently */
 @keyframes mobileMenuSlide {
-  from { 
-    opacity: 0; 
-    transform: translateX(-50%) translateY(-8px) scale(0.97); 
-  }
-  to { 
-    opacity: 1; 
-    transform: translateX(-50%) translateY(0) scale(1); 
-  }
-}
-
-@keyframes bellMobileSlide {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(-10px);
+    transform: translateX(-50%) translateY(-8px) scale(0.97);
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
+    transform: translateX(-50%) translateY(0) scale(1);
   }
 }
+
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -106,8 +95,9 @@
   border-radius: 2px;
 }
 
-/* ── Host / Login button ── */
-.snav__host-btn {
+/* ── Host / Login navbar buttons ── */
+.snav__host-btn,
+.snav__login-btn {
   font-size: 13px;
   font-weight: 600;
   color: #1b1b1b;
@@ -119,7 +109,8 @@
   transition: background 0.16s;
   white-space: nowrap;
 }
-.snav__host-btn:hover { background: #f7f7f7; }
+.snav__host-btn:hover,
+.snav__login-btn:hover { background: #f7f7f7; }
 
 /* ── Dropdown ── */
 .snav__dropdown { position: relative; }
@@ -128,7 +119,7 @@
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  width: 210px;
+  width: 220px;
   background: #fff;
   border-radius: 16px;
   box-shadow: 0 20px 45px rgba(0,0,0,0.16);
@@ -180,12 +171,22 @@
   color: #1b1b1b;
   transition: background 0.14s;
 }
-.snav__dropdown-item:hover          { background: #f7f7f7; }
-.snav__dropdown-item--danger        { color: #dc2626; }
-.snav__dropdown-item--danger:hover  { background: #fff5f5; }
-.snav__dropdown-divider             { height: 1px; background: #ebebeb; margin: 4px 0; }
+.snav__dropdown-item:hover         { background: #f7f7f7; }
+.snav__dropdown-item--danger       { color: #dc2626; }
+.snav__dropdown-item--danger:hover { background: #fff5f5; }
+.snav__dropdown-item--login        { color: #FF6B2B; font-weight: 600; }
+.snav__dropdown-item--login:hover  { background: #fff4ef; }
+.snav__dropdown-divider            { height: 1px; background: #ebebeb; margin: 4px 0; }
 
-/* ── Logout modal ── */
+/* Lock icon shown on protected items when logged out */
+.snav__dropdown-lock {
+  margin-left: auto;
+  font-size: 11px;
+  color: #ccc;
+  flex-shrink: 0;
+}
+
+/* ── Logout / Login-required modal ── */
 .snav-overlay {
   position: fixed;
   inset: 0;
@@ -217,6 +218,7 @@
   margin: 0 auto 18px;
 }
 .snav-modal__icon-wrap--danger { background: #fee2e2; color: #dc2626; }
+.snav-modal__icon-wrap--info   { background: #fff4ef; color: #FF6B2B; }
 .snav-modal__title  { font-size: 18px; font-weight: 800; color: #1b1b1b; margin-bottom: 10px; }
 .snav-modal__desc   { font-size: 14px; color: #545454; line-height: 1.6; margin-bottom: 24px; }
 .snav-modal__btns   { display: flex; gap: 10px; }
@@ -230,10 +232,12 @@
   cursor: pointer;
   transition: background 0.16s;
 }
-.snav-modal__btn--ghost        { background: #f7f7f7; color: #1b1b1b; }
-.snav-modal__btn--ghost:hover  { background: #ececec; }
-.snav-modal__btn--danger       { background: #dc2626; color: #fff; }
-.snav-modal__btn--danger:hover { background: #b91c1c; }
+.snav-modal__btn--ghost          { background: #f7f7f7; color: #1b1b1b; }
+.snav-modal__btn--ghost:hover    { background: #ececec; }
+.snav-modal__btn--danger         { background: #dc2626; color: #fff; }
+.snav-modal__btn--danger:hover   { background: #b91c1c; }
+.snav-modal__btn--primary        { background: #FF6B2B; color: #fff; }
+.snav-modal__btn--primary:hover  { background: #e55a1f; }
 
 /* ════════════════════════════════════════
    BELL ICON
@@ -356,7 +360,6 @@
 /* ════════════════════════════════════════
    UNREAD MESSAGE INDICATORS
 ════════════════════════════════════════ */
-
 .snav__menu-msg-dot {
   position: absolute;
   top: 2px;
@@ -382,34 +385,27 @@
 }
 
 /* ════════════════════════════════════════
-   MOBILE NAV DROPDOWN (near logo)
+   MOBILE NAV TOGGLE — bare icon, no box
 ════════════════════════════════════════ */
-
 .snav__mobile-toggle {
   display: none;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  border: 1.5px solid #ebebeb;
-  background: #fff;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  box-shadow: none;
+  outline: none;
   cursor: pointer;
   color: #545454;
-  font-size: 13px;
+  font-size: 14px;
   flex-shrink: 0;
-  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  transition: color 0.15s;
+  padding: 0;
 }
-.snav__mobile-toggle:hover {
-  background: #f7f7f7;
-  border-color: #ccc;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-.snav__mobile-toggle--open {
-  background: #fff4ef;
-  border-color: #FF6B2B;
-  color: #FF6B2B;
-}
+.snav__mobile-toggle:hover   { color: #FF6B2B; }
+.snav__mobile-toggle--open   { color: #FF6B2B; }
 
 .snav__mobile-nav {
   position: relative;
@@ -462,20 +458,11 @@
 .snav__mobile-menu__item:hover       { background: #f7f7f7; }
 .snav__mobile-menu__item--active     { color: #FF6B2B; font-weight: 700; }
 .snav__mobile-menu__item--active svg { color: #FF6B2B; }
-.snav__mobile-menu__item--host {
-  color: #1b1b1b;
-  font-weight: 600;
-}
-.snav__mobile-menu__item--login {
-  color: #FF6B2B;
-  font-weight: 700;
-}
 .snav__mobile-menu__divider {
   height: 1px;
   background: #ebebeb;
   margin: 6px 0;
 }
-
 .snav__mobile-menu__dot {
   width: 6px;
   height: 6px;
@@ -485,7 +472,7 @@
   flex-shrink: 0;
 }
 
-/* ── Responsive Fixes ── */
+/* ── Responsive ── */
 @media (max-width: 768px) {
   .snav {
     padding: 0 16px;
@@ -493,26 +480,26 @@
     gap: 0;
   }
 
-  .snav__tabs      { display: none; }
-  .snav__host-btn  { display: none; }
-  .snav__mobile-nav    { display: flex; }
-  .snav__mobile-toggle { display: flex; }
+  .snav__tabs           { display: none; }
+  .snav__host-btn       { display: none; }
+  .snav__login-btn      { display: none; }
+  .snav__mobile-nav     { display: flex; }
+  .snav__mobile-toggle  { display: flex; }
 
-  /* FIX: Center Notification Dropdown on Mobile */
+  /* Right-align bell dropdown on mobile, same as profile dropdown */
   .snav__bell-dropdown {
     width: 290px;
-    left: 50%;
-    right: auto;
-    transform: translateX(-50%);
-    animation: bellMobileSlide 0.2s ease forwards;
+    right: 0;
+    left: auto;
+    transform: none;
+    animation: dropdownSmooth 0.2s ease forwards;
   }
 
   .snav__right { gap: 8px; }
 }
 
 @media (max-width: 400px) {
-  /* Ensure it doesn't overflow very small screens */
-  .snav__bell-dropdown { 
-    width: calc(100vw - 32px); 
+  .snav__bell-dropdown {
+    width: calc(100vw - 32px);
   }
 }

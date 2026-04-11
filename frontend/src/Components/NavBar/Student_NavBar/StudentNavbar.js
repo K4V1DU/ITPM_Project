@@ -13,6 +13,7 @@ import {
   FaChevronDown,
   FaChevronUp,
   FaSignInAlt,
+  FaLock,
 } from "react-icons/fa";
 import "./StudentNavbar.css";
 import { useNotifications } from "../../../hooks/useNotifications";
@@ -42,6 +43,30 @@ function LogoutModal({ onConfirm, onCancel }) {
   );
 }
 
+function LoginRequiredModal({ onClose, onLogin }) {
+  return (
+    <div className="snav-overlay" onClick={onClose}>
+      <div className="snav-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="snav-modal__icon-wrap snav-modal__icon-wrap--info">
+          <FaLock />
+        </div>
+        <h3 className="snav-modal__title">Login Required</h3>
+        <p className="snav-modal__desc">
+          Please log in to access this feature.
+        </p>
+        <div className="snav-modal__btns">
+          <button className="snav-modal__btn snav-modal__btn--ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="snav-modal__btn snav-modal__btn--primary" onClick={onLogin}>
+            Login
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StudentNavbar({ activeTab = "" }) {
   const navigate = useNavigate();
   const userId   = localStorage.getItem("CurrentUserId");
@@ -54,23 +79,24 @@ export default function StudentNavbar({ activeTab = "" }) {
     clearAll,
   } = useNotifications(userId);
 
-  const [currentUser,     setCurrentUser]    = useState(null);
-  const [userAvatarSrc,  setUserAvatarSrc]  = useState(
+  const [currentUser,       setCurrentUser]      = useState(null);
+  const [userAvatarSrc,    setUserAvatarSrc]    = useState(
     () => sessionStorage.getItem("studentAvatarDataUrl") || null
   );
-  const [cachedRole,     setCachedRole]     = useState(
+  const [cachedRole,       setCachedRole]       = useState(
     () => sessionStorage.getItem("studentUserRole") || null
   );
-  const [dropdown,       setDropdown]       = useState(false);
-  const [showLogout,     setShowLogout]     = useState(false);
-  const [showBell,       setShowBell]       = useState(false);
-  const [unreadMsgCount, setUnreadMsgCount] = useState(0);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [dropdown,         setDropdown]         = useState(false);
+  const [showLogout,       setShowLogout]       = useState(false);
+  const [showLoginRequired, setShowLoginRequired] = useState(false);
+  const [showBell,         setShowBell]         = useState(false);
+  const [unreadMsgCount,   setUnreadMsgCount]   = useState(0);
+  const [mobileMenuOpen,   setMobileMenuOpen]   = useState(false);
 
-  const dropRef      = useRef(null);
-  const bellRef      = useRef(null);
-  const mobileRef    = useRef(null);
-  const msgPollRef   = useRef(null);
+  const dropRef    = useRef(null);
+  const bellRef    = useRef(null);
+  const mobileRef  = useRef(null);
+  const msgPollRef = useRef(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -153,6 +179,16 @@ export default function StudentNavbar({ activeTab = "" }) {
     navigate("/Login");
   };
 
+  // Navigate only if logged in, otherwise show the login-required popup
+  const handleProtectedNav = (path) => {
+    setDropdown(false);
+    if (!isLoggedIn) {
+      setShowLoginRequired(true);
+      return;
+    }
+    navigate(path);
+  };
+
   const knownLoggedIn = !!localStorage.getItem("CurrentUserId");
   const isLoggedIn    = !!currentUser || knownLoggedIn;
   const userRole      = currentUser?.role ?? cachedRole ?? null;
@@ -166,14 +202,10 @@ export default function StudentNavbar({ activeTab = "" }) {
 
   const currentPath = window.location.pathname;
 
-  const mobileNavigate = (path) => {
-    setMobileMenuOpen(false);
-    navigate(path);
-  };
-
   return (
     <>
       <nav className="snav" style={{ fontFamily: FONT }}>
+        {/* ── Left: Logo + Mobile nav toggle ── */}
         <div className="snav__left">
           <a href="/Boardings" className="snav__logo">
             <img
@@ -209,35 +241,12 @@ export default function StudentNavbar({ activeTab = "" }) {
                     </a>
                   );
                 })}
-
-                {isHost && (
-                  <>
-                    <div className="snav__mobile-menu__divider" />
-                    <button
-                      className="snav__mobile-menu__item snav__mobile-menu__item--host"
-                      onClick={() => mobileNavigate("/Listings")}
-                    >
-                      <FaHome /> Host Page
-                    </button>
-                  </>
-                )}
-
-                {!isLoggedIn && (
-                  <>
-                    <div className="snav__mobile-menu__divider" />
-                    <button
-                      className="snav__mobile-menu__item snav__mobile-menu__item--login"
-                      onClick={() => mobileNavigate("/Login")}
-                    >
-                      <FaSignInAlt /> Login
-                    </button>
-                  </>
-                )}
               </div>
             )}
           </div>
         </div>
 
+        {/* ── Centre: Desktop tabs ── */}
         <div className="snav__tabs">
           {TABS.map(({ label, href }) => {
             const active = currentPath === href || activeTab === label;
@@ -251,9 +260,10 @@ export default function StudentNavbar({ activeTab = "" }) {
           })}
         </div>
 
+        {/* ── Right: Bell + Hamburger dropdown ── */}
         <div className="snav__right">
           {!isLoggedIn && (
-            <button className="snav__host-btn" onClick={() => navigate("/Login")}>
+            <button className="snav__login-btn" onClick={() => navigate("/Login")}>
               Login
             </button>
           )}
@@ -262,7 +272,7 @@ export default function StudentNavbar({ activeTab = "" }) {
               Host Page
             </button>
           )}
-
+          {/* Bell */}
           <div className="snav__bell-wrap" ref={bellRef}>
             <button className="snav__bell-btn"
               onClick={() => { setShowBell(p => !p); setDropdown(false); }}
@@ -274,6 +284,7 @@ export default function StudentNavbar({ activeTab = "" }) {
                 </span>
               )}
             </button>
+
             {showBell && (
               <div className="snav__bell-dropdown">
                 <div className="snav__bell-dropdown__header">
@@ -324,6 +335,7 @@ export default function StudentNavbar({ activeTab = "" }) {
             )}
           </div>
 
+          {/* Hamburger / profile dropdown */}
           <div ref={dropRef} className="snav__dropdown">
             <button className="snav__menu-btn" onClick={() => setDropdown((p) => !p)}>
               <FaBars className="snav__menu-icon" />
@@ -336,6 +348,7 @@ export default function StudentNavbar({ activeTab = "" }) {
 
             {dropdown && (
               <div className="snav__dropdown-menu">
+                {/* User info — only when logged in */}
                 {isLoggedIn && currentUser && (
                   <>
                     <div className="snav__dropdown-user">
@@ -349,47 +362,69 @@ export default function StudentNavbar({ activeTab = "" }) {
                   </>
                 )}
 
-                {(isStudent || isHost) && (
-                  <div className="snav__dropdown-item"
-                    onClick={() => { setDropdown(false); navigate("/Profile"); }}>
-                    <FaUser style={{ opacity: 0.7 }} /> Profile
-                  </div>
-                )}
+                {/* Profile — always visible, gated when logged out */}
+                <div className="snav__dropdown-item"
+                  onClick={() => handleProtectedNav("/Profile")}>
+                  <FaUser style={{ opacity: 0.7 }} /> Profile
+                  {!isLoggedIn && <FaLock className="snav__dropdown-lock" />}
+                </div>
 
-                {isStudent && (
+                {/* Favourites — student only or logged-out visitors */}
+                {(isStudent || !isLoggedIn) && (
                   <div className="snav__dropdown-item"
-                    onClick={() => { setDropdown(false); navigate("/Favourites"); }}>
+                    onClick={() => handleProtectedNav("/Favourites")}>
                     <FaHeart style={{ opacity: 0.7 }} /> Favourites
+                    {!isLoggedIn && <FaLock className="snav__dropdown-lock" />}
                   </div>
                 )}
 
-                {(isStudent || isHost) && (
+                {/* Messages */}
+                {(isStudent || isHost || !isLoggedIn) && (
                   <div className="snav__dropdown-item"
-                    onClick={() => { setDropdown(false); navigate("/Messages"); }}>
+                    onClick={() => handleProtectedNav("/Messages")}>
                     <FaEnvelope style={{ opacity: 0.7 }} /> Messages
-                    {unreadMsgCount > 0 && (
+                    {isLoggedIn && unreadMsgCount > 0 && (
                       <span className="snav__dropdown-msg-badge">
                         {unreadMsgCount > 99 ? "99+" : unreadMsgCount}
                       </span>
                     )}
+                    {!isLoggedIn && <FaLock className="snav__dropdown-lock" />}
                   </div>
                 )}
 
-                {isStudent && (
+                {/* My Orders */}
+                {(isStudent || !isLoggedIn) && (
                   <div className="snav__dropdown-item"
-                    onClick={() => { setDropdown(false); navigate("/StudentOrders"); }}>
+                    onClick={() => handleProtectedNav("/StudentOrders")}>
                     <FaReceipt style={{ opacity: 0.7 }} /> My Orders
+                    {!isLoggedIn && <FaLock className="snav__dropdown-lock" />}
                   </div>
                 )}
 
+                <div className="snav__dropdown-divider" />
+
+                {/* Host Page — only when logged in as host */}
+                {isHost && (
+                  <div className="snav__dropdown-item"
+                    onClick={() => { setDropdown(false); navigate("/Listings"); }}>
+                    <FaHome style={{ opacity: 0.7 }} /> Host Page
+                  </div>
+                )}
+
+                {/* Logout — logged in users */}
                 {isLoggedIn && (isStudent || isHost) && (
-                  <>
-                    <div className="snav__dropdown-divider" />
-                    <div className="snav__dropdown-item snav__dropdown-item--danger"
-                      onClick={() => { setDropdown(false); setShowLogout(true); }}>
-                      <FaSignOutAlt style={{ opacity: 0.7 }} /> Logout
-                    </div>
-                  </>
+                  <div className="snav__dropdown-item snav__dropdown-item--danger"
+                    onClick={() => { setDropdown(false); setShowLogout(true); }}>
+                    <FaSignOutAlt style={{ opacity: 0.7 }} /> Logout
+                  </div>
+                )}
+
+                {/* Login — logged out visitors */}
+                {!isLoggedIn && (
+                  <div className="snav__dropdown-item snav__dropdown-item--login"
+                    onClick={() => { setDropdown(false); navigate("/Login"); }}>
+                    <FaSignInAlt style={{ opacity: 0.7 }} /> Login
+                  </div>
                 )}
               </div>
             )}
@@ -401,6 +436,13 @@ export default function StudentNavbar({ activeTab = "" }) {
         <LogoutModal
           onConfirm={handleLogout}
           onCancel={() => setShowLogout(false)}
+        />
+      )}
+
+      {showLoginRequired && (
+        <LoginRequiredModal
+          onClose={() => setShowLoginRequired(false)}
+          onLogin={() => { setShowLoginRequired(false); navigate("/Login"); }}
         />
       )}
     </>
