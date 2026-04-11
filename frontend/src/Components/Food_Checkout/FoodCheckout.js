@@ -32,7 +32,6 @@ function unwrap(raw) {
   return raw?.data ?? raw?.result ?? raw;
 }
 
-// ─── Notification helper — fire-and-forget ────────────────────────────────────
 async function sendNotification({ recipient, type, title, message, link, refId, refType }) {
   try {
     await fetch(`${API_BASE}/Notification`, {
@@ -80,12 +79,7 @@ function LoginRequiredModal({ onClose, onLogin }) {
 // ─────────────────────────────────────────
 // GOOGLE MAP — DRAGGABLE DELIVERY PIN
 // ─────────────────────────────────────────
-function GoogleDeliveryMap({
-  onLocationSelect,
-  selectedCoords,
-  defaultCenter,
-  gpsCoords,
-}) {
+function GoogleDeliveryMap({ onLocationSelect, selectedCoords, defaultCenter, gpsCoords }) {
   const mapRef = useRef(null);
   const gMapRef = useRef(null);
   const markerRef = useRef(null);
@@ -134,27 +128,22 @@ function GoogleDeliveryMap({
     const initMap = () => {
       if (!mapRef.current || gMapRef.current) return;
       const google = window.google;
-
       const map = new google.maps.Map(mapRef.current, {
         center: initialCenter,
         zoom: defaultCenter ? 14 : 8,
         mapTypeControl: false,
         streetViewControl: false,
         fullscreenControl: false,
-        zoomControlOptions: {
-          position: google.maps.ControlPosition.RIGHT_CENTER,
-        },
+        zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_CENTER },
         styles: [
           { featureType: "poi", stylers: [{ visibility: "off" }] },
           { featureType: "transit", stylers: [{ visibility: "off" }] },
         ],
       });
       gMapRef.current = map;
-
       map.addListener("click", (e) => {
         placeMarker(e.latLng.lat(), e.latLng.lng());
       });
-
       if (selectedCoords) {
         const [lng, lat] = selectedCoords;
         markerRef.current = new google.maps.Marker({
@@ -170,10 +159,7 @@ function GoogleDeliveryMap({
       }
     };
 
-    if (window.google?.maps) {
-      initMap();
-      return;
-    }
+    if (window.google?.maps) { initMap(); return; }
 
     const scriptId = "gmap-script";
     if (!document.getElementById(scriptId)) {
@@ -201,9 +187,9 @@ function GoogleDeliveryMap({
     <div style={{ position: "relative" }}>
       <div
         ref={mapRef}
+        className="fco-map-canvas"
         style={{
           width: "100%",
-          height: 340,
           borderRadius: 14,
           border: "1px solid #e2e2e2",
           overflow: "hidden",
@@ -231,8 +217,7 @@ function GoogleDeliveryMap({
             whiteSpace: "nowrap",
           }}
         >
-          <FaMapMarkerAlt style={{ color: ORANGE }} /> Click on the map to set
-          delivery location
+          <FaMapMarkerAlt style={{ color: ORANGE }} /> Click on the map to set delivery location
         </div>
       )}
     </div>
@@ -240,7 +225,7 @@ function GoogleDeliveryMap({
 }
 
 // ─────────────────────────────────────────
-// GOOGLE MAP — PICKUP (static embed)
+// GOOGLE MAP — PICKUP
 // ─────────────────────────────────────────
 function GooglePickupMap({ service }) {
   const coords = service?.location?.coordinates;
@@ -251,17 +236,17 @@ function GooglePickupMap({ service }) {
     <div
       style={{
         width: "100%",
-        height: 280,
         borderRadius: 14,
         overflow: "hidden",
         border: "1px solid #e2e2e2",
         position: "relative",
         boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
       }}
+      className="fco-pickup-map"
     >
       <iframe
         src={src}
-        style={{ width: "100%", height: "100%", border: "none" }}
+        style={{ width: "100%", height: "100%", border: "none", display: "block" }}
         allowFullScreen
         loading="lazy"
         title="Pickup Location"
@@ -282,12 +267,8 @@ function GooglePickupMap({ service }) {
       >
         <FaUtensils style={{ color: ORANGE, fontSize: 16 }} />
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700 }}>
-            {service?.kitchenName ?? "Kitchen"}
-          </div>
-          <div style={{ fontSize: 12, color: "#757575" }}>
-            {service?.address ?? ""}
-          </div>
+          <div style={{ fontSize: 13, fontWeight: 700 }}>{service?.kitchenName ?? "Kitchen"}</div>
+          <div style={{ fontSize: 12, color: "#757575" }}>{service?.address ?? ""}</div>
         </div>
       </div>
     </div>
@@ -299,16 +280,11 @@ function GooglePickupMap({ service }) {
 // ─────────────────────────────────────────
 function HostCard({ ownerUser }) {
   const name = ownerUser?.name ?? "Host";
-  const since = ownerUser?.createdAt
-    ? new Date(ownerUser.createdAt).getFullYear()
-    : null;
-  const phone =
-    ownerUser?.phone ?? ownerUser?.phoneNumber ?? ownerUser?.contact ?? null;
+  const since = ownerUser?.createdAt ? new Date(ownerUser.createdAt).getFullYear() : null;
+  const phone = ownerUser?.phone ?? ownerUser?.phoneNumber ?? ownerUser?.contact ?? null;
   const photoId = ownerUser?.profileImage ?? null;
   const avatarSrc = photoId
-    ? /^[a-f\d]{24}$/i.test(photoId)
-      ? photoSrc(photoId)
-      : photoId
+    ? /^[a-f\d]{24}$/i.test(photoId) ? photoSrc(photoId) : photoId
     : null;
 
   return (
@@ -340,72 +316,23 @@ function HostCard({ ownerUser }) {
         }}
       >
         {avatarSrc ? (
-          <img
-            src={avatarSrc}
-            alt={name}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
-          />
+          <img src={avatarSrc} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.style.display = "none"; }} />
         ) : (
           <FaUserCircle style={{ fontSize: 36, color: "#fff" }} />
         )}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: "#999",
-            textTransform: "uppercase",
-            letterSpacing: "0.04em",
-            marginBottom: 2,
-          }}
-        >
+        <div style={{ fontSize: 11, fontWeight: 600, color: "#999", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 2 }}>
           Your order is handled by
         </div>
-        <div
-          style={{
-            fontSize: 16,
-            fontWeight: 800,
-            color: "#000",
-            marginBottom: 3,
-          }}
-        >
-          {name}
-        </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 14,
-            flexWrap: "wrap",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              color: "#757575",
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-            }}
-          >
+        <div style={{ fontSize: 16, fontWeight: 800, color: "#000", marginBottom: 3 }}>{name}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 12, color: "#757575", display: "flex", alignItems: "center", gap: 5 }}>
             <FaStar style={{ color: "#f59e0b", fontSize: 11 }} />
             Unisewana Host {since && `· Since ${since}`}
           </div>
           {phone && (
-            <div
-              style={{
-                fontSize: 12,
-                color: "#545454",
-                fontWeight: 600,
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-              }}
-            >
+            <div style={{ fontSize: 12, color: "#545454", fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}>
               <FaPhone style={{ fontSize: 10, color: ORANGE }} /> {phone}
             </div>
           )}
@@ -447,32 +374,11 @@ function OrderSuccess({ orderId, orderType, onGoOrders }) {
         <FaCheckCircle style={{ color: "#16a34a", fontSize: 38 }} />
       </div>
       <div>
-        <div
-          style={{
-            fontSize: 28,
-            fontWeight: 800,
-            color: "#000",
-            marginBottom: 6,
-          }}
-        >
-          Order Placed!
-        </div>
+        <div style={{ fontSize: 28, fontWeight: 800, color: "#000", marginBottom: 6 }}>Order Placed!</div>
         <div style={{ fontSize: 14, color: "#757575", marginBottom: 4 }}>
-          Your {orderType === "delivery" ? "delivery" : "pickup"} order has been
-          received.
+          Your {orderType === "delivery" ? "delivery" : "pickup"} order has been received.
         </div>
-        <div
-          style={{
-            display: "inline-block",
-            marginTop: 8,
-            fontSize: 12,
-            fontWeight: 700,
-            color: "#545454",
-            background: "#f3f4f6",
-            padding: "4px 14px",
-            borderRadius: 20,
-          }}
-        >
+        <div style={{ display: "inline-block", marginTop: 8, fontSize: 12, fontWeight: 700, color: "#545454", background: "#f3f4f6", padding: "4px 14px", borderRadius: 20 }}>
           Order ID: {orderId}
         </div>
       </div>
@@ -516,6 +422,30 @@ function OrderSuccess({ orderId, orderType, onGoOrders }) {
 }
 
 // ─────────────────────────────────────────
+// MOBILE ORDER SUMMARY DRAWER
+// ─────────────────────────────────────────
+function MobileOrderBar({ cartItems, cartTotal, orderType, kitchenName, onExpand }) {
+  return (
+    <div className="fco-mobile-bar" onClick={onExpand}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {orderType === "delivery"
+          ? <FaMotorcycle style={{ color: ORANGE }} />
+          : <FaShoppingBag style={{ color: "#0369a1" }} />}
+        <span style={{ fontWeight: 700, fontSize: 14 }}>
+          {cartItems.reduce((s, i) => s + i.qty, 0)} items · {kitchenName}
+        </span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span style={{ fontWeight: 800, fontSize: 15, color: ORANGE }}>
+          LKR {cartTotal.toLocaleString()}
+        </span>
+        <span style={{ fontSize: 12, color: "#757575" }}>▲ Summary</span>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────
 export default function FoodCheckout() {
@@ -547,6 +477,7 @@ export default function FoodCheckout() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [placedOrderId, setPlacedOrderId] = useState(null);
+  const [showMobileSummary, setShowMobileSummary] = useState(false);
 
   const userRole = currentUser?.role ?? null;
   const isStudent = userRole === "student";
@@ -555,10 +486,7 @@ export default function FoodCheckout() {
     if (!userId) return;
     fetch(`${API_BASE}/User/${userId}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((raw) => {
-        if (!raw) return;
-        setCurrentUser(unwrap(raw));
-      })
+      .then((raw) => { if (!raw) return; setCurrentUser(unwrap(raw)); })
       .catch(() => {});
   }, []);
 
@@ -567,26 +495,15 @@ export default function FoodCheckout() {
     if (!ownerId) return;
     fetch(`${API_BASE}/User/${ownerId}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((raw) => {
-        if (raw) setOwnerUser(unwrap(raw));
-      })
+      .then((raw) => { if (raw) setOwnerUser(unwrap(raw)); })
       .catch(() => {});
   }, [service]);
 
-  useEffect(() => {
-    if (!cartItems.length) navigate(-1);
-  }, []);
+  useEffect(() => { if (!cartItems.length) navigate(-1); }, []);
+  useEffect(() => { if (currentUser && !isStudent) setShowLoginRequired(true); }, [currentUser]);
 
-  useEffect(() => {
-    if (currentUser && !isStudent) setShowLoginRequired(true);
-  }, [currentUser]);
-
-  // ── Use My Location ────────────────────
   const handleUseMyLocation = () => {
-    if (!navigator.geolocation) {
-      setGpsError("Geolocation is not supported by your browser.");
-      return;
-    }
+    if (!navigator.geolocation) { setGpsError("Geolocation is not supported by your browser."); return; }
     setGpsLoading(true);
     setGpsError(null);
     navigator.geolocation.getCurrentPosition(
@@ -599,21 +516,16 @@ export default function FoodCheckout() {
       (err) => {
         setGpsLoading(false);
         if (err.code === 1)
-          setGpsError(
-            "Location access denied. Please allow location in your browser settings.",
-          );
+          setGpsError("Location access denied. Please allow location in your browser settings.");
         else setGpsError("Could not get your location. Please pin manually.");
       },
       { enableHighAccuracy: true, timeout: 8000 },
     );
   };
 
-  // ── Place order ────────────────────────
   const handlePlaceOrder = async () => {
     if (orderType === "delivery" && !deliveryCoords) {
-      setSubmitError(
-        "Please drop a pin on the map to set your delivery location.",
-      );
+      setSubmitError("Please drop a pin on the map to set your delivery location.");
       return;
     }
     setSubmitError(null);
@@ -629,15 +541,10 @@ export default function FoodCheckout() {
       student: userId,
       foodService: FOOD_SERVICE_ID ?? foodServiceId,
       orderType,
-      items: cartItems.map((item) => ({
-        menuItem: item._id,
-        name: item.name,
-        price: item.price,
-        qty: item.qty,
-      })),
+      items: cartItems.map((item) => ({ menuItem: item._id, name: item.name, price: item.price, qty: item.qty })),
       itemCount: cartItems.reduce((s, i) => s + i.qty, 0),
       subtotal: cartTotal,
-      deliveryFee: deliveryFee,
+      deliveryFee,
       total: cartTotal,
       notes: notes.trim(),
       location: locationPayload,
@@ -657,25 +564,16 @@ export default function FoodCheckout() {
       const hostId = service?.owner?._id ?? service?.owner ?? null;
       if (hostId) {
         sendNotification({
-          recipient: hostId,
-          type: "order_placed",
-          title: "New Order Received",
+          recipient: hostId, type: "order_placed", title: "New Order Received",
           message: `A new ${orderType} order has been placed at ${kitchenName}.`,
-          link: "/HostOrders",
-          refId: order._id ?? null,
-          refType: "FoodOrder",
+          link: "/HostOrders", refId: order._id ?? null, refType: "FoodOrder",
         });
       }
-
       if (userId) {
         sendNotification({
-          recipient: userId,
-          type: "order_placed",
-          title: "Order Placed Successfully",
+          recipient: userId, type: "order_placed", title: "Order Placed Successfully",
           message: `Your ${orderType} order from ${kitchenName} has been received.`,
-          link: "/StudentOrders",
-          refId: order._id ?? null,
-          refType: "FoodOrder",
+          link: "/StudentOrders", refId: order._id ?? null, refType: "FoodOrder",
         });
       }
     } catch {
@@ -685,97 +583,43 @@ export default function FoodCheckout() {
     }
   };
 
-  const bgImageSrc = service?.BackgroundImage
-    ? photoSrc(service.BackgroundImage)
-    : null;
+  const bgImageSrc = service?.BackgroundImage ? photoSrc(service.BackgroundImage) : null;
   const iconImageSrc = service?.iconImage ? photoSrc(service.iconImage) : null;
   const kitchenName = service?.kitchenName ?? "Kitchen";
   const address = service?.address ?? "";
   const defaultCenter = service?.location?.coordinates ?? null;
 
   return (
-    <div
-      style={{
-        fontFamily: FONT,
-        background: "#f7f7f7",
-        color: "#1b1b1b",
-        fontSize: 14,
-        lineHeight: 1.5,
-      }}
-    >
-      {/* ══ NAVBAR ══ */}
+    <div style={{ fontFamily: FONT, background: "#f7f7f7", color: "#1b1b1b", fontSize: 14, lineHeight: 1.5 }}>
       <StudentNavbar activeTab="Foods" />
 
-      {/* ══ HERO — Facebook-style ══ */}
+      {/* ══ HERO ══ */}
       <div style={{ background: "#fff", borderBottom: "1px solid #e2e2e2" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
+        <div className="fco-hero-inner">
           {/* Banner */}
           <div
+            className="fco-banner"
             style={{
-              width: "100%",
-              height: 220,
-              borderRadius: "0 0 16px 16px",
-              overflow: "hidden",
-              position: "relative",
               background: bgImageSrc
                 ? "transparent"
                 : "linear-gradient(135deg,#FF6B2B 0%,#e85a1a 50%,#c44010 100%)",
             }}
           >
             {bgImageSrc && (
-              <img
-                src={bgImageSrc}
-                alt="banner"
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
+              <img src={bgImageSrc} alt="banner" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.style.display = "none"; }} />
             )}
             {!bgImageSrc && (
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  opacity: 0.07,
-                  backgroundImage:
-                    "radial-gradient(circle,#fff 1px,transparent 1px)",
-                  backgroundSize: "28px 28px",
-                }}
-              />
+              <div style={{ position: "absolute", inset: 0, opacity: 0.07, backgroundImage: "radial-gradient(circle,#fff 1px,transparent 1px)", backgroundSize: "28px 28px" }} />
             )}
-            {/* Bottom fade */}
-            <div
-              style={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                height: 100,
-                background:
-                  "linear-gradient(to bottom,transparent,rgba(0,0,0,0.35))",
-              }}
-            />
-            {/* Back button */}
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 100, background: "linear-gradient(to bottom,transparent,rgba(0,0,0,0.35))" }} />
             <button
               onClick={() => navigate(-1)}
               style={{
-                position: "absolute",
-                top: 14,
-                left: 16,
-                display: "flex",
-                alignItems: "center",
-                gap: 7,
-                background: "rgba(255,255,255,0.9)",
-                border: "none",
-                borderRadius: 50,
-                padding: "8px 16px",
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#1b1b1b",
-                cursor: "pointer",
-                fontFamily: FONT,
-                boxShadow: "0 2px 10px rgba(0,0,0,0.15)",
+                position: "absolute", top: 14, left: 16,
+                display: "flex", alignItems: "center", gap: 7,
+                background: "rgba(255,255,255,0.9)", border: "none", borderRadius: 50,
+                padding: "8px 16px", fontSize: 13, fontWeight: 700, color: "#1b1b1b",
+                cursor: "pointer", fontFamily: FONT, boxShadow: "0 2px 10px rgba(0,0,0,0.15)",
               }}
             >
               <FaArrowLeft style={{ fontSize: 11 }} /> Back
@@ -783,100 +627,35 @@ export default function FoodCheckout() {
           </div>
 
           {/* Icon + name strip */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-end",
-              gap: 18,
-              transform: "translateY(-44px)",
-              marginBottom: "-28px",
-            }}
-          >
-            {/* Round kitchen icon */}
-            <div
-              style={{
-                width: 110,
-                height: 110,
-                borderRadius: "50%",
-                flexShrink: 0,
-                border: "4px solid #fff",
-                background: iconImageSrc
-                  ? "transparent"
-                  : "linear-gradient(135deg,#FF6B2B,#e85a1a)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                overflow: "hidden",
-                boxShadow: "0 4px 20px rgba(0,0,0,0.20)",
-              }}
-            >
+          <div className="fco-hero-strip">
+            <div className="fco-hero-icon">
               {iconImageSrc ? (
-                <img
-                  src={iconImageSrc}
-                  alt="icon"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
-                />
+                <img src={iconImageSrc} alt="icon" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { e.currentTarget.style.display = "none"; }} />
               ) : (
-                <FaUtensils style={{ color: "#fff", fontSize: 44 }} />
+                <FaUtensils style={{ color: "#fff", fontSize: 36 }} />
               )}
             </div>
-            {/* Name + address */}
-            <div style={{ paddingBottom: 8, flex: 1 }}>
-              <h1
-                style={{
-                  fontSize: 22,
-                  fontWeight: 800,
-                  color: "#000",
-                  margin: 0,
-                  lineHeight: 1.2,
-                }}
-              >
-                {kitchenName}
-              </h1>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h1 className="fco-hero-name">{kitchenName}</h1>
               {address && (
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: "#757575",
-                    marginTop: 5,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                  }}
-                >
-                  <FaMapMarkerAlt style={{ color: ORANGE, fontSize: 11 }} />{" "}
-                  {address}
+                <div style={{ fontSize: 13, color: "#757575", marginTop: 4, display: "flex", alignItems: "center", gap: 5 }}>
+                  <FaMapMarkerAlt style={{ color: ORANGE, fontSize: 11, flexShrink: 0 }} />
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{address}</span>
                 </div>
               )}
             </div>
-            {/* Order type badge */}
-            <div style={{ paddingBottom: 8 }}>
+            <div style={{ flexShrink: 0 }}>
               <div
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 7,
-                  padding: "8px 18px",
-                  borderRadius: 50,
+                  display: "inline-flex", alignItems: "center", gap: 7,
+                  padding: "7px 14px", borderRadius: 50,
                   background: orderType === "delivery" ? "#fff5f0" : "#f0f9ff",
                   border: `1.5px solid ${orderType === "delivery" ? "#fdd0bb" : "#bae6fd"}`,
-                  fontSize: 13,
-                  fontWeight: 700,
+                  fontSize: 13, fontWeight: 700,
                   color: orderType === "delivery" ? ORANGE : "#0369a1",
                 }}
               >
-                {orderType === "delivery" ? (
-                  <>
-                    <FaMotorcycle /> Delivery
-                  </>
-                ) : (
-                  <>
-                    <FaShoppingBag /> Pickup
-                  </>
-                )}
+                {orderType === "delivery" ? <><FaMotorcycle /> <span className="fco-badge-label">Delivery</span></> : <><FaShoppingBag /> <span className="fco-badge-label">Pickup</span></>}
               </div>
             </div>
           </div>
@@ -884,154 +663,54 @@ export default function FoodCheckout() {
       </div>
 
       {/* ══ PAGE BODY ══ */}
-      <div className="fs-wrapper" style={{ paddingTop: 28, paddingBottom: 80 }}>
+      <div className="fco-wrapper">
         {placedOrderId ? (
-          <OrderSuccess
-            orderId={placedOrderId}
-            orderType={orderType}
-            onGoOrders={() => navigate("/StudentOrders")}
-          />
+          <OrderSuccess orderId={placedOrderId} orderType={orderType} onGoOrders={() => navigate("/StudentOrders")} />
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 380px",
-              gap: 28,
-              alignItems: "start",
-            }}
-          >
+          <div className="fco-layout">
+
             {/* ── LEFT COLUMN ── */}
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-              {/* Host card — delivery only */}
               {orderType === "delivery" && <HostCard ownerUser={ownerUser} />}
 
-              {/* Location section */}
-              <div
-                style={{
-                  border: "1px solid #e2e2e2",
-                  borderRadius: 16,
-                  padding: "24px",
-                  background: "#fff",
-                  boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginBottom: 16,
-                    flexWrap: "wrap",
-                    gap: 10,
-                  }}
-                >
-                  <div
-                    style={{ display: "flex", alignItems: "center", gap: 12 }}
-                  >
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: "50%",
-                        flexShrink: 0,
-                        background:
-                          orderType === "delivery" ? "#fff5f0" : "#f0f9ff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      {orderType === "delivery" ? (
-                        <FaMapMarkerAlt
-                          style={{ color: ORANGE, fontSize: 16 }}
-                        />
-                      ) : (
-                        <FaShoppingBag
-                          style={{ color: "#0369a1", fontSize: 15 }}
-                        />
-                      )}
+              {/* Location */}
+              <div className="fco-card-section">
+                <div className="fco-location-header">
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0, background: orderType === "delivery" ? "#fff5f0" : "#f0f9ff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {orderType === "delivery"
+                        ? <FaMapMarkerAlt style={{ color: ORANGE, fontSize: 16 }} />
+                        : <FaShoppingBag style={{ color: "#0369a1", fontSize: 15 }} />}
                     </div>
-                    <div>
-                      <div
-                        style={{ fontSize: 16, fontWeight: 800, color: "#000" }}
-                      >
-                        {orderType === "delivery"
-                          ? "Set Delivery Location"
-                          : "Pickup Location"}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: "#000" }}>
+                        {orderType === "delivery" ? "Set Delivery Location" : "Pickup Location"}
                       </div>
-                      <div style={{ fontSize: 13, color: "#757575" }}>
+                      <div style={{ fontSize: 12, color: "#757575" }}>
                         {orderType === "delivery"
-                          ? "Click to place a pin. Drag to adjust the exact position."
+                          ? "Click to place a pin. Drag to adjust."
                           : "Come to the kitchen to collect your order."}
                       </div>
                     </div>
                   </div>
 
-                  {/* Use My Location button — delivery only */}
                   {orderType === "delivery" && (
                     <button
                       onClick={handleUseMyLocation}
                       disabled={gpsLoading}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 7,
-                        padding: "9px 16px",
-                        borderRadius: 50,
-                        border: `1.5px solid ${ORANGE}`,
-                        background: gpsLoading ? "#f7f7f7" : "#fff",
-                        color: gpsLoading ? "#aaa" : ORANGE,
-                        fontSize: 13,
-                        fontWeight: 700,
-                        cursor: gpsLoading ? "wait" : "pointer",
-                        fontFamily: FONT,
-                        transition: "background 0.18s, color 0.18s",
-                        flexShrink: 0,
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!gpsLoading) {
-                          e.currentTarget.style.background = ORANGE;
-                          e.currentTarget.style.color = "#fff";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!gpsLoading) {
-                          e.currentTarget.style.background = "#fff";
-                          e.currentTarget.style.color = ORANGE;
-                        }
-                      }}
+                      className="fco-gps-btn"
                     >
-                      {gpsLoading ? (
-                        <FaSpinner
-                          className="fco-spin"
-                          style={{ fontSize: 13 }}
-                        />
-                      ) : (
-                        <FaCrosshairs style={{ fontSize: 13 }} />
-                      )}
-                      {gpsLoading ? "Locating..." : "Use My Location"}
+                      {gpsLoading
+                        ? <FaSpinner className="fco-spin" style={{ fontSize: 13 }} />
+                        : <FaCrosshairs style={{ fontSize: 13 }} />}
+                      <span>{gpsLoading ? "Locating..." : "Use My Location"}</span>
                     </button>
                   )}
                 </div>
 
-                {/* GPS error */}
                 {gpsError && (
-                  <div
-                    style={{
-                      marginBottom: 12,
-                      padding: "10px 14px",
-                      background: "#fef2f2",
-                      border: "1px solid #fecaca",
-                      borderRadius: 10,
-                      fontSize: 13,
-                      color: "#dc2626",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <FaExclamationTriangle style={{ flexShrink: 0 }} />{" "}
-                    {gpsError}
+                  <div style={{ marginBottom: 12, padding: "10px 14px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, fontSize: 13, color: "#dc2626", display: "flex", alignItems: "center", gap: 8 }}>
+                    <FaExclamationTriangle style={{ flexShrink: 0 }} /> {gpsError}
                   </div>
                 )}
 
@@ -1044,24 +723,9 @@ export default function FoodCheckout() {
                       gpsCoords={gpsCoords}
                     />
                     {deliveryCoords && (
-                      <div
-                        style={{
-                          marginTop: 10,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                          fontSize: 13,
-                          color: "#16a34a",
-                          fontWeight: 600,
-                          background: "#f0fdf4",
-                          padding: "10px 14px",
-                          borderRadius: 10,
-                          border: "1px solid #bbf7d0",
-                        }}
-                      >
+                      <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#16a34a", fontWeight: 600, background: "#f0fdf4", padding: "10px 14px", borderRadius: 10, border: "1px solid #bbf7d0" }}>
                         <FaCheckCircle />
-                        Location set — {deliveryCoords[1].toFixed(5)},{" "}
-                        {deliveryCoords[0].toFixed(5)}
+                        Location set — {deliveryCoords[1].toFixed(5)}, {deliveryCoords[0].toFixed(5)}
                       </div>
                     )}
                   </>
@@ -1071,28 +735,9 @@ export default function FoodCheckout() {
               </div>
 
               {/* Notes */}
-              <div
-                style={{
-                  border: "1px solid #e2e2e2",
-                  borderRadius: 16,
-                  padding: "24px",
-                  background: "#fff",
-                  boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 800,
-                    color: "#000",
-                    marginBottom: 4,
-                  }}
-                >
-                  Special Instructions
-                </div>
-                <div
-                  style={{ fontSize: 13, color: "#757575", marginBottom: 14 }}
-                >
+              <div className="fco-card-section">
+                <div style={{ fontSize: 16, fontWeight: 800, color: "#000", marginBottom: 4 }}>Special Instructions</div>
+                <div style={{ fontSize: 13, color: "#757575", marginBottom: 14 }}>
                   Allergies, preferences, or anything the kitchen should know
                 </div>
                 <textarea
@@ -1101,230 +746,100 @@ export default function FoodCheckout() {
                   maxLength={500}
                   placeholder="e.g. Less spicy, extra sauce, no onions"
                   style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    border: "1px solid #e2e2e2",
-                    borderRadius: 10,
-                    fontSize: 14,
-                    fontFamily: FONT,
-                    resize: "vertical",
-                    minHeight: 90,
-                    outline: "none",
-                    color: "#1b1b1b",
+                    width: "100%", padding: "12px 14px",
+                    border: "1px solid #e2e2e2", borderRadius: 10,
+                    fontSize: 14, fontFamily: FONT, resize: "vertical",
+                    minHeight: 90, outline: "none", color: "#1b1b1b",
                     transition: "border-color 0.2s, box-shadow 0.2s",
+                    boxSizing: "border-box",
                   }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = ORANGE;
-                    e.target.style.boxShadow =
-                      "0 0 0 3px rgba(255,107,43,0.12)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#e2e2e2";
-                    e.target.style.boxShadow = "none";
-                  }}
+                  onFocus={(e) => { e.target.style.borderColor = ORANGE; e.target.style.boxShadow = "0 0 0 3px rgba(255,107,43,0.12)"; }}
+                  onBlur={(e) => { e.target.style.borderColor = "#e2e2e2"; e.target.style.boxShadow = "none"; }}
                 />
-                <div
+                <div style={{ fontSize: 11, color: "#aaa", textAlign: "right", marginTop: 4 }}>{notes.length} / 500</div>
+              </div>
+
+              {/* Mobile: Place Order button lives here too */}
+              <div className="fco-mobile-place-order">
+                {submitError && (
+                  <div style={{ marginBottom: 12, padding: "10px 14px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, fontSize: 13, color: "#dc2626", display: "flex", alignItems: "center", gap: 8 }}>
+                    <FaExclamationTriangle style={{ flexShrink: 0 }} /> {submitError}
+                  </div>
+                )}
+                <button
+                  onClick={handlePlaceOrder}
+                  disabled={submitting || (orderType === "delivery" && !deliveryCoords)}
+                  className="fco-place-btn-mobile"
                   style={{
-                    fontSize: 11,
-                    color: "#aaa",
-                    textAlign: "right",
-                    marginTop: 4,
+                    background: submitting || (orderType === "delivery" && !deliveryCoords)
+                      ? "#e2e2e2"
+                      : `linear-gradient(135deg,${ORANGE} 0%,#e85a1a 100%)`,
+                    color: submitting || (orderType === "delivery" && !deliveryCoords) ? "#999" : "#fff",
+                    cursor: submitting ? "wait" : (orderType === "delivery" && !deliveryCoords) ? "not-allowed" : "pointer",
                   }}
                 >
-                  {notes.length} / 500
-                </div>
+                  {submitting ? (
+                    <><FaSpinner className="fco-spin" style={{ fontSize: 14 }} /> Placing Order...</>
+                  ) : orderType === "delivery" && !deliveryCoords ? (
+                    "Drop a pin to continue"
+                  ) : (
+                    <>Place Order · LKR {cartTotal.toLocaleString()}</>
+                  )}
+                </button>
+                <p style={{ textAlign: "center", fontSize: 12, color: "#aaa", marginTop: 10, lineHeight: 1.5 }}>
+                  By placing this order you agree to pay cash on {orderType === "delivery" ? "delivery" : "pickup"}.
+                </p>
               </div>
             </div>
 
             {/* ── RIGHT COLUMN — Order Summary ── */}
-            <div style={{ position: "sticky", top: 24 }}>
-              <div
-                style={{
-                  border: "1px solid #e2e2e2",
-                  borderRadius: 16,
-                  overflow: "hidden",
-                  background: "#fff",
-                  boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
-                }}
-              >
+            <div className="fco-summary-col">
+              <div className="fco-summary-box">
                 {/* Header */}
-                <div
-                  style={{
-                    padding: "20px 20px 16px",
-                    borderBottom: "1px solid #f0f0f0",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 18,
-                      fontWeight: 800,
-                      color: "#000",
-                      marginBottom: 2,
-                    }}
-                  >
-                    Order Summary
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      color: "#757575",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                    }}
-                  >
-                    {orderType === "delivery" ? (
-                      <>
-                        <FaMotorcycle style={{ color: ORANGE }} /> Delivery
-                      </>
-                    ) : (
-                      <>
-                        <FaShoppingBag style={{ color: "#0369a1" }} /> Pickup
-                      </>
-                    )}
-                    {" · "}
-                    {kitchenName}
+                <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid #f0f0f0" }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "#000", marginBottom: 2 }}>Order Summary</div>
+                  <div style={{ fontSize: 13, color: "#757575", display: "flex", alignItems: "center", gap: 6 }}>
+                    {orderType === "delivery"
+                      ? <><FaMotorcycle style={{ color: ORANGE }} /> Delivery</>
+                      : <><FaShoppingBag style={{ color: "#0369a1" }} /> Pickup</>}
+                    {" · "}{kitchenName}
                   </div>
                 </div>
 
                 {/* Items */}
                 <div style={{ padding: "8px 0" }}>
                   {cartItems.map((item, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "10px 20px",
-                        borderBottom: "1px solid #f9f9f9",
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 26,
-                          height: 26,
-                          borderRadius: 8,
-                          background: "#f3f4f6",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 11,
-                          fontWeight: 700,
-                          color: "#545454",
-                          flexShrink: 0,
-                        }}
-                      >
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", borderBottom: "1px solid #f9f9f9" }}>
+                      <div style={{ width: 26, height: 26, borderRadius: 8, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#545454", flexShrink: 0 }}>
                         {item.qty}x
                       </div>
-                      <div
-                        style={{
-                          flex: 1,
-                          fontSize: 13,
-                          fontWeight: 500,
-                          color: "#000",
-                        }}
-                      >
-                        {item.name}
-                      </div>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>
-                        LKR {(item.price * item.qty).toLocaleString()}
-                      </div>
+                      <div style={{ flex: 1, fontSize: 13, fontWeight: 500, color: "#000", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, flexShrink: 0 }}>LKR {(item.price * item.qty).toLocaleString()}</div>
                     </div>
                   ))}
                 </div>
 
                 {/* Totals */}
-                <div
-                  style={{
-                    padding: "14px 20px",
-                    borderTop: "1px solid #f0f0f0",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      fontSize: 13,
-                      color: "#545454",
-                      marginBottom: 6,
-                    }}
-                  >
-                    <span>Subtotal</span>
-                    <span>LKR {cartTotal.toLocaleString()}</span>
+                <div style={{ padding: "14px 20px", borderTop: "1px solid #f0f0f0" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#545454", marginBottom: 6 }}>
+                    <span>Subtotal</span><span>LKR {cartTotal.toLocaleString()}</span>
                   </div>
                   {orderType === "delivery" && (
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        fontSize: 13,
-                        color: "#038a3a",
-                        fontWeight: 600,
-                        marginBottom: 6,
-                      }}
-                    >
-                      <span>Delivery fee</span>
-                      <span>Free</span>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#038a3a", fontWeight: 600, marginBottom: 6 }}>
+                      <span>Delivery fee</span><span>Free</span>
                     </div>
                   )}
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      fontSize: 16,
-                      fontWeight: 800,
-                      color: "#000",
-                      borderTop: "1px solid #e2e2e2",
-                      paddingTop: 10,
-                      marginTop: 4,
-                    }}
-                  >
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 16, fontWeight: 800, color: "#000", borderTop: "1px solid #e2e2e2", paddingTop: 10, marginTop: 4 }}>
                     <span>Total</span>
-                    <span style={{ color: ORANGE }}>
-                      LKR {cartTotal.toLocaleString()}
-                    </span>
+                    <span style={{ color: ORANGE }}>LKR {cartTotal.toLocaleString()}</span>
                   </div>
 
                   {/* COD notice */}
-                  <div
-                    style={{
-                      marginTop: 14,
-                      padding: "12px 14px",
-                      background: "#fff8f5",
-                      border: "1px solid #fdd0bb",
-                      borderRadius: 10,
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 10,
-                    }}
-                  >
-                    <FaMoneyBillWave
-                      style={{
-                        color: ORANGE,
-                        fontSize: 16,
-                        marginTop: 1,
-                        flexShrink: 0,
-                      }}
-                    />
+                  <div style={{ marginTop: 14, padding: "12px 14px", background: "#fff8f5", border: "1px solid #fdd0bb", borderRadius: 10, display: "flex", alignItems: "flex-start", gap: 10 }}>
+                    <FaMoneyBillWave style={{ color: ORANGE, fontSize: 16, marginTop: 1, flexShrink: 0 }} />
                     <div>
-                      <div
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 700,
-                          color: "#000",
-                          marginBottom: 2,
-                        }}
-                      >
-                        Cash on Delivery
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "#757575",
-                          lineHeight: 1.6,
-                        }}
-                      >
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#000", marginBottom: 2 }}>Cash on Delivery</div>
+                      <div style={{ fontSize: 12, color: "#757575", lineHeight: 1.6 }}>
                         {orderType === "delivery"
                           ? "Pay in cash when your food arrives. Please have the exact amount ready."
                           : "Pay in cash when you collect your order from the kitchen."}
@@ -1335,22 +850,8 @@ export default function FoodCheckout() {
 
                 {/* Error */}
                 {submitError && (
-                  <div
-                    style={{
-                      margin: "0 20px 12px",
-                      padding: "10px 14px",
-                      background: "#fef2f2",
-                      border: "1px solid #fecaca",
-                      borderRadius: 10,
-                      fontSize: 13,
-                      color: "#dc2626",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <FaExclamationTriangle style={{ flexShrink: 0 }} />{" "}
-                    {submitError}
+                  <div style={{ margin: "0 20px 12px", padding: "10px 14px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, fontSize: 13, color: "#dc2626", display: "flex", alignItems: "center", gap: 8 }}>
+                    <FaExclamationTriangle style={{ flexShrink: 0 }} /> {submitError}
                   </div>
                 )}
 
@@ -1358,65 +859,29 @@ export default function FoodCheckout() {
                 <div style={{ padding: "4px 20px 20px" }}>
                   <button
                     onClick={handlePlaceOrder}
-                    disabled={
-                      submitting ||
-                      (orderType === "delivery" && !deliveryCoords)
-                    }
+                    disabled={submitting || (orderType === "delivery" && !deliveryCoords)}
                     style={{
-                      width: "100%",
-                      padding: "15px",
-                      background:
-                        submitting ||
-                        (orderType === "delivery" && !deliveryCoords)
-                          ? "#e2e2e2"
-                          : `linear-gradient(135deg,${ORANGE} 0%,#e85a1a 100%)`,
-                      color:
-                        submitting ||
-                        (orderType === "delivery" && !deliveryCoords)
-                          ? "#999"
-                          : "#fff",
-                      border: "none",
-                      borderRadius: 12,
-                      fontSize: 15,
-                      fontWeight: 700,
-                      cursor: submitting
-                        ? "wait"
-                        : orderType === "delivery" && !deliveryCoords
-                          ? "not-allowed"
-                          : "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                      fontFamily: FONT,
-                      transition: "opacity 0.18s",
+                      width: "100%", padding: "15px",
+                      background: submitting || (orderType === "delivery" && !deliveryCoords)
+                        ? "#e2e2e2"
+                        : `linear-gradient(135deg,${ORANGE} 0%,#e85a1a 100%)`,
+                      color: submitting || (orderType === "delivery" && !deliveryCoords) ? "#999" : "#fff",
+                      border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700,
+                      cursor: submitting ? "wait" : (orderType === "delivery" && !deliveryCoords) ? "not-allowed" : "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                      fontFamily: FONT, transition: "opacity 0.18s",
                     }}
                   >
                     {submitting ? (
-                      <>
-                        <FaSpinner
-                          className="fco-spin"
-                          style={{ fontSize: 14 }}
-                        />{" "}
-                        Placing Order...
-                      </>
+                      <><FaSpinner className="fco-spin" style={{ fontSize: 14 }} /> Placing Order...</>
                     ) : orderType === "delivery" && !deliveryCoords ? (
                       "Drop a pin to continue"
                     ) : (
                       <>Place Order · LKR {cartTotal.toLocaleString()}</>
                     )}
                   </button>
-                  <p
-                    style={{
-                      textAlign: "center",
-                      fontSize: 12,
-                      color: "#aaa",
-                      marginTop: 10,
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    By placing this order you agree to pay cash on{" "}
-                    {orderType === "delivery" ? "delivery" : "pickup"}.
+                  <p style={{ textAlign: "center", fontSize: 12, color: "#aaa", marginTop: 10, lineHeight: 1.5 }}>
+                    By placing this order you agree to pay cash on {orderType === "delivery" ? "delivery" : "pickup"}.
                   </p>
                 </div>
               </div>
@@ -1425,31 +890,215 @@ export default function FoodCheckout() {
         )}
       </div>
 
-      {/* ══ FOOTER ══ */}
       <Footer />
 
       {showLoginRequired && (
         <LoginRequiredModal
-          onClose={() => {
-            setShowLoginRequired(false);
-            navigate(-1);
-          }}
-          onLogin={() => {
-            setShowLoginRequired(false);
-            navigate("/Login");
-          }}
+          onClose={() => { setShowLoginRequired(false); navigate(-1); }}
+          onLogin={() => { setShowLoginRequired(false); navigate("/Login"); }}
         />
       )}
 
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
         @keyframes fcoModalPop {
           from { opacity: 0; transform: scale(0.88); }
           to   { opacity: 1; transform: scale(1); }
         }
         .fco-spin { animation: fcoSpin 0.8s linear infinite; display: inline-block; }
         @keyframes fcoSpin { to { transform: rotate(360deg); } }
-        @media (max-width: 900px) {
-          .fco-grid { grid-template-columns: 1fr !important; }
+
+        /* ── Hero ── */
+        .fco-hero-inner {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 0 24px;
+        }
+        .fco-banner {
+          width: 100%;
+          height: 220px;
+          border-radius: 0 0 16px 16px;
+          overflow: hidden;
+          position: relative;
+        }
+        .fco-hero-strip {
+          display: flex;
+          align-items: flex-end;
+          gap: 16px;
+          transform: translateY(-40px);
+          margin-bottom: -24px;
+          flex-wrap: nowrap;
+        }
+        .fco-hero-icon {
+          width: 96px;
+          height: 96px;
+          border-radius: 50%;
+          flex-shrink: 0;
+          border: 4px solid #fff;
+          background: linear-gradient(135deg,#FF6B2B,#e85a1a);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.20);
+        }
+        .fco-hero-name {
+          font-size: 20px;
+          font-weight: 800;
+          color: #000;
+          margin: 0;
+          line-height: 1.2;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        /* ── Layout ── */
+        .fco-wrapper {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 28px 24px 80px;
+        }
+        .fco-layout {
+          display: grid;
+          grid-template-columns: 1fr 380px;
+          gap: 28px;
+          align-items: start;
+        }
+        .fco-summary-col {
+          position: sticky;
+          top: 24px;
+        }
+        .fco-summary-box {
+          border: 1px solid #e2e2e2;
+          border-radius: 16px;
+          overflow: hidden;
+          background: #fff;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+
+        /* ── Card sections ── */
+        .fco-card-section {
+          border: 1px solid #e2e2e2;
+          border-radius: 16px;
+          padding: 24px;
+          background: #fff;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+        }
+        .fco-location-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          margin-bottom: 16px;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        /* ── GPS button ── */
+        .fco-gps-btn {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          padding: 9px 16px;
+          border-radius: 50px;
+          border: 1.5px solid ${ORANGE};
+          background: #fff;
+          color: ${ORANGE};
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          font-family: ${FONT};
+          transition: background 0.18s, color 0.18s;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+        .fco-gps-btn:hover { background: ${ORANGE}; color: #fff; }
+        .fco-gps-btn:disabled { color: #aaa; border-color: #ccc; cursor: wait; }
+
+        /* ── Map heights ── */
+        .fco-map-canvas { height: 340px; }
+        .fco-pickup-map { height: 280px; }
+
+        /* ── Mobile place order (hidden on desktop) ── */
+        .fco-mobile-place-order { display: none; }
+        .fco-place-btn-mobile {
+          width: 100%;
+          padding: 15px;
+          border: none;
+          border-radius: 12px;
+          font-size: 15px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          font-family: ${FONT};
+        }
+
+        /* ── Mobile bar ── */
+        .fco-mobile-bar { display: none; }
+
+        /* ════════════════════════════════
+           TABLET  ≤ 960px
+        ════════════════════════════════ */
+        @media (max-width: 960px) {
+          .fco-layout {
+            grid-template-columns: 1fr;
+          }
+          .fco-summary-col {
+            position: static;
+            order: -1; /* summary goes to top on tablet/mobile */
+          }
+          .fco-summary-box {
+            border-radius: 16px;
+          }
+        }
+
+        /* ════════════════════════════════
+           MOBILE  ≤ 640px
+        ════════════════════════════════ */
+        @media (max-width: 640px) {
+          .fco-hero-inner { padding: 0 16px; }
+          .fco-banner { height: 160px; border-radius: 0 0 12px 12px; }
+
+          .fco-hero-strip {
+            gap: 12px;
+            transform: translateY(-32px);
+            margin-bottom: -18px;
+          }
+          .fco-hero-icon {
+            width: 72px;
+            height: 72px;
+            border-width: 3px;
+          }
+          .fco-hero-name { font-size: 16px; }
+          .fco-badge-label { display: none; }
+
+          .fco-wrapper { padding: 16px 16px 100px; }
+          .fco-layout { gap: 16px; }
+
+          .fco-card-section { padding: 18px 16px; }
+
+          .fco-location-header { flex-direction: column; }
+          .fco-gps-btn { width: 100%; justify-content: center; }
+
+          .fco-map-canvas { height: 260px; }
+          .fco-pickup-map { height: 220px; }
+
+          /* Hide desktop summary, show mobile place order */
+          .fco-summary-col { display: none; }
+          .fco-mobile-place-order { display: block; }
+        }
+
+        /* ════════════════════════════════
+           VERY SMALL  ≤ 380px
+        ════════════════════════════════ */
+        @media (max-width: 380px) {
+          .fco-banner { height: 130px; }
+          .fco-hero-icon { width: 60px; height: 60px; }
+          .fco-hero-name { font-size: 14px; }
+          .fco-map-canvas { height: 220px; }
         }
       `}</style>
     </div>
