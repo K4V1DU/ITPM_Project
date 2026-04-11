@@ -44,7 +44,7 @@
 
 .snav__left  { display: flex; align-items: center; gap: 10px; }
 .snav__tabs  { align-self: stretch; }
-.snav__right { display: flex; gap: 14px; align-items: center; justify-content: flex-end; }
+.snav__right { display: flex; gap: 14px; align-items: center; justify-content: flex-end; position: relative; }
 
 .snav__logo {
   font-size: 26px;
@@ -243,7 +243,7 @@
    BELL ICON
 ════════════════════════════════════════ */
 .snav__bell-wrap {
-  position: relative; display: flex; align-items: center;
+  display: flex; align-items: center;
 }
 .snav__bell-btn {
   position: relative;
