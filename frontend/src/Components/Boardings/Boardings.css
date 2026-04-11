@@ -27,6 +27,7 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 /* Section grows to fill remaining space, pushing footer down */
@@ -159,9 +160,6 @@ body {
   transition: background 0.14s;
 }
 .bd-active-filters__clear:hover { background: #f5f5f5; }
-
-/* ══ SECTION ══ */
-/* .bd-section is defined above alongside .bd-page for the flex fix */
 
 .bd-section__header {
   display: flex;
@@ -510,12 +508,16 @@ body {
 /* ══ RESPONSIVE ══ */
 @media (max-width: 1024px) {
   .bd-search-container { margin: 24px 20px; }
-  .bd-search-bar       { width: 95%; }
+  .bd-search-bar       { width: 100%; }
   .bd-active-filters   { padding: 0 20px 12px; }
   .bd-section          { padding: 0 20px 60px; }
 }
 
 @media (max-width: 768px) {
-  .bd-grid { grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 14px; }
-  .bd-filter-popup { border-radius: 20px 20px 0 0; }
+  .bd-search-container { margin: 16px; }
+  .bd-search-bar       { width: 100%; }
+  .bd-active-filters   { padding: 0 16px 12px; }
+  .bd-section          { padding: 0 16px 60px; }
+  .bd-grid             { grid-template-columns: 1fr; gap: 16px; }
+  .bd-filter-popup     { border-radius: 20px 20px 0 0; }
 }
