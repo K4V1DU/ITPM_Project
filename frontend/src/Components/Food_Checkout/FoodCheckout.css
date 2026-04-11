@@ -315,11 +315,13 @@
 
   .fco-hero-strip {
     gap: 12px;
-    transform: translateY(-32px);
-    margin-bottom: -18px;
+    transform: translateY(-20px);
+    margin-bottom: -4px;
+    align-items: center;
   }
-  .fco-hero-icon   { width: 72px; height: 72px; border-width: 3px; }
-  .fco-hero-name   { font-size: 16px; }
+  .fco-hero-icon   { width: 68px; height: 68px; border-width: 3px; align-self: flex-end; }
+  .fco-hero-name   { font-size: 15px; }
+  .fco-hero-name-wrap { padding-top: 30px; }
   .fco-badge-label { display: none; }    /* hide "Delivery" / "Pickup" text, keep icon */
 
   .fco-wrapper     { padding: 16px 16px 100px; }

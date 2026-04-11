@@ -499,6 +499,7 @@ export default function FoodCheckout() {
       .catch(() => {});
   }, [service]);
 
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" }); }, []);
   useEffect(() => { if (!cartItems.length) navigate(-1); }, []);
   useEffect(() => { if (currentUser && !isStudent) setShowLoginRequired(true); }, [currentUser]);
 
@@ -635,7 +636,7 @@ export default function FoodCheckout() {
                 <FaUtensils style={{ color: "#fff", fontSize: 36 }} />
               )}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="fco-hero-name-wrap" style={{ flex: 1, minWidth: 0 }}>
               <h1 className="fco-hero-name">{kitchenName}</h1>
               {address && (
                 <div style={{ fontSize: 13, color: "#757575", marginTop: 4, display: "flex", alignItems: "center", gap: 5 }}>
@@ -1064,15 +1065,18 @@ export default function FoodCheckout() {
 
           .fco-hero-strip {
             gap: 12px;
-            transform: translateY(-32px);
-            margin-bottom: -18px;
+            transform: translateY(-20px);
+            margin-bottom: -4px;
+            align-items: center;
           }
           .fco-hero-icon {
-            width: 72px;
-            height: 72px;
+            width: 68px;
+            height: 68px;
             border-width: 3px;
+            align-self: flex-end;
           }
-          .fco-hero-name { font-size: 16px; }
+          .fco-hero-name { font-size: 15px; }
+          .fco-hero-name-wrap { padding-top: 30px; }
           .fco-badge-label { display: none; }
 
           .fco-wrapper { padding: 16px 16px 100px; }
