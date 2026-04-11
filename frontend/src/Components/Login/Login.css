@@ -295,10 +295,14 @@
     flex: 0 0 auto;
   }
 
-  
-
   .login-panel__content {
     margin: 0;
+  }
+
+  /* --- NEW: Reduced headline font size for tablet --- */
+  .login-panel__headline {
+    font-size: 36px;
+    margin-bottom: 12px;
   }
 
   .login-panel__sub {
@@ -336,6 +340,12 @@
 @media (max-width: 480px) {
   .login-panel--left {
     padding: 22px 20px 20px;
+  }
+
+  /* --- NEW: Further reduced headline font size for mobile --- */
+  .login-panel__headline {
+    font-size: 28px;
+    margin-bottom: 8px;
   }
 
   .login-panel__sub {
