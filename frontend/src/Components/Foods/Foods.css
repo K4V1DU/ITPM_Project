@@ -790,7 +790,10 @@ body {
 @media (max-width: 768px) {
   .fsl-nav       { grid-template-columns: auto 1fr auto; gap: 12px; }
   .fsl-nav__tabs { display: none; }
-  .fsl-grid      { grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 14px; }
+
+  /* ── Single column: one food service per row ── */
+  .fsl-grid      { grid-template-columns: 1fr; gap: 16px; }
+
   .fsl-footer__bottom { flex-direction: column; gap: 8px; text-align: center; }
   .fsl-filter-popup { border-radius: 20px 20px 0 0; }
 }
