@@ -493,73 +493,151 @@ const AccommodationDetails=()=>{
     <div style={{fontFamily:FONT,background:"#fff",color:"#1b1b1b",fontSize:14,lineHeight:1.5}}>
       <StudentNavbar activeTab="Boardings"/>
 
-      {/* HERO */}
-      <div style={{padding:"0 24px"}}>
-        <div className="acd-hero">
-          {imgs[0]&&imgs[0]!=="https://via.placeholder.com/800x500?text=No+Image"
-            ?<img src={imgs[0]} alt="banner" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",zIndex:0}}/>
-            :<><div className="acd-hero__dots"/><div className="acd-hero__grad"/></>}
-        </div>
-      </div>
+      {/* ── NO HERO — removed entirely ── */}
 
       <div className="acd-wrapper">
-        {/* LISTING HEADER */}
+
+        {/* ── LISTING HEADER — food card style ── */}
         <div className="acd-lhdr">
+
+          {/* Logo / host avatar */}
           <div className="acd-lhdr__logo">
-            {hostAvatar&&hostAvatar!=="https://via.placeholder.com/800x500?text=No+Image"
-              ?<img src={hostAvatar} alt="icon" style={{width:"100%",height:"100%",borderRadius:10,objectFit:"cover"}}/>:"🏠"}
+            {hostAvatar && hostAvatar !== "https://via.placeholder.com/800x500?text=No+Image"
+              ? <img src={hostAvatar} alt="icon" style={{width:"100%",height:"100%",borderRadius:10,objectFit:"cover"}}/>
+              : "🏠"}
           </div>
-          <div className="acd-lhdr__info">
-            {loading?(<><Skel h={32} w="60%" mb={10}/><Skel h={16} w="80%" mb={12}/><Skel h={16} w="40%"/></>):(
-              <>
-                <h1 className="acd-lhdr__title">{acc?.title??"Loading…"}</h1>
-                <div className="acd-lhdr__meta">
-                  <span style={{fontWeight:600,color:"#1b1b1b"}}>⭐ {liveAvg.toFixed(1)}</span>
-                  {[`(${liveCount} ratings)`,acc?.accommodationType].filter(Boolean).map(t=>(
-                    <span key={t} style={{display:"contents"}}><span style={{color:"#ccc"}}>•</span><span>{t}</span></span>
-                  ))}
-                </div>
-                <div className="acd-lhdr__badges">
-                  {acc?.beds&&<span className="acd-pill"><FaBed style={{fontSize:11}}/> {acc.beds} bed{acc.beds!==1?"s":""}</span>}
-                  {acc?.bedrooms&&<span className="acd-pill"><FaBed style={{fontSize:11}}/> {acc.bedrooms} bedroom{acc.bedrooms!==1?"s":""}</span>}
-                  {acc?.bathrooms&&<span className="acd-pill"><FaBath style={{fontSize:11}}/> {acc.bathrooms} bath{acc.bathrooms!==1?"s":""}</span>}
-                  {acc?.genderPreference&&<span className="acd-pill"><FaUsers style={{fontSize:11}}/> {acc.genderPreference}</span>}
-                  {acc?.keyMoneyDuration>0&&<span className="acd-pill"><FaKey style={{fontSize:11}}/> {acc.keyMoneyDuration} mo key money</span>}
-                  {acc?.distance&&acc.distance!=="Distance not available"&&<span className="acd-pill"><FaMapMarkerAlt style={{fontSize:11}}/> {acc.distance}</span>}
-                </div>
-                {acc?.address&&<div className="acd-lhdr__addr"><FaMapMarkerAlt style={{fontSize:11}}/> {acc.address}</div>}
-              </>
-            )}
-          </div>
-          <div className="acd-lhdr__actions">
-            <button className={`acd-iconbtn${isSaved?" acd-iconbtn--saved":""}`} onClick={handleToggleFav} disabled={favPending} style={{opacity:favPending?.6:1}}>
-              {isSaved?<FaHeart style={{color:ORANGE,fontSize:16}}/>:<FaRegHeart style={{color:"#444",fontSize:16}}/>}
-            </button>
-            <div ref={menuRef} style={{position:"relative"}}>
-              <button className="acd-iconbtn" onClick={()=>setShowMenu(p=>!p)}><FaEllipsisH style={{color:"#444",fontSize:15}}/></button>
-              {showMenu&&(
-                <div className="acd-dropdown">
-                  <div className="acd-dropdown__host">
-                    <div className="acd-dropdown__ava">
-                      {hostAvatar?<img src={hostAvatar} alt="host" style={{width:"100%",height:"100%",borderRadius:"50%",objectFit:"cover"}} onError={e=>{e.currentTarget.style.display="none";}}/>:<FaUserCircle style={{fontSize:36,color:"#bbb"}}/>}
-                    </div>
-                    <div>
-                      <div className="acd-dropdown__hlbl">Hosted by</div>
-                      <div className="acd-dropdown__hname">{host?.name??"Host"}</div>
-                      <div className="acd-dropdown__hsince">{host?.joinedYear?`Member since ${host.joinedYear}`:"Bodima Host"}</div>
-                    </div>
+
+          {/* Right side: title + meta + address + actions */}
+          <div className="acd-lhdr__top-row">
+            <div className="acd-lhdr__info">
+              {loading ? (
+                <><Skel h={24} w="60%" mb={8}/><Skel h={14} w="50%" mb={6}/><Skel h={13} w="40%"/></>
+              ) : (
+                <>
+                  <h1 className="acd-lhdr__title">{acc?.title ?? "Loading…"}</h1>
+                  <div className="acd-lhdr__meta">
+                    <span style={{fontWeight:700, color:"#f59e0b"}}>⭐ {liveAvg.toFixed(1)}</span>
+                    <span style={{color:"#d1d5db"}}>•</span>
+                    <span>({liveCount} ratings)</span>
+                    {acc?.accommodationType && (
+                      <><span style={{color:"#d1d5db"}}>•</span><span>{acc.accommodationType}</span></>
+                    )}
                   </div>
-                  <div className="acd-dropdown__div"/>
-                  <button className="acd-dropdown__item acd-dropdown__item--orange" onClick={async()=>{setShowMenu(false);await openChat();}}><FaCommentAlt style={{fontSize:13}}/> Message Host</button>
-                  <button className="acd-dropdown__item" onClick={()=>setShowMenu(false)}><FaUserCircle style={{fontSize:14}}/> View Host Profile</button>
-                  <div className="acd-dropdown__div"/>
-                  <button className="acd-dropdown__item" onClick={()=>{setShowMenu(false);navigator.clipboard?.writeText(window.location.href);toast_("Link copied! 🔗","success");}}><FaShare style={{fontSize:13}}/> Share this listing</button>
-                  <button className="acd-dropdown__item acd-dropdown__item--red" onClick={()=>{setShowMenu(false);if(!isLoggedIn){setShowLogin(true);return;}toast_("Report submitted. Thank you.","success");}}><FaFlag style={{fontSize:13}}/> Report</button>
-                </div>
+                  {acc?.address && (
+                    <div className="acd-lhdr__addr">
+                      <FaMapMarkerAlt style={{fontSize:11, color:"#9ca3af", flexShrink:0}}/>
+                      <span>{acc.address}</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
+
+            {/* Save + menu actions */}
+            <div className="acd-lhdr__actions">
+              <button
+                className={`acd-iconbtn${isSaved?" acd-iconbtn--saved":""}`}
+                onClick={handleToggleFav}
+                disabled={favPending}
+                style={{opacity:favPending?.6:1}}
+              >
+                {isSaved
+                  ? <FaHeart style={{color:ORANGE,fontSize:16}}/>
+                  : <FaRegHeart style={{color:"#444",fontSize:16}}/>}
+              </button>
+              <div ref={menuRef} style={{position:"relative"}}>
+                <button className="acd-iconbtn" onClick={()=>setShowMenu(p=>!p)}>
+                  <FaEllipsisH style={{color:"#444",fontSize:15}}/>
+                </button>
+                {showMenu&&(
+                  <div className="acd-dropdown">
+                    <div className="acd-dropdown__host">
+                      <div className="acd-dropdown__ava">
+                        {hostAvatar
+                          ? <img src={hostAvatar} alt="host" style={{width:"100%",height:"100%",borderRadius:"50%",objectFit:"cover"}} onError={e=>{e.currentTarget.style.display="none";}}/>
+                          : <FaUserCircle style={{fontSize:36,color:"#bbb"}}/>}
+                      </div>
+                      <div>
+                        <div className="acd-dropdown__hlbl">Hosted by</div>
+                        <div className="acd-dropdown__hname">{host?.name??"Host"}</div>
+                        <div className="acd-dropdown__hsince">{host?.joinedYear?`Member since ${host.joinedYear}`:"Bodima Host"}</div>
+                      </div>
+                    </div>
+                    <div className="acd-dropdown__div"/>
+                    <button className="acd-dropdown__item acd-dropdown__item--orange" onClick={async()=>{setShowMenu(false);await openChat();}}><FaCommentAlt style={{fontSize:13}}/> Message Host</button>
+                    <button className="acd-dropdown__item" onClick={()=>setShowMenu(false)}><FaUserCircle style={{fontSize:14}}/> View Host Profile</button>
+                    <div className="acd-dropdown__div"/>
+                    <button className="acd-dropdown__item" onClick={()=>{setShowMenu(false);navigator.clipboard?.writeText(window.location.href);toast_("Link copied! 🔗","success");}}><FaShare style={{fontSize:13}}/> Share this listing</button>
+                    <button className="acd-dropdown__item acd-dropdown__item--red" onClick={()=>{setShowMenu(false);if(!isLoggedIn){setShowLogin(true);return;}toast_("Report submitted. Thank you.","success");}}><FaFlag style={{fontSize:13}}/> Report</button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
+
+          {/* Full-width below row: description first, then badges — no left indent */}
+          {!loading && acc && (
+            <div className="acd-lhdr__below">
+
+              {/* Description — full width, on top */}
+              {acc?.description && (
+                <div className="acd-lhdr__desc-text">{acc.description}</div>
+              )}
+
+              {/* Badges — full width, below description */}
+              <div className="acd-lhdr__badges">
+                <span className={`acd-pill ${acc.isAvailable ? "acd-pill--green" : "acd-pill--red"}`}>
+                  <span className={`acd-pill__dot ${acc.isAvailable ? "acd-pill__dot--green" : "acd-pill__dot--red"}`}/>
+                  {acc.isAvailable ? "Available" : "Not Available"}
+                </span>
+                {acc?.beds && (
+                  <span className="acd-pill acd-pill--icon">
+                    <FaBed style={{fontSize:11}}/> {acc.beds} bed{acc.beds!==1?"s":""}
+                  </span>
+                )}
+                {acc?.bedrooms && (
+                  <span className="acd-pill acd-pill--icon">
+                    <FaBed style={{fontSize:11}}/> {acc.bedrooms} bedroom{acc.bedrooms!==1?"s":""}
+                  </span>
+                )}
+                {acc?.bathrooms && (
+                  <span className="acd-pill acd-pill--icon">
+                    <FaBath style={{fontSize:11}}/> {acc.bathrooms} bath{acc.bathrooms!==1?"s":""}
+                  </span>
+                )}
+                {acc?.genderPreference && (
+                  <span className="acd-pill acd-pill--icon">
+                    <FaUsers style={{fontSize:11}}/> {acc.genderPreference}
+                  </span>
+                )}
+                {acc?.keyMoneyDuration>0 && (
+                  <span className="acd-pill acd-pill--orange">
+                    <FaKey style={{fontSize:11}}/> {acc.keyMoneyDuration} mo key money
+                  </span>
+                )}
+                {acc?.distance && acc.distance!=="Distance not available" && (
+                  <span className="acd-pill acd-pill--icon">
+                    <FaMapMarkerAlt style={{fontSize:11}}/> {acc.distance}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Loading skeleton for below section */}
+          {loading && (
+            <div className="acd-lhdr__below">
+              <Skel h={14} w="80%" r={6} mb={4}/>
+              <Skel h={14} w="60%" r={6}/>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:8}}>
+                <Skel h={28} w={90} r={20}/>
+                <Skel h={28} w={80} r={20}/>
+                <Skel h={28} w={100} r={20}/>
+              </div>
+            </div>
+          )}
         </div>
+        {/* ── END LISTING HEADER ── */}
 
         <div className="acd-divider"/>
 
@@ -585,9 +663,6 @@ const AccommodationDetails=()=>{
                 )}
               </div>
             )}
-
-            <div className="acd-sec-title">Description</div>
-            {acc?.description&&<div style={{fontSize:13,color:"#757575",marginTop:6}}>{acc.description}</div>}
 
             {!loading&&(acc?.amenities??[]).length>0&&(
               <section className="acd-section">
@@ -668,7 +743,6 @@ const AccommodationDetails=()=>{
 
                   {!existingBooking&&(
                     <div className="acd-pickers">
-                      {/* ── Date + Time in 2-column grid like screenshot ── */}
                       <div className="acd-pickers__row">
                         <div className="acd-pickers__cell acd-pickers__cell--left">
                           <div className="acd-pickers__cell-label">
