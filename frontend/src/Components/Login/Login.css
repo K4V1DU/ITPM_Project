@@ -295,10 +295,7 @@
     flex: 0 0 auto;
   }
 
-  /* Hide the big headline on mobile */
-  .login-panel__headline {
-    display: none;
-  }
+  
 
   .login-panel__content {
     margin: 0;
