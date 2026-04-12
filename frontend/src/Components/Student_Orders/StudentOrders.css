@@ -156,7 +156,6 @@
   border-bottom: 1px solid #f3f3f3;
 }
 
-/* Search input side */
 .so-search-wrap {
   position: relative;
   flex: 1;
@@ -206,7 +205,6 @@
   flex-shrink: 0;
   border-left: 1px solid #f0f0f0;
 }
-
 .so-filter__btn {
   display: inline-flex;
   align-items: center;
@@ -224,14 +222,12 @@
 .so-filter__btn:hover          { background: #fafafa; color: #1b1b1b; }
 .so-filter__btn--active        { color: #FF6B2B; }
 .so-filter__btn--active:hover  { background: #fff8f5; }
-
 .so-filter__label {
   max-width: 80px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .so-filter__chevron {
   font-size: 9px;
   color: #aaa;
@@ -239,8 +235,6 @@
   flex-shrink: 0;
 }
 .so-filter__chevron--open { transform: rotate(180deg); }
-
-/* Dropdown panel */
 .so-filter__dropdown {
   position: absolute;
   top: calc(100% + 4px);
@@ -254,7 +248,6 @@
   overflow: hidden;
   animation: dropdownIn 0.18s ease;
 }
-
 .so-filter__option {
   width: 100%;
   display: flex;
@@ -271,23 +264,16 @@
   text-align: left;
   transition: background 0.13s;
 }
-.so-filter__option:hover           { background: #f7f7f7; }
-.so-filter__option--active         { background: #fff8f5; color: #FF6B2B; font-weight: 700; }
-.so-filter__option--active:hover   { background: #fff0e6; }
-
-.so-filter__option-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
+.so-filter__option:hover          { background: #f7f7f7; }
+.so-filter__option--active        { background: #fff8f5; color: #FF6B2B; font-weight: 700; }
+.so-filter__option--active:hover  { background: #fff0e6; }
+.so-filter__option-left { display: flex; align-items: center; gap: 8px; }
 .so-filter__dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   flex-shrink: 0;
 }
-
 .so-filter__count {
   font-size: 11px;
   font-weight: 600;
@@ -298,10 +284,7 @@
   min-width: 24px;
   text-align: center;
 }
-.so-filter__count--active {
-  background: #FF6B2B;
-  color: #fff;
-}
+.so-filter__count--active { background: #FF6B2B; color: #fff; }
 
 /* ─────────────────────────────────────────
    ACTIVE FILTER PILLS
@@ -315,7 +298,6 @@
   border-bottom: 1px solid #f3f3f3;
   background: #fafafa;
 }
-
 .so-filter-pill {
   display: inline-flex;
   align-items: center;
@@ -340,7 +322,6 @@
   transition: color 0.14s;
 }
 .so-filter-pill__remove:hover { color: #c2410c; }
-
 .so-filter-clear-all {
   background: none;
   border: none;
@@ -371,9 +352,10 @@
 .so-row:hover      { background: #fafafa; }
 .so-row--active    { background: #fff8f5; }
 
+/* ── Kitchen icon ── */
 .so-row__icon {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
   background: #f3f4f6;
   display: flex;
@@ -382,8 +364,56 @@
   font-size: 15px;
   color: #545454;
   flex-shrink: 0;
+  position: relative;
 }
-.so-row--active .so-row__icon { background: #fff0e8; color: #FF6B2B; }
+
+/* Image variant */
+.so-row__icon--img {
+  background: #f3f4f6;
+  border: 1px solid #efefef;
+  overflow: visible;
+}
+.so-row__icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 11px;
+  display: block;
+}
+
+/* Letter fallback variant */
+.so-row__icon--letter {
+  background: #1b1b1b;
+  color: #fff;
+}
+.so-row--active .so-row__icon--letter { background: #FF6B2B; }
+.so-row__icon-letter {
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* Delivery/pickup pip badge */
+.so-row__icon-type {
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e2e2e2;
+  color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  border: 2px solid #fff;
+  z-index: 1;
+}
+.so-row__icon-type--active {
+  background: #FF6B2B;
+  color: #fff;
+}
 
 .so-row__body { flex: 1; min-width: 0; }
 .so-row__top  { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
@@ -448,7 +478,7 @@
   animation: soSkeleton 1.4s ease infinite;
   border-radius: 8px;
 }
-.so-skeleton--icon { width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0; }
+.so-skeleton--icon { width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0; }
 .so-skeleton--line { height: 13px; }
 
 /* ─────────────────────────────────────────
@@ -897,85 +927,54 @@
 
 /* ─────────────────────────────────────────
    RESPONSIVE — TABLET & BELOW (≤ 1024px)
-   Single-column, panel-switching layout
 ───────────────────────────────────────── */
 @media (max-width: 1024px) {
-  .so-wrapper {
-    padding: 16px 12px 100px;
-  }
+  .so-wrapper { padding: 16px 12px 100px; }
 
-  /* Stack to single column, each panel fills full width */
   .so-split {
     grid-template-columns: 1fr;
     gap: 0;
   }
-
-  /* Both panels always rendered but toggled via hidden class */
   .so-split__left,
   .so-split__right {
     width: 100%;
     border-radius: 16px;
     position: static;
   }
-
-  /* Hide the panel not in view */
   .so-split__left--hidden,
-  .so-split__right--hidden {
-    display: none;
-  }
+  .so-split__right--hidden { display: none; }
 
-  /* Animate the detail panel sliding in from the right */
   .so-split__right:not(.so-split__right--hidden) .so-detail {
     animation: slideInRight 0.24s cubic-bezier(0.25, 0.8, 0.25, 1);
   }
-
-  /* Animate the list panel sliding in from the left */
   .so-split__left:not(.so-split__left--hidden) {
     animation: slideInLeft 0.24s cubic-bezier(0.25, 0.8, 0.25, 1);
   }
-
-  /* Make detail not sticky on mobile */
-  .so-split__right {
-    position: static;
-    top: unset;
-  }
+  .so-split__right { position: static; top: unset; }
 }
 
 /* ─────────────────────────────────────────
    RESPONSIVE — MOBILE (≤ 768px)
 ───────────────────────────────────────── */
 @media (max-width: 768px) {
-  .so-wrapper {
-    padding: 12px 8px 100px;
-  }
+  .so-wrapper { padding: 12px 8px 100px; }
 
   .so-split__left,
-  .so-split__right {
-    border-radius: 12px;
-  }
+  .so-split__right { border-radius: 12px; }
 
-  /* Shrink filter label to save space */
   .so-filter__label { display: none; }
   .so-filter__btn   { padding: 13px 12px; }
 
-  /* Tighten the detail section padding */
   .so-detail__header,
   .so-detail__timeline-wrap,
   .so-detail__section {
     padding-left: 16px;
     padding-right: 16px;
   }
-
   .so-detail__order-id { padding: 10px 16px; }
-
-  /* Reduce map height on small screens */
   .so-map-wrap { height: 220px; }
 
-  /* Make cancel button full-width on very small screens */
-  .so-timeline__bottom-row {
-    flex-wrap: wrap;
-    gap: 10px;
-  }
+  .so-timeline__bottom-row { flex-wrap: wrap; gap: 10px; }
   .so-cancel-btn {
     width: 100%;
     justify-content: center;

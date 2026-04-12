@@ -105,21 +105,53 @@ function ItemImage({ item }) {
 }
 
 // ─────────────────────────────────────────
+// KITCHEN ICON (for order row)
+// ─────────────────────────────────────────
+function KitchenIcon({ order, selected }) {
+  const [failed, setFailed] = useState(false);
+  const iconId = order.foodService?.iconImage;
+  const src    = iconId ? `${API_BASE}/Photo/${iconId}` : null;
+
+  if (src && !failed) {
+    return (
+      <div className="so-row__icon so-row__icon--img">
+        <img
+          src={src}
+          alt={order.foodService?.kitchenName ?? "Kitchen"}
+          className="so-row__icon-img"
+          onError={() => setFailed(true)}
+        />
+        <span className={`so-row__icon-type${selected ? " so-row__icon-type--active" : ""}`}>
+          {order.orderType === "delivery" ? <FaMotorcycle /> : <FaShoppingBag />}
+        </span>
+      </div>
+    );
+  }
+
+  const letter = order.foodService?.kitchenName?.charAt(0)?.toUpperCase();
+  return (
+    <div className="so-row__icon so-row__icon--letter">
+      {letter ? <span className="so-row__icon-letter">{letter}</span> : <FaUtensils />}
+      <span className={`so-row__icon-type${selected ? " so-row__icon-type--active" : ""}`}>
+        {order.orderType === "delivery" ? <FaMotorcycle /> : <FaShoppingBag />}
+      </span>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────
 // ORDER ROW
 // ─────────────────────────────────────────
 function OrderRow({ order, selected, onClick }) {
-  const isDelivery = order.orderType === "delivery";
-  const kitchen    = order.foodService?.kitchenName ?? "Kitchen";
-  const s          = STATUS[order.status] ?? STATUS.pending;
+  const kitchen = order.foodService?.kitchenName ?? "Kitchen";
+  const s       = STATUS[order.status] ?? STATUS.pending;
   return (
     <div
       className={`so-row${selected ? " so-row--active" : ""}`}
       style={{ borderLeftColor: selected ? ORANGE : s.dot }}
       onClick={onClick}
     >
-      <div className="so-row__icon">
-        {isDelivery ? <FaMotorcycle /> : <FaShoppingBag />}
-      </div>
+      <KitchenIcon order={order} selected={selected} />
       <div className="so-row__body">
         <div className="so-row__top">
           <span className="so-row__name">{kitchen}</span>
@@ -133,7 +165,7 @@ function OrderRow({ order, selected, onClick }) {
           <span className="so-row__time"><FaClock style={{ fontSize: 9 }} /> {timeAgo(order.createdAt)}</span>
         </div>
         <div className="so-row__type">
-          {isDelivery
+          {order.orderType === "delivery"
             ? <><FaMotorcycle style={{ fontSize: 10 }} /> Delivery</>
             : <><FaShoppingBag style={{ fontSize: 10 }} /> Pickup</>}
         </div>
@@ -173,7 +205,6 @@ function OrderDetail({ order, onCancel, onBack, isMobile }) {
   return (
     <div className="so-detail">
 
-      {/* ── Mobile back button ── */}
       {isMobile && (
         <button className="so-detail__back-btn" onClick={onBack}>
           <FaArrowLeft style={{ fontSize: 13 }} />
@@ -439,14 +470,12 @@ export default function StudentOrders() {
   const [cancelModal,   setCancelModal]   = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
 
-  // ── Mobile panel state: "list" | "detail" ──
-  const [mobilePanel,   setMobilePanel]   = useState("list");
-  const [isMobile,      setIsMobile]      = useState(window.innerWidth <= 1024);
+  const [mobilePanel, setMobilePanel] = useState("list");
+  const [isMobile,    setIsMobile]    = useState(window.innerWidth <= 1024);
 
   const toastRef  = useRef(null);
   const filterRef = useRef(null);
 
-  // Track mobile breakpoint
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth <= 1024);
     window.addEventListener("resize", handler);
@@ -459,21 +488,16 @@ export default function StudentOrders() {
     toastRef.current = setTimeout(() => setToast({ show: false, msg: "" }), 2600);
   };
 
-  // Close filter dropdown on outside click
   useEffect(() => {
     const handler = (e) => {
-      if (filterRef.current && !filterRef.current.contains(e.target)) {
-        setFilterOpen(false);
-      }
+      if (filterRef.current && !filterRef.current.contains(e.target)) setFilterOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Redirect if not logged in
   useEffect(() => { if (!userId) navigate("/Login"); }, []);
 
-  // Fetch orders
   useEffect(() => {
     if (!userId) return;
     setLoadingOrders(true);
@@ -494,13 +518,11 @@ export default function StudentOrders() {
       .finally(() => setLoadingOrders(false));
   }, [userId, lastRefresh]);
 
-  // ── Order row click — open detail (+ switch panel on mobile) ──
   const handleOrderClick = (order) => {
     setSelectedOrder(order);
     if (isMobile) setMobilePanel("detail");
   };
 
-  // ── Back button (mobile only) ──
   const handleBack = () => setMobilePanel("list");
 
   const handleCancelRequest = (order) => setCancelModal(order);
@@ -523,24 +545,18 @@ export default function StudentOrders() {
       const kitchenName = cancelModal.foodService?.kitchenName ?? "your kitchen";
       if (hostId) {
         sendNotification({
-          recipient: hostId,
-          type:      "order_status",
-          title:     "Order Cancelled by Student",
-          message:   `A student has cancelled their order at ${kitchenName}.`,
-          link:      "/HostOrders",
-          refId:     cancelModal._id,
-          refType:   "FoodOrder",
+          recipient: hostId, type: "order_status",
+          title: "Order Cancelled by Student",
+          message: `A student has cancelled their order at ${kitchenName}.`,
+          link: "/HostOrders", refId: cancelModal._id, refType: "FoodOrder",
         });
       }
       if (userId) {
         sendNotification({
-          recipient: userId,
-          type:      "order_status",
-          title:     "Order Cancelled",
-          message:   `Your order from ${kitchenName} has been cancelled successfully.`,
-          link:      "/StudentOrders",
-          refId:     cancelModal._id,
-          refType:   "FoodOrder",
+          recipient: userId, type: "order_status",
+          title: "Order Cancelled",
+          message: `Your order from ${kitchenName} has been cancelled successfully.`,
+          link: "/StudentOrders", refId: cancelModal._id, refType: "FoodOrder",
         });
       }
       setCancelModal(null);
@@ -574,7 +590,6 @@ export default function StudentOrders() {
           {/* LEFT — order list */}
           <div className={`so-split__left${isMobile && mobilePanel === "detail" ? " so-split__left--hidden" : ""}`}>
 
-            {/* ── Search + Filter bar ── */}
             <div className="so-searchbar">
               <div className="so-search-wrap">
                 <FaSearch className="so-search-wrap__icon" />
@@ -591,7 +606,6 @@ export default function StudentOrders() {
                 )}
               </div>
 
-              {/* Filter dropdown */}
               <div className="so-filter" ref={filterRef}>
                 <button
                   className={`so-filter__btn${statusFilter !== "all" ? " so-filter__btn--active" : ""}`}
@@ -630,7 +644,6 @@ export default function StudentOrders() {
               </div>
             </div>
 
-            {/* Active filter pills */}
             {isFiltered && (
               <div className="so-active-filters">
                 {statusFilter !== "all" && (
@@ -656,14 +669,12 @@ export default function StudentOrders() {
               </div>
             )}
 
-            {/* Error */}
             {error && (
               <div className="so-error">
                 <FaExclamationTriangle /> {error}
               </div>
             )}
 
-            {/* Loading skeleton */}
             {loadingOrders && (
               <div className="so-skeleton-list">
                 {[1,2,3,4,5].map(i => (
@@ -678,7 +689,6 @@ export default function StudentOrders() {
               </div>
             )}
 
-            {/* Empty state */}
             {!loadingOrders && !error && filteredOrders.length === 0 && (
               <div className="so-empty">
                 <FaBoxOpen className="so-empty__icon" />
@@ -699,7 +709,6 @@ export default function StudentOrders() {
               </div>
             )}
 
-            {/* Order list */}
             {!loadingOrders && filteredOrders.map(order => (
               <OrderRow
                 key={order._id}
