@@ -40,40 +40,35 @@ export default function ForgotPassword() {
       </div>
 
       <div className="reg-wrapper">
+
+        {/* Left panel — no logo, no emojis */}
         <div className="reg-panel reg-panel--left">
-          <div className="reg-brand">
-           <img
-              src="/Images/logo2.png"
-              alt="Bodima Logo"
-              className="reg-brand__logo-img"
-            />
-          </div>
           <div className="reg-panel__content">
             <h1 className="reg-panel__headline">
               Forgot your<br />password?
             </h1>
             <p className="reg-panel__sub">
-              No worries — enter your registered email and we'll send you a verification code to reset it.
+              No worries — enter your registered email and we'll send you a
+              verification code to reset it.
             </p>
-            <div className="reg-panel__pills">
-              <span className="reg-pill">🔒 Secure Reset</span>
-              <span className="reg-pill">📧 OTP Verified</span>
-              <span className="reg-pill">⚡ Quick</span>
-            </div>
           </div>
           <div className="reg-panel__footer">© 2026 Unisewana.</div>
         </div>
 
+        {/* Right panel — logo lives here */}
         <div className="reg-panel reg-panel--right">
           <div className="reg-form-wrapper">
 
+            {/* Logo — same position as Login & Register */}
+            <div className="reg-brand">
+              <img
+                src="/Images/logo2.png"
+                alt="UniSewana Logo"
+                className="reg-brand__logo-img"
+              />
+            </div>
+
             <div className="reg-form-header">
-              <div className="otp-icon-wrap">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-              </div>
               <h2 className="reg-form-title">Reset password</h2>
               <p className="reg-form-sub">Enter your email to receive a verification code</p>
             </div>
@@ -120,6 +115,7 @@ export default function ForgotPassword() {
             </form>
           </div>
         </div>
+
       </div>
     </div>
   );
