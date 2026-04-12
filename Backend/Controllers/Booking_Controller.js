@@ -42,7 +42,13 @@ const createBooking = async (req, res) => {
 const getStudentBookings = async (req, res) => {
   try {
     const bookings = await Booking.find({ student: req.params.studentId })
-      .populate("accommodation")
+      .populate({
+        path: "accommodation",
+        populate: {
+          path: "owner",
+          model: "User",   // ← must name the model explicitly for nested populate
+        },
+      })
       .sort({ createdAt: -1 });
 
     res.status(200).json({ success: true, data: bookings });
@@ -57,18 +63,23 @@ const getStudentBookings = async (req, res) => {
 // ==============================
 const getHostBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find()
+    // Find accommodations owned by this host first, then match bookings
+    const Accommodation = require("../Models/Accommodation");
+    const hostAccommodations = await Accommodation.find({ owner: req.params.hostId }).select("_id");
+    const accommodationIds = hostAccommodations.map((a) => a._id);
+
+    const bookings = await Booking.find({ accommodation: { $in: accommodationIds } })
       .populate({
         path: "accommodation",
-        match: { owner: req.params.hostId },
+        populate: {
+          path: "owner",
+          model: "User",
+        },
       })
       .populate("student")
       .sort({ createdAt: -1 });
 
-    // filter null accommodations
-    const filtered = bookings.filter(b => b.accommodation !== null);
-
-    res.status(200).json({ success: true, data: filtered });
+    res.status(200).json({ success: true, data: bookings });
 
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -76,7 +87,7 @@ const getHostBookings = async (req, res) => {
 };
 
 // ==============================
-// Update Booking Status (Host)
+// Update Booking Status
 // ==============================
 const updateBookingStatus = async (req, res) => {
   try {

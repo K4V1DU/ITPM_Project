@@ -34,7 +34,7 @@ import AdminReviews from "./Components/AdminPannel/AdminReviews";
 import AdminProfile from "./Components/User_Profile/AdminProfile/AdminProfile";
 import AdminBookings from "./Components/AdminPannel/AdminBookings.js";
 import AdminOrders from "./Components/AdminPannel/AdminOrders.js";
-
+import StudentBookings from "./Components/Student_Bookings/StudentBooking.js";
 
 
 
@@ -80,7 +80,7 @@ function App() {
       <Route path="/AdminProfile" element={<AdminProfile />} />
       <Route path="/AdminBookings" element={<AdminBookings />} />
       <Route path="/AdminOrders" element={<AdminOrders />} />
-      
+      <Route path="/StudentBookings" element={<StudentBookings />} />
 
 
     </Routes>

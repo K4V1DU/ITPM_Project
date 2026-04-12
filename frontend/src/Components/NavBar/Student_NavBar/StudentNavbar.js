@@ -14,6 +14,7 @@ import {
   FaChevronUp,
   FaSignInAlt,
   FaLock,
+  FaCalendarAlt,
 } from "react-icons/fa";
 import "./StudentNavbar.css";
 import { useNotifications } from "../../../hooks/useNotifications";
@@ -79,23 +80,23 @@ export default function StudentNavbar({ activeTab = "" }) {
     clearAll,
   } = useNotifications(userId);
 
-  const [currentUser,       setCurrentUser]      = useState(null);
-  const [userAvatarSrc,    setUserAvatarSrc]    = useState(
+  const [currentUser,        setCurrentUser]       = useState(null);
+  const [userAvatarSrc,      setUserAvatarSrc]     = useState(
     () => sessionStorage.getItem("studentAvatarDataUrl") || null
   );
-  const [cachedRole,       setCachedRole]       = useState(
+  const [cachedRole,         setCachedRole]        = useState(
     () => sessionStorage.getItem("studentUserRole") || null
   );
-  const [dropdown,         setDropdown]         = useState(false);
-  const [showLogout,       setShowLogout]       = useState(false);
-  const [showLoginRequired, setShowLoginRequired] = useState(false);
-  const [showBell,         setShowBell]         = useState(false);
-  const [unreadMsgCount,   setUnreadMsgCount]   = useState(0);
-  const [mobileMenuOpen,   setMobileMenuOpen]   = useState(false);
+  const [dropdown,           setDropdown]          = useState(false);
+  const [showLogout,         setShowLogout]        = useState(false);
+  const [showLoginRequired,  setShowLoginRequired] = useState(false);
+  const [showBell,           setShowBell]          = useState(false);
+  const [unreadMsgCount,     setUnreadMsgCount]    = useState(0);
+  const [mobileMenuOpen,     setMobileMenuOpen]    = useState(false);
 
-  const dropRef    = useRef(null);
-  const bellRef    = useRef(null);
-  const mobileRef  = useRef(null);
+  const dropRef   = useRef(null);
+  const bellRef   = useRef(null);
+  const mobileRef = useRef(null);
   const msgPollRef = useRef(null);
 
   useEffect(() => {
@@ -179,7 +180,6 @@ export default function StudentNavbar({ activeTab = "" }) {
     navigate("/Login");
   };
 
-  // Navigate only if logged in, otherwise show the login-required popup
   const handleProtectedNav = (path) => {
     setDropdown(false);
     if (!isLoggedIn) {
@@ -272,6 +272,7 @@ export default function StudentNavbar({ activeTab = "" }) {
               Host Page
             </button>
           )}
+
           {/* Bell */}
           <div className="snav__bell-wrap" ref={bellRef}>
             <button className="snav__bell-btn"
@@ -362,14 +363,14 @@ export default function StudentNavbar({ activeTab = "" }) {
                   </>
                 )}
 
-                {/* Profile — always visible, gated when logged out */}
+                {/* Profile */}
                 <div className="snav__dropdown-item"
                   onClick={() => handleProtectedNav("/Profile")}>
                   <FaUser style={{ opacity: 0.7 }} /> Profile
                   {!isLoggedIn && <FaLock className="snav__dropdown-lock" />}
                 </div>
 
-                {/* Favourites — student only or logged-out visitors */}
+                {/* Favourites */}
                 {(isStudent || !isLoggedIn) && (
                   <div className="snav__dropdown-item"
                     onClick={() => handleProtectedNav("/Favourites")}>
@@ -401,6 +402,15 @@ export default function StudentNavbar({ activeTab = "" }) {
                   </div>
                 )}
 
+                {/* My Bookings */}
+                {(isStudent || !isLoggedIn) && (
+                  <div className="snav__dropdown-item"
+                    onClick={() => handleProtectedNav("/StudentBookings")}>
+                    <FaCalendarAlt style={{ opacity: 0.7 }} /> My Bookings
+                    {!isLoggedIn && <FaLock className="snav__dropdown-lock" />}
+                  </div>
+                )}
+
                 <div className="snav__dropdown-divider" />
 
                 {/* Host Page — only when logged in as host */}
@@ -411,7 +421,7 @@ export default function StudentNavbar({ activeTab = "" }) {
                   </div>
                 )}
 
-                {/* Logout — logged in users */}
+                {/* Logout */}
                 {isLoggedIn && (isStudent || isHost) && (
                   <div className="snav__dropdown-item snav__dropdown-item--danger"
                     onClick={() => { setDropdown(false); setShowLogout(true); }}>
