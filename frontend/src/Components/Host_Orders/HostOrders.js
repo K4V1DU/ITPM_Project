@@ -12,10 +12,12 @@ import {
   FaClock,
   FaTimesCircle,
   FaSearch,
-  FaSyncAlt,
   FaReceipt,
   FaBoxOpen,
   FaExternalLinkAlt,
+  FaFilter,
+  FaChevronDown,
+  FaArrowLeft,
 } from "react-icons/fa";
 import HostNavbar from "../NavBar/Host_NavBar/HostNavbar";
 import Footer from "../NavBar/Footer/Footer";
@@ -24,103 +26,59 @@ import "./HostOrders.css";
 const API_BASE = process.env.REACT_APP_API_BASE_URL;
 const ORDER_API = `${API_BASE}/FoodOrder`;
 const ORANGE = "#FF6B2B";
+const FONT = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
 // ─── Notification helper — fire-and-forget ────────────────────────────────────
-async function sendNotification({
-  recipient,
-  type,
-  title,
-  message,
-  link,
-  refId,
-  refType,
-}) {
+async function sendNotification({ recipient, type, title, message, link, refId, refType }) {
   try {
     await fetch(`${API_BASE}/Notification`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        recipient,
-        type,
-        title,
-        message,
-        link,
-        refId,
-        refType,
-      }),
+      body: JSON.stringify({ recipient, type, title, message, link, refId, refType }),
     });
-  } catch {
-    /* silent */
-  }
+  } catch { /* silent */ }
 }
 
-function unwrap(raw) {
-  return raw?.data ?? raw?.result ?? raw;
-}
+function unwrap(raw) { return raw?.data ?? raw?.result ?? raw; }
 
 function timeAgo(dateStr) {
   const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
   if (diff < 60) return `${diff}s ago`;
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 const STATUS = {
-  pending: {
-    bg: "#fff7ed",
-    text: "#c2410c",
-    dot: ORANGE,
-    border: "#fcd9c4",
-    label: "Pending",
-  },
-  accepted: {
-    bg: "#f7f7f7",
-    text: "#1b1b1b",
-    dot: "#1b1b1b",
-    border: "#e2e2e2",
-    label: "Accepted",
-  },
-  completed: {
-    bg: "#f0fdf4",
-    text: "#15803d",
-    dot: "#22c55e",
-    border: "#bbf7d0",
-    label: "Completed",
-  },
-  cancelled: {
-    bg: "#fef2f2",
-    text: "#b91c1c",
-    dot: "#ef4444",
-    border: "#fecaca",
-    label: "Cancelled",
-  },
+  pending:   { bg: "#fff7ed", text: "#c2410c", dot: ORANGE,    border: "#fcd9c4", label: "Pending"   },
+  accepted:  { bg: "#f7f7f7", text: "#1b1b1b", dot: "#1b1b1b", border: "#e2e2e2", label: "Accepted"  },
+  completed: { bg: "#f0fdf4", text: "#15803d", dot: "#22c55e", border: "#bbf7d0", label: "Completed" },
+  cancelled: { bg: "#fef2f2", text: "#b91c1c", dot: "#ef4444", border: "#fecaca", label: "Cancelled" },
 };
+
+const FILTER_OPTIONS = [
+  { value: "all",       label: "All Orders" },
+  { value: "pending",   label: "Pending"    },
+  { value: "accepted",  label: "Accepted"   },
+  { value: "completed", label: "Completed"  },
+  { value: "cancelled", label: "Cancelled"  },
+];
 
 // ─────────────────────────────────────────
 // CONFIRM MODAL
 // ─────────────────────────────────────────
 function ConfirmModal({ action, onConfirm, onCancel, loading }) {
-  const isAccept = action === "accepted";
+  const isAccept   = action === "accepted";
   const isComplete = action === "completed";
-  const isCancel = action === "cancelled";
+  const isCancel   = action === "cancelled";
   return (
     <div className="ho-overlay" onClick={!loading ? onCancel : undefined}>
       <div className="ho-modal" onClick={(e) => e.stopPropagation()}>
-        <div
-          className={`ho-modal__icon-wrap ho-modal__icon-wrap--${isCancel ? "danger" : "primary"}`}
-        >
+        <div className={`ho-modal__icon-wrap ho-modal__icon-wrap--${isCancel ? "danger" : "primary"}`}>
           {isCancel ? <FaTimesCircle /> : <FaCheckCircle />}
         </div>
         <h3 className="ho-modal__title">
-          {isAccept
-            ? "Accept Order"
-            : isComplete
-              ? "Mark as Completed"
-              : "Cancel Order"}
+          {isAccept ? "Accept Order" : isComplete ? "Mark as Completed" : "Cancel Order"}
         </h3>
         <p className="ho-modal__desc">
           {isAccept
@@ -130,27 +88,13 @@ function ConfirmModal({ action, onConfirm, onCancel, loading }) {
               : "Cancel this order? This action cannot be undone and the student will be notified."}
         </p>
         <div className="ho-modal__btns">
-          <button
-            className="ho-modal__btn ho-modal__btn--ghost"
-            onClick={onCancel}
-            disabled={loading}
-          >
-            Back
-          </button>
+          <button className="ho-modal__btn ho-modal__btn--ghost" onClick={onCancel} disabled={loading}>Back</button>
           <button
             className={`ho-modal__btn ho-modal__btn--${isCancel ? "danger" : isComplete ? "dark" : "primary"}`}
             onClick={onConfirm}
             disabled={loading}
           >
-            {loading ? (
-              <FaSpinner className="ho-spin" />
-            ) : isAccept ? (
-              "Accept"
-            ) : isComplete ? (
-              "Mark Completed"
-            ) : (
-              "Yes, Cancel"
-            )}
+            {loading ? <FaSpinner className="ho-spin" /> : isAccept ? "Accept" : isComplete ? "Mark Completed" : "Yes, Cancel"}
           </button>
         </div>
       </div>
@@ -164,14 +108,7 @@ function ConfirmModal({ action, onConfirm, onCancel, loading }) {
 function StatusBadge({ status }) {
   const s = STATUS[status] ?? STATUS.pending;
   return (
-    <span
-      className="ho-badge"
-      style={{
-        background: s.bg,
-        color: s.text,
-        border: `1px solid ${s.border}`,
-      }}
-    >
+    <span className="ho-badge" style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}` }}>
       <span className="ho-badge__dot" style={{ background: s.dot }} />
       {s.label}
     </span>
@@ -179,10 +116,42 @@ function StatusBadge({ status }) {
 }
 
 // ─────────────────────────────────────────
-// LEFT: ORDER ROW
+// ORDER ROW
 // ─────────────────────────────────────────
+function KitchenIcon({ order, selected }) {
+  const [failed, setFailed] = useState(false);
+  const iconId = order.foodService?.iconImage;
+  const src    = iconId ? `${API_BASE}/Photo/${iconId}` : null;
+
+  if (src && !failed) {
+    return (
+      <div className="ho-row__icon ho-row__icon--img">
+        <img
+          src={src}
+          alt={order.foodService?.kitchenName ?? "Kitchen"}
+          className="ho-row__icon-img"
+          onError={() => setFailed(true)}
+        />
+        <span className={`ho-row__icon-type${selected ? " ho-row__icon-type--active" : ""}`}>
+          {order.orderType === "delivery" ? <FaMotorcycle /> : <FaShoppingBag />}
+        </span>
+      </div>
+    );
+  }
+
+  // Fallback: first letter of kitchen name, or utensils icon
+  const letter = order.foodService?.kitchenName?.charAt(0)?.toUpperCase();
+  return (
+    <div className="ho-row__icon ho-row__icon--letter">
+      {letter ? <span className="ho-row__icon-letter">{letter}</span> : <FaUtensils />}
+      <span className={`ho-row__icon-type${selected ? " ho-row__icon-type--active" : ""}`}>
+        {order.orderType === "delivery" ? <FaMotorcycle /> : <FaShoppingBag />}
+      </span>
+    </div>
+  );
+}
+
 function OrderRow({ order, selected, onClick }) {
-  const isDelivery = order.orderType === "delivery";
   const name = order.student?.name ?? "Student";
   const s = STATUS[order.status] ?? STATUS.pending;
   return (
@@ -191,32 +160,22 @@ function OrderRow({ order, selected, onClick }) {
       style={{ borderLeftColor: selected ? ORANGE : s.dot }}
       onClick={onClick}
     >
-      {/* unified icon style — same bg/color for both delivery & pickup */}
-      <div className="ho-row__icon">
-        {isDelivery ? <FaMotorcycle /> : <FaShoppingBag />}
-      </div>
+      <KitchenIcon order={order} selected={selected} />
       <div className="ho-row__body">
         <div className="ho-row__top">
           <span className="ho-row__name">{name}</span>
           <StatusBadge status={order.status} />
         </div>
         <div className="ho-row__meta">
-          <span>
-            {order.itemCount} item{order.itemCount !== 1 ? "s" : ""}
-          </span>
+          <span>{order.itemCount} item{order.itemCount !== 1 ? "s" : ""}</span>
           <span className="ho-sep">·</span>
-          <span className="ho-row__price">
-            LKR {order.total?.toLocaleString()}
-          </span>
+          <span className="ho-row__price">LKR {order.total?.toLocaleString()}</span>
           <span className="ho-sep">·</span>
-          <span className="ho-row__time">
-            <FaClock style={{ fontSize: 9 }} /> {timeAgo(order.createdAt)}
-          </span>
+          <span className="ho-row__time"><FaClock style={{ fontSize: 9 }} /> {timeAgo(order.createdAt)}</span>
         </div>
         {order.foodService?.kitchenName && (
           <div className="ho-row__kitchen">
-            <FaUtensils style={{ fontSize: 9 }} />{" "}
-            {order.foodService.kitchenName}
+            <FaUtensils style={{ fontSize: 9 }} /> {order.foodService.kitchenName}
           </div>
         )}
       </div>
@@ -230,10 +189,6 @@ function OrderRow({ order, selected, onClick }) {
 function ItemImage({ item }) {
   const [imgSrc, setImgSrc] = useState(null);
   const [failed, setFailed] = useState(false);
-
-  // menuItemId is set by the backend normaliser on new orders.
-  // For older orders the original cart _id was stored as subdoc _id — try both.
-  // menuItemId = new orders, menuItem = older orders saved before the fix
   const menuId = String(item.menuItemId ?? item.menuItem ?? item.itemId ?? "");
 
   useEffect(() => {
@@ -244,7 +199,6 @@ function ItemImage({ item }) {
       .then((r) => (r.ok ? r.json() : null))
       .then((raw) => {
         const doc = raw?.data ?? raw?.result ?? raw;
-        // Schema: image is ObjectId ref to Photo
         const photoId = doc?.image ? String(doc.image) : null;
         if (photoId) setImgSrc(`${API_BASE}/Photo/${photoId}`);
       })
@@ -254,12 +208,7 @@ function ItemImage({ item }) {
   if (imgSrc && !failed) {
     return (
       <div className="ho-item-thumb">
-        <img
-          src={imgSrc}
-          alt={item.name}
-          className="ho-item-thumb__img"
-          onError={() => setFailed(true)}
-        />
+        <img src={imgSrc} alt={item.name} className="ho-item-thumb__img" onError={() => setFailed(true)} />
       </div>
     );
   }
@@ -271,9 +220,9 @@ function ItemImage({ item }) {
 }
 
 // ─────────────────────────────────────────
-// RIGHT: ORDER DETAIL PANEL
+// ORDER DETAIL PANEL
 // ─────────────────────────────────────────
-function OrderDetail({ order, onAction, actionLoading }) {
+function OrderDetail({ order, onAction, actionLoading, onBack, isMobile }) {
   if (!order) {
     return (
       <div className="ho-detail ho-detail--empty">
@@ -284,56 +233,47 @@ function OrderDetail({ order, onAction, actionLoading }) {
   }
 
   const isDelivery = order.orderType === "delivery";
-  const student = order.student ?? {};
-  const name = student.name ?? "Student";
-  const phone = student.phone ?? null;
-  const profileImg = student.profileImage
-    ? `${API_BASE}/Photo/${student.profileImage}`
-    : null;
-  const busy = actionLoading === order._id;
+  const student    = order.student ?? {};
+  const name       = student.name ?? "Student";
+  const phone      = student.phone ?? null;
+  const profileImg = student.profileImage ? `${API_BASE}/Photo/${student.profileImage}` : null;
+  const busy       = actionLoading === order._id;
 
-  // Map only for delivery orders that have coordinates (any status)
-  const lat = order.location?.coordinates?.[1];
-  const lng = order.location?.coordinates?.[0];
+  const lat     = order.location?.coordinates?.[1];
+  const lng     = order.location?.coordinates?.[0];
   const showMap = isDelivery && lat && lng;
-  const mapSrc = showMap
-    ? `https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed`
-    : null;
-  const mapsLink = showMap
-    ? `https://www.google.com/maps?q=${lat},${lng}`
-    : null;
+  const mapSrc  = showMap ? `https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed` : null;
+  const mapsLink = showMap ? `https://www.google.com/maps?q=${lat},${lng}` : null;
 
   return (
     <div className="ho-detail">
-      {/* ── Header: customer + meta ── */}
+
+      {/* ── Mobile back button ── */}
+      {isMobile && (
+        <button className="ho-detail__back-btn" onClick={onBack}>
+          <FaArrowLeft style={{ fontSize: 13 }} />
+          <span>Back to Orders</span>
+        </button>
+      )}
+
       <div className="ho-detail__header">
         <div className="ho-detail__order-id">
-          <span className="ho-detail__order-id__text">
-            Order ID&nbsp;&nbsp;{order._id}
-          </span>
+          <span className="ho-detail__order-id__text">Order ID&nbsp;&nbsp;{order._id}</span>
         </div>
 
         <div className="ho-detail__header-row">
           <div className="ho-detail__customer">
             <div className="ho-detail__avatar">
               {profileImg ? (
-                <img
-                  src={profileImg}
-                  alt={name}
-                  className="ho-detail__avatar-img"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
-                />
+                <img src={profileImg} alt={name} className="ho-detail__avatar-img"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }} />
               ) : (
                 name.charAt(0).toUpperCase()
               )}
             </div>
             <div className="ho-detail__customer-info">
               <div className="ho-detail__customer-name">{name}</div>
-              {student.email && (
-                <div className="ho-detail__customer-email">{student.email}</div>
-              )}
+              {student.email && <div className="ho-detail__customer-email">{student.email}</div>}
               {phone ? (
                 <a href={`tel:${phone}`} className="ho-detail__phone">
                   <FaPhone style={{ fontSize: 10 }} /> {phone}
@@ -359,14 +299,8 @@ function OrderDetail({ order, onAction, actionLoading }) {
             {timeAgo(order.createdAt)}
           </span>
           <span className="ho-sep">·</span>
-          <span
-            className={`ho-header-meta__item ho-header-meta__item--${isDelivery ? "delivery" : "pickup"}`}
-          >
-            {isDelivery ? (
-              <FaMotorcycle style={{ fontSize: 11 }} />
-            ) : (
-              <FaShoppingBag style={{ fontSize: 11 }} />
-            )}
+          <span className={`ho-header-meta__item ho-header-meta__item--${isDelivery ? "delivery" : "pickup"}`}>
+            {isDelivery ? <FaMotorcycle style={{ fontSize: 11 }} /> : <FaShoppingBag style={{ fontSize: 11 }} />}
             {isDelivery ? "Delivery" : "Pickup"}
           </span>
           <span className="ho-sep">·</span>
@@ -376,9 +310,7 @@ function OrderDetail({ order, onAction, actionLoading }) {
         </div>
       </div>
 
-      {/* ── Body ── */}
       <div className="ho-detail__body">
-        {/* ITEMS — professional card layout with item images */}
         <div className="ho-detail__section">
           <div className="ho-detail__section-label">Items Ordered</div>
           <div className="ho-detail__items">
@@ -387,20 +319,15 @@ function OrderDetail({ order, onAction, actionLoading }) {
                 <ItemImage item={item} />
                 <span className="ho-detail__item-name">{item.name}</span>
                 <span className="ho-detail__item-qty-badge">x{item.qty}</span>
-                <span className="ho-detail__item-price">
-                  LKR {(item.price * item.qty).toLocaleString()}
-                </span>
+                <span className="ho-detail__item-price">LKR {(item.price * item.qty).toLocaleString()}</span>
               </div>
             ))}
           </div>
 
-          {/* Order summary — receipt style */}
           <div className="ho-detail__totals">
             <div className="ho-detail__total-row">
               <span>Subtotal</span>
-              <span>
-                LKR {(order.subtotal ?? order.total)?.toLocaleString()}
-              </span>
+              <span>LKR {(order.subtotal ?? order.total)?.toLocaleString()}</span>
             </div>
             {order.orderType === "delivery" && order.deliveryFee > 0 ? (
               <div className="ho-detail__total-row">
@@ -409,69 +336,44 @@ function OrderDetail({ order, onAction, actionLoading }) {
               </div>
             ) : (
               <div className="ho-detail__total-row ho-detail__total-row--free">
-                <span className="ho-detail__total-free-label">
-                  Delivery fee
-                </span>
+                <span className="ho-detail__total-free-label">Delivery fee</span>
                 <span className="ho-detail__total-free-val">Free</span>
               </div>
             )}
             <div className="ho-detail__total-row ho-detail__total-row--grand">
               <span>Total</span>
-              <span className="ho-detail__grand-price">
-                LKR {order.total?.toLocaleString()}
-              </span>
+              <span className="ho-detail__grand-price">LKR {order.total?.toLocaleString()}</span>
             </div>
           </div>
         </div>
 
-        {/* NOTES */}
         {order.notes && (
           <div className="ho-detail__section">
             <div className="ho-detail__section-label ho-detail__section-label--warn">
-              <FaExclamationTriangle className="ho-warn-icon" /> Special
-              Instructions
+              <FaExclamationTriangle className="ho-warn-icon" /> Special Instructions
             </div>
             <div className="ho-detail__notes">{order.notes}</div>
           </div>
         )}
 
-        {/* ACTIONS */}
         {(order.status === "pending" || order.status === "accepted") && (
           <div className="ho-detail__actions">
             {order.status === "pending" && (
               <>
-                <button
-                  className="ho-action ho-action--primary"
-                  onClick={() => onAction(order, "accepted")}
-                  disabled={busy}
-                >
-                  {busy ? <FaSpinner className="ho-spin" /> : <FaCheckCircle />}{" "}
-                  Accept Order
+                <button className="ho-action ho-action--primary" onClick={() => onAction(order, "accepted")} disabled={busy}>
+                  {busy ? <FaSpinner className="ho-spin" /> : <FaCheckCircle />} Accept Order
                 </button>
-                <button
-                  className="ho-action ho-action--ghost"
-                  onClick={() => onAction(order, "cancelled")}
-                  disabled={busy}
-                >
+                <button className="ho-action ho-action--ghost" onClick={() => onAction(order, "cancelled")} disabled={busy}>
                   <FaTimesCircle /> Cancel
                 </button>
               </>
             )}
             {order.status === "accepted" && (
               <>
-                <button
-                  className="ho-action ho-action--primary"
-                  onClick={() => onAction(order, "completed")}
-                  disabled={busy}
-                >
-                  {busy ? <FaSpinner className="ho-spin" /> : <FaCheckCircle />}{" "}
-                  Mark Completed
+                <button className="ho-action ho-action--primary" onClick={() => onAction(order, "completed")} disabled={busy}>
+                  {busy ? <FaSpinner className="ho-spin" /> : <FaCheckCircle />} Mark Completed
                 </button>
-                <button
-                  className="ho-action ho-action--ghost"
-                  onClick={() => onAction(order, "cancelled")}
-                  disabled={busy}
-                >
+                <button className="ho-action ho-action--ghost" onClick={() => onAction(order, "cancelled")} disabled={busy}>
                   <FaTimesCircle /> Cancel
                 </button>
               </>
@@ -479,7 +381,6 @@ function OrderDetail({ order, onAction, actionLoading }) {
           </div>
         )}
 
-        {/* MAP — delivery orders with coordinates, always at the bottom */}
         {showMap && mapSrc && (
           <div className="ho-detail__section ho-detail__section--map">
             <div className="ho-detail__section-label">Delivery Location</div>
@@ -501,14 +402,8 @@ function OrderDetail({ order, onAction, actionLoading }) {
               </div>
             </div>
             {mapsLink && (
-              <a
-                href={mapsLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ho-map-link"
-              >
-                <FaExternalLinkAlt style={{ fontSize: 11 }} /> Open in Google
-                Maps
+              <a href={mapsLink} target="_blank" rel="noopener noreferrer" className="ho-map-link">
+                <FaExternalLinkAlt style={{ fontSize: 11 }} /> Open in Google Maps
               </a>
             )}
           </div>
@@ -523,32 +418,50 @@ function OrderDetail({ order, onAction, actionLoading }) {
 // ─────────────────────────────────────────
 export default function HostOrders() {
   const navigate = useNavigate();
-  const userId = localStorage.getItem("CurrentUserId");
+  const userId   = localStorage.getItem("CurrentUserId");
 
-  const [orders, setOrders] = useState([]);
+  const [orders,        setOrders]        = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [loadingOrders, setLoadingOrders] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [confirmModal, setConfirmModal] = useState(null);
+  const [statusFilter,  setStatusFilter]  = useState("all");
+  const [filterOpen,    setFilterOpen]    = useState(false);
+  const [searchQuery,   setSearchQuery]   = useState("");
+  const [confirmModal,  setConfirmModal]  = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
-  const [lastRefresh, setLastRefresh] = useState(Date.now());
-  const [toast, setToast] = useState({ show: false, msg: "" });
-  const [error, setError] = useState(null);
-  const toastRef = useRef(null);
+  const [lastRefresh,   setLastRefresh]   = useState(Date.now());
+  const [toast,         setToast]         = useState({ show: false, msg: "" });
+  const [error,         setError]         = useState(null);
+
+  // ── Mobile panel state: "list" | "detail" ──
+  const [mobilePanel, setMobilePanel] = useState("list");
+  const [isMobile,    setIsMobile]    = useState(window.innerWidth <= 1024);
+
+  const toastRef  = useRef(null);
+  const filterRef = useRef(null);
+
+  // Track mobile breakpoint
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth <= 1024);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
 
   const showToast = (msg) => {
     setToast({ show: true, msg });
     clearTimeout(toastRef.current);
-    toastRef.current = setTimeout(
-      () => setToast({ show: false, msg: "" }),
-      2600,
-    );
+    toastRef.current = setTimeout(() => setToast({ show: false, msg: "" }), 2600);
   };
 
+  // Close filter dropdown on outside click
   useEffect(() => {
-    if (!userId) navigate("/Login");
+    const handler = (e) => {
+      if (filterRef.current && !filterRef.current.contains(e.target)) setFilterOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useEffect(() => { if (!userId) navigate("/Login"); }, []);
 
   useEffect(() => {
     if (!userId) return;
@@ -557,29 +470,26 @@ export default function HostOrders() {
     fetch(`${ORDER_API}/owner/${userId}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((raw) => {
-        const list = unwrap(raw);
-        const arr = Array.isArray(list?.data ?? list)
-          ? (list?.data ?? list)
-          : [];
-        const sorted = arr.sort(
-          (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
-        );
+        const list   = unwrap(raw);
+        const arr    = Array.isArray(list?.data ?? list) ? (list?.data ?? list) : [];
+        const sorted = arr.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setOrders(sorted);
-        setSelectedOrder((prev) =>
-          prev
-            ? (sorted.find((o) => o._id === prev._id) ?? sorted[0])
-            : sorted[0],
-        );
+        setSelectedOrder((prev) => prev ? (sorted.find((o) => o._id === prev._id) ?? sorted[0]) : sorted[0]);
       })
       .catch((err) => {
-        if (err === 404) {
-          setOrders([]);
-          return;
-        }
+        if (err === 404) { setOrders([]); return; }
         setError("Failed to load orders. Please try again.");
       })
       .finally(() => setLoadingOrders(false));
   }, [userId, lastRefresh]);
+
+  // ── Order row click ──
+  const handleOrderClick = (order) => {
+    setSelectedOrder(order);
+    if (isMobile) setMobilePanel("detail");
+  };
+
+  const handleBack = () => setMobilePanel("list");
 
   const handleAction = (order, action) => setConfirmModal({ order, action });
 
@@ -594,48 +504,24 @@ export default function HostOrders() {
         body: JSON.stringify({ status: action }),
       });
       if (!res.ok) throw new Error();
-      setOrders((prev) =>
-        prev.map((o) => (o._id === order._id ? { ...o, status: action } : o)),
-      );
-      setSelectedOrder((prev) =>
-        prev?._id === order._id ? { ...prev, status: action } : prev,
-      );
+      setOrders((prev) => prev.map((o) => (o._id === order._id ? { ...o, status: action } : o)));
+      setSelectedOrder((prev) => prev?._id === order._id ? { ...prev, status: action } : prev);
       showToast(
-        action === "accepted"
-          ? "Order accepted."
-          : action === "completed"
-            ? "Order marked as completed."
-            : "Order cancelled.",
+        action === "accepted" ? "Order accepted."
+          : action === "completed" ? "Order marked as completed."
+          : "Order cancelled."
       );
 
-      // ── Notify student of status change ──────────────────────────────────
-      const studentId = order.student?._id ?? order.student ?? null;
+      const studentId  = order.student?._id ?? order.student ?? null;
       const kitchenName = order.foodService?.kitchenName ?? "the kitchen";
       const notifMap = {
-        accepted: {
-          title: "Order Accepted",
-          message: `Your order from ${kitchenName} has been accepted and is being prepared.`,
-        },
-        completed: {
-          title: "Order Completed",
-          message: `Your order from ${kitchenName} has been delivered/collected. Enjoy!`,
-        },
-        cancelled: {
-          title: "Order Cancelled",
-          message: `Your order from ${kitchenName} has been cancelled by the host.`,
-        },
+        accepted:  { title: "Order Accepted",   message: `Your order from ${kitchenName} has been accepted and is being prepared.` },
+        completed: { title: "Order Completed",  message: `Your order from ${kitchenName} has been delivered/collected. Enjoy!` },
+        cancelled: { title: "Order Cancelled",  message: `Your order from ${kitchenName} has been cancelled by the host.` },
       };
       const notif = notifMap[action];
       if (studentId && notif) {
-        sendNotification({
-          recipient: studentId,
-          type: "order_status",
-          title: notif.title,
-          message: notif.message,
-          link: "/StudentOrders",
-          refId: order._id,
-          refType: "FoodOrder",
-        });
+        sendNotification({ recipient: studentId, type: "order_status", title: notif.title, message: notif.message, link: "/StudentOrders", refId: order._id, refType: "FoodOrder" });
       }
     } catch {
       showToast("Failed to update order. Please try again.");
@@ -648,130 +534,181 @@ export default function HostOrders() {
   const filteredOrders = orders.filter((o) => {
     const matchStatus = statusFilter === "all" || o.status === statusFilter;
     const q = searchQuery.toLowerCase();
-    const matchSearch =
-      !q ||
-      (o.student?.name ?? "").toLowerCase().includes(q) ||
-      o.items?.some((i) => i.name.toLowerCase().includes(q)) ||
-      (o.foodService?.kitchenName ?? "").toLowerCase().includes(q);
+    const matchSearch = !q
+      || (o.student?.name ?? "").toLowerCase().includes(q)
+      || o.items?.some((i) => i.name.toLowerCase().includes(q))
+      || (o.foodService?.kitchenName ?? "").toLowerCase().includes(q);
     return matchStatus && matchSearch;
   });
 
-  const pendingCount = orders.filter((o) => o.status === "pending").length;
-  const TABS = ["all", "pending", "accepted", "completed", "cancelled"];
+  const activeFilterLabel = FILTER_OPTIONS.find((f) => f.value === statusFilter)?.label ?? "All Orders";
+  const isFiltered = statusFilter !== "all" || searchQuery;
 
   return (
-    <div className="ho-page">
+    <div className="ho-page" style={{ fontFamily: FONT }}>
       <HostNavbar activeHref="/HostOrders" />
 
       <div className="ho-wrapper">
-        {/* ── Title ── */}
+
+        {/* ── Title bar ── */}
         <div className="ho-titlebar">
           <div className="ho-titlebar__left">
             <h1 className="ho-titlebar__title">Food Orders</h1>
             <span className="ho-titlebar__count">{orders.length} orders</span>
           </div>
-          <button
-            className="ho-btn-refresh"
-            onClick={() => setLastRefresh(Date.now())}
-          >
-            <FaSyncAlt /> Refresh
-          </button>
-        </div>
 
-        {/* ── Tabs ── */}
-        <div className="ho-tabs">
-          {TABS.map((s) => (
-            <button
-              key={s}
-              className={`ho-tab${statusFilter === s ? " ho-tab--active" : ""}`}
-              onClick={() => setStatusFilter(s)}
-            >
-              {s === "all"
-                ? "All Orders"
-                : s.charAt(0).toUpperCase() + s.slice(1)}
-              <span className="ho-tab__count">
-                {s === "all"
-                  ? orders.length
-                  : orders.filter((o) => o.status === s).length}
-              </span>
-            </button>
-          ))}
         </div>
 
         {/* ── Split ── */}
         <div className="ho-split">
-          {/* LEFT */}
-          <div className="ho-split__left">
-            <div className="ho-search-wrap">
-              <FaSearch className="ho-search-icon" />
-              <input
-                className="ho-search"
-                type="text"
-                placeholder="Search customer, item or kitchen..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+
+          {/* LEFT — order list */}
+          <div className={`ho-split__left${isMobile && mobilePanel === "detail" ? " ho-split__left--hidden" : ""}`}>
+
+            {/* ── Search + Filter bar ── */}
+            <div className="ho-searchbar">
+              <div className="ho-search-wrap">
+                <FaSearch className="ho-search-wrap__icon" />
+                <input
+                  className="ho-search"
+                  placeholder="Search customer, item or kitchen…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <button className="ho-search-clear" onClick={() => setSearchQuery("")}>
+                    <FaTimesCircle />
+                  </button>
+                )}
+              </div>
+
+              {/* Filter dropdown */}
+              <div className="ho-filter" ref={filterRef}>
+                <button
+                  className={`ho-filter__btn${statusFilter !== "all" ? " ho-filter__btn--active" : ""}`}
+                  onClick={() => setFilterOpen((prev) => !prev)}
+                >
+                  <FaFilter style={{ fontSize: 11 }} />
+                  <span className="ho-filter__label">{activeFilterLabel}</span>
+                  <FaChevronDown className={`ho-filter__chevron${filterOpen ? " ho-filter__chevron--open" : ""}`} />
+                </button>
+
+                {filterOpen && (
+                  <div className="ho-filter__dropdown">
+                    {FILTER_OPTIONS.map((opt) => {
+                      const count = opt.value === "all" ? orders.length : orders.filter((o) => o.status === opt.value).length;
+                      const s = STATUS[opt.value];
+                      return (
+                        <button
+                          key={opt.value}
+                          className={`ho-filter__option${statusFilter === opt.value ? " ho-filter__option--active" : ""}`}
+                          onClick={() => { setStatusFilter(opt.value); setFilterOpen(false); }}
+                        >
+                          <span className="ho-filter__option-left">
+                            {s && <span className="ho-filter__dot" style={{ background: s.dot }} />}
+                            {opt.label}
+                          </span>
+                          <span className={`ho-filter__count${statusFilter === opt.value ? " ho-filter__count--active" : ""}`}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {error ? (
-              <div className="ho-empty">
-                <FaTimesCircle
-                  className="ho-empty__icon"
-                  style={{ color: "#dc2626" }}
-                />
-                <p>{error}</p>
-                <button
-                  className="ho-btn-refresh"
-                  onClick={() => setLastRefresh(Date.now())}
-                >
-                  <FaSyncAlt /> Retry
+            {/* Active filter pills */}
+            {isFiltered && (
+              <div className="ho-active-filters">
+                {statusFilter !== "all" && (
+                  <span className="ho-filter-pill">
+                    {activeFilterLabel}
+                    <button className="ho-filter-pill__remove" onClick={() => setStatusFilter("all")}>
+                      <FaTimesCircle />
+                    </button>
+                  </span>
+                )}
+                {searchQuery && (
+                  <span className="ho-filter-pill">
+                    "{searchQuery}"
+                    <button className="ho-filter-pill__remove" onClick={() => setSearchQuery("")}>
+                      <FaTimesCircle />
+                    </button>
+                  </span>
+                )}
+                <button className="ho-filter-clear-all" onClick={() => { setStatusFilter("all"); setSearchQuery(""); }}>
+                  Clear all
                 </button>
               </div>
-            ) : loadingOrders ? (
-              <div className="ho-skeletons">
+            )}
+
+            {/* Error */}
+            {error && (
+              <div className="ho-error">
+                <FaExclamationTriangle /> {error}
+
+              </div>
+            )}
+
+            {/* Loading skeleton */}
+            {loadingOrders && (
+              <div className="ho-skeleton-list">
                 {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="ho-skeleton">
-                    <div className="ho-skeleton__circle" />
-                    <div className="ho-skeleton__lines">
-                      <div className="ho-skeleton__line ho-skeleton__line--med" />
-                      <div className="ho-skeleton__line ho-skeleton__line--short" />
+                  <div key={i} className="ho-skeleton-row">
+                    <div className="ho-skeleton ho-skeleton--icon" />
+                    <div style={{ flex: 1 }}>
+                      <div className="ho-skeleton ho-skeleton--line" style={{ width: "55%", marginBottom: 8 }} />
+                      <div className="ho-skeleton ho-skeleton--line" style={{ width: "80%" }} />
                     </div>
                   </div>
                 ))}
               </div>
-            ) : filteredOrders.length === 0 ? (
+            )}
+
+            {/* Empty state */}
+            {!loadingOrders && !error && filteredOrders.length === 0 && (
               <div className="ho-empty">
                 <FaBoxOpen className="ho-empty__icon" />
-                <p>
-                  {searchQuery
-                    ? "No orders match your search."
-                    : orders.length === 0
-                      ? "No orders placed yet."
-                      : "No orders for this filter."}
-                </p>
-              </div>
-            ) : (
-              <div className="ho-list">
-                {filteredOrders.map((order) => (
-                  <OrderRow
-                    key={order._id}
-                    order={order}
-                    selected={selectedOrder?._id === order._id}
-                    onClick={() => setSelectedOrder(order)}
-                  />
-                ))}
+                <div className="ho-empty__title">
+                  {isFiltered ? "No matching orders" : "No orders yet"}
+                </div>
+                <div className="ho-empty__sub">
+                  {isFiltered
+                    ? "Try adjusting your search or filter"
+                    : "Food orders will appear here once students place them"}
+                </div>
+                {isFiltered && (
+                  <button className="ho-empty__clear" onClick={() => { setSearchQuery(""); setStatusFilter("all"); }}>
+                    Clear filters
+                  </button>
+                )}
               </div>
             )}
+
+            {/* Order list */}
+            {!loadingOrders && !error && filteredOrders.map((order) => (
+              <OrderRow
+                key={order._id}
+                order={order}
+                selected={selectedOrder?._id === order._id}
+                onClick={() => handleOrderClick(order)}
+              />
+            ))}
           </div>
 
-          {/* RIGHT */}
-          <div className="ho-split__right">
+          {/* RIGHT — detail */}
+          <div className={`ho-split__right${isMobile && mobilePanel === "list" ? " ho-split__right--hidden" : ""}`}>
             <OrderDetail
               order={selectedOrder}
               onAction={handleAction}
               actionLoading={actionLoading}
+              onBack={handleBack}
+              isMobile={isMobile}
             />
           </div>
+
         </div>
       </div>
 
@@ -786,9 +723,7 @@ export default function HostOrders() {
         />
       )}
 
-      <div className={`ho-toast${toast.show ? " ho-toast--visible" : ""}`}>
-        {toast.msg}
-      </div>
+      <div className={`ho-toast${toast.show ? " ho-toast--visible" : ""}`}>{toast.msg}</div>
     </div>
   );
 }
