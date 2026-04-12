@@ -18,6 +18,10 @@ import {
   FaFilter,
   FaChevronDown,
   FaArrowLeft,
+  FaUser,
+  FaEnvelope,
+  FaTag,
+  FaStore,
 } from "react-icons/fa";
 import HostNavbar from "../NavBar/Host_NavBar/HostNavbar";
 import Footer from "../NavBar/Footer/Footer";
@@ -116,41 +120,45 @@ function StatusBadge({ status }) {
 }
 
 // ─────────────────────────────────────────
-// ORDER ROW
+// STUDENT ICON (for order row — replaces KitchenIcon)
 // ─────────────────────────────────────────
-function KitchenIcon({ order, selected }) {
+function StudentIcon({ order, selected }) {
   const [failed, setFailed] = useState(false);
-  const iconId = order.foodService?.iconImage;
-  const src    = iconId ? `${API_BASE}/Photo/${iconId}` : null;
+  const photoId = order.student?.profileImage ?? null;
+  const src     = photoId ? `${API_BASE}/Photo/${photoId}` : null;
+
+  const pip = (
+    <span className={`ho-row__icon-type${selected ? " ho-row__icon-type--active" : ""}`}>
+      {order.orderType === "delivery" ? <FaMotorcycle /> : <FaShoppingBag />}
+    </span>
+  );
 
   if (src && !failed) {
     return (
       <div className="ho-row__icon ho-row__icon--img">
         <img
           src={src}
-          alt={order.foodService?.kitchenName ?? "Kitchen"}
+          alt={order.student?.name ?? "Student"}
           className="ho-row__icon-img"
           onError={() => setFailed(true)}
         />
-        <span className={`ho-row__icon-type${selected ? " ho-row__icon-type--active" : ""}`}>
-          {order.orderType === "delivery" ? <FaMotorcycle /> : <FaShoppingBag />}
-        </span>
+        {pip}
       </div>
     );
   }
 
-  // Fallback: first letter of kitchen name, or utensils icon
-  const letter = order.foodService?.kitchenName?.charAt(0)?.toUpperCase();
+  const letter = order.student?.name?.charAt(0)?.toUpperCase();
   return (
-    <div className="ho-row__icon ho-row__icon--letter">
-      {letter ? <span className="ho-row__icon-letter">{letter}</span> : <FaUtensils />}
-      <span className={`ho-row__icon-type${selected ? " ho-row__icon-type--active" : ""}`}>
-        {order.orderType === "delivery" ? <FaMotorcycle /> : <FaShoppingBag />}
-      </span>
+    <div className={`ho-row__icon ho-row__icon--letter${selected ? " ho-row__icon--letter-active" : ""}`}>
+      {letter ? <span className="ho-row__icon-letter">{letter}</span> : <FaUser />}
+      {pip}
     </div>
   );
 }
 
+// ─────────────────────────────────────────
+// ORDER ROW
+// ─────────────────────────────────────────
 function OrderRow({ order, selected, onClick }) {
   const name = order.student?.name ?? "Student";
   const s = STATUS[order.status] ?? STATUS.pending;
@@ -160,7 +168,7 @@ function OrderRow({ order, selected, onClick }) {
       style={{ borderLeftColor: selected ? ORANGE : s.dot }}
       onClick={onClick}
     >
-      <KitchenIcon order={order} selected={selected} />
+      <StudentIcon order={order} selected={selected} />
       <div className="ho-row__body">
         <div className="ho-row__top">
           <span className="ho-row__name">{name}</span>
@@ -220,9 +228,72 @@ function ItemImage({ item }) {
 }
 
 // ─────────────────────────────────────────
+// FOOD SERVICE CARD (mirrors AccommodationCard)
+// ─────────────────────────────────────────
+function FoodServiceCard({ foodService }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  if (!foodService) return null;
+
+  const iconId = foodService.iconImage ?? null;
+  const src    = iconId ? `${API_BASE}/Photo/${iconId}` : null;
+
+  return (
+    <div className="ho-fs-card">
+      <div className="ho-fs-card__img-wrap">
+        {src && !imgFailed ? (
+          <img
+            src={src}
+            alt={foodService.kitchenName}
+            className="ho-fs-card__img"
+            onError={() => setImgFailed(true)}
+          />
+        ) : (
+          <div className="ho-fs-card__img-fallback">
+            <FaUtensils />
+          </div>
+        )}
+      </div>
+
+      <div className="ho-fs-card__info">
+        <div className="ho-fs-card__name">{foodService.kitchenName ?? "—"}</div>
+        <div className="ho-fs-card__meta">
+          {foodService.cuisineType && (
+            <span className="ho-fs-card__tag">
+              <FaStore style={{ fontSize: 9 }} /> {foodService.cuisineType}
+            </span>
+          )}
+          {foodService.deliveryFee != null && (
+            <span className="ho-fs-card__tag ho-fs-card__tag--price">
+              <FaTag style={{ fontSize: 9 }} />
+              {foodService.deliveryFee > 0
+                ? `LKR ${Number(foodService.deliveryFee).toLocaleString()} delivery`
+                : "Free delivery"}
+            </span>
+          )}
+          {foodService.minOrderAmount && (
+            <span className="ho-fs-card__tag">
+              Min LKR {Number(foodService.minOrderAmount).toLocaleString()}
+            </span>
+          )}
+        </div>
+        {foodService.address && (
+          <div className="ho-fs-card__address">
+            <FaMapMarkerAlt style={{ fontSize: 9, color: ORANGE, flexShrink: 0, marginTop: 1 }} />
+            {foodService.address}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────
 // ORDER DETAIL PANEL
 // ─────────────────────────────────────────
-function OrderDetail({ order, onAction, actionLoading, onBack, isMobile }) {
+function OrderDetail({ order, onAction, actionLoading, onBack, isMobile, currentUserId, navigate }) {
+  const [msgLoading, setMsgLoading] = useState(false);
+  const [msgError,   setMsgError]   = useState(null);
+
   if (!order) {
     return (
       <div className="ho-detail ho-detail--empty">
@@ -239,11 +310,39 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile }) {
   const profileImg = student.profileImage ? `${API_BASE}/Photo/${student.profileImage}` : null;
   const busy       = actionLoading === order._id;
 
-  const lat     = order.location?.coordinates?.[1];
-  const lng     = order.location?.coordinates?.[0];
-  const showMap = isDelivery && lat && lng;
-  const mapSrc  = showMap ? `https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed` : null;
+  const lat      = order.location?.coordinates?.[1];
+  const lng      = order.location?.coordinates?.[0];
+  const showMap  = isDelivery && lat && lng;
+  const mapSrc   = showMap ? `https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed` : null;
   const mapsLink = showMap ? `https://www.google.com/maps?q=${lat},${lng}` : null;
+
+  // ── Message student — mirrors HostBooking pattern ──
+  const handleMessageStudent = async () => {
+    const studentId = student._id ?? (typeof order.student === "string" ? order.student : null);
+    if (!studentId || !currentUserId) {
+      setMsgError("Cannot open chat — student info missing.");
+      return;
+    }
+    setMsgLoading(true);
+    setMsgError(null);
+    try {
+      const res = await fetch(`${API_BASE}/message/conversation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ senderId: currentUserId, receiverId: studentId }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const raw  = await res.json();
+      const conv = unwrap(raw);
+      if (!conv?._id) throw new Error("No conversation ID returned");
+      navigate("/Messages", { state: { openConversationId: conv._id } });
+    } catch (err) {
+      setMsgError("Failed to open chat. Please try again.");
+      console.error("[HostOrders] message open failed:", err);
+    } finally {
+      setMsgLoading(false);
+    }
+  };
 
   return (
     <div className="ho-detail">
@@ -256,11 +355,16 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile }) {
         </button>
       )}
 
-      <div className="ho-detail__header">
-        <div className="ho-detail__order-id">
-          <span className="ho-detail__order-id__text">Order ID&nbsp;&nbsp;{order._id}</span>
-        </div>
+      {/* ── Order ID bar with status badge ── */}
+      <div className="ho-detail__order-id">
+        <span className="ho-detail__order-id__text">Order ID&nbsp;&nbsp;{order._id}</span>
+        <StatusBadge status={order.status} />
+      </div>
 
+      {/* ── Header ── */}
+      <div className="ho-detail__header">
+
+        {/* Student info + Message pill on far right */}
         <div className="ho-detail__header-row">
           <div className="ho-detail__customer">
             <div className="ho-detail__avatar">
@@ -273,7 +377,11 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile }) {
             </div>
             <div className="ho-detail__customer-info">
               <div className="ho-detail__customer-name">{name}</div>
-              {student.email && <div className="ho-detail__customer-email">{student.email}</div>}
+              {student.email && (
+                <a href={`mailto:${student.email}`} className="ho-detail__email">
+                  <FaEnvelope style={{ fontSize: 10 }} /> {student.email}
+                </a>
+              )}
               {phone ? (
                 <a href={`tel:${phone}`} className="ho-detail__phone">
                   <FaPhone style={{ fontSize: 10 }} /> {phone}
@@ -283,8 +391,39 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile }) {
               )}
             </div>
           </div>
-          <StatusBadge status={order.status} />
+
+          {/* "Contact host"-style pill button */}
+          <button
+            className="ho-contact-btn"
+            onClick={handleMessageStudent}
+            disabled={msgLoading}
+            title="Open chat with this student"
+          >
+            {msgLoading
+              ? <FaSpinner className="ho-spin" style={{ fontSize: 13 }} />
+              : <FaEnvelope style={{ fontSize: 13 }} />}
+            <span>{msgLoading ? "Opening…" : "Message Student"}</span>
+          </button>
         </div>
+
+        {/* Inline error if API call fails */}
+        {msgError && (
+          <div style={{
+            marginTop: 8,
+            padding: "8px 12px",
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            borderRadius: 8,
+            fontSize: 12,
+            color: "#b91c1c",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}>
+            <FaExclamationTriangle style={{ fontSize: 11, flexShrink: 0 }} />
+            {msgError}
+          </div>
+        )}
 
         <div className="ho-detail__header-divider" />
 
@@ -311,6 +450,16 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile }) {
       </div>
 
       <div className="ho-detail__body">
+
+        {/* ── Food Service Details ── */}
+        {order.foodService && (
+          <div className="ho-detail__section">
+            <div className="ho-detail__section-label">Food Service</div>
+            <FoodServiceCard foodService={order.foodService} />
+          </div>
+        )}
+
+        {/* ── Items Ordered ── */}
         <div className="ho-detail__section">
           <div className="ho-detail__section-label">Items Ordered</div>
           <div className="ho-detail__items">
@@ -347,6 +496,7 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile }) {
           </div>
         </div>
 
+        {/* ── Special Instructions ── */}
         {order.notes && (
           <div className="ho-detail__section">
             <div className="ho-detail__section-label ho-detail__section-label--warn">
@@ -356,6 +506,7 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile }) {
           </div>
         )}
 
+        {/* ── Order Actions ── */}
         {(order.status === "pending" || order.status === "accepted") && (
           <div className="ho-detail__actions">
             {order.status === "pending" && (
@@ -370,7 +521,7 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile }) {
             )}
             {order.status === "accepted" && (
               <>
-                <button className="ho-action ho-action--primary" onClick={() => onAction(order, "completed")} disabled={busy}>
+                <button className="ho-action ho-action--dark" onClick={() => onAction(order, "completed")} disabled={busy}>
                   {busy ? <FaSpinner className="ho-spin" /> : <FaCheckCircle />} Mark Completed
                 </button>
                 <button className="ho-action ho-action--ghost" onClick={() => onAction(order, "cancelled")} disabled={busy}>
@@ -381,6 +532,7 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile }) {
           </div>
         )}
 
+        {/* ── Delivery Map ── */}
         {showMap && mapSrc && (
           <div className="ho-detail__section ho-detail__section--map">
             <div className="ho-detail__section-label">Delivery Location</div>
@@ -408,6 +560,7 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile }) {
             )}
           </div>
         )}
+
       </div>
     </div>
   );
@@ -432,14 +585,12 @@ export default function HostOrders() {
   const [toast,         setToast]         = useState({ show: false, msg: "" });
   const [error,         setError]         = useState(null);
 
-  // ── Mobile panel state: "list" | "detail" ──
   const [mobilePanel, setMobilePanel] = useState("list");
   const [isMobile,    setIsMobile]    = useState(window.innerWidth <= 1024);
 
   const toastRef  = useRef(null);
   const filterRef = useRef(null);
 
-  // Track mobile breakpoint
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth <= 1024);
     window.addEventListener("resize", handler);
@@ -452,7 +603,6 @@ export default function HostOrders() {
     toastRef.current = setTimeout(() => setToast({ show: false, msg: "" }), 2600);
   };
 
-  // Close filter dropdown on outside click
   useEffect(() => {
     const handler = (e) => {
       if (filterRef.current && !filterRef.current.contains(e.target)) setFilterOpen(false);
@@ -483,14 +633,12 @@ export default function HostOrders() {
       .finally(() => setLoadingOrders(false));
   }, [userId, lastRefresh]);
 
-  // ── Order row click ──
   const handleOrderClick = (order) => {
     setSelectedOrder(order);
     if (isMobile) setMobilePanel("detail");
   };
 
-  const handleBack = () => setMobilePanel("list");
-
+  const handleBack   = () => setMobilePanel("list");
   const handleAction = (order, action) => setConfirmModal({ order, action });
 
   const handleConfirmAction = async () => {
@@ -507,17 +655,17 @@ export default function HostOrders() {
       setOrders((prev) => prev.map((o) => (o._id === order._id ? { ...o, status: action } : o)));
       setSelectedOrder((prev) => prev?._id === order._id ? { ...prev, status: action } : prev);
       showToast(
-        action === "accepted" ? "Order accepted."
-          : action === "completed" ? "Order marked as completed."
-          : "Order cancelled."
+        action === "accepted"  ? "Order accepted."
+        : action === "completed" ? "Order marked as completed."
+        : "Order cancelled."
       );
 
-      const studentId  = order.student?._id ?? order.student ?? null;
+      const studentId   = order.student?._id ?? order.student ?? null;
       const kitchenName = order.foodService?.kitchenName ?? "the kitchen";
       const notifMap = {
-        accepted:  { title: "Order Accepted",   message: `Your order from ${kitchenName} has been accepted and is being prepared.` },
-        completed: { title: "Order Completed",  message: `Your order from ${kitchenName} has been delivered/collected. Enjoy!` },
-        cancelled: { title: "Order Cancelled",  message: `Your order from ${kitchenName} has been cancelled by the host.` },
+        accepted:  { title: "Order Accepted",  message: `Your order from ${kitchenName} has been accepted and is being prepared.` },
+        completed: { title: "Order Completed", message: `Your order from ${kitchenName} has been delivered/collected. Enjoy!` },
+        cancelled: { title: "Order Cancelled", message: `Your order from ${kitchenName} has been cancelled by the host.` },
       };
       const notif = notifMap[action];
       if (studentId && notif) {
@@ -549,23 +697,20 @@ export default function HostOrders() {
       <HostNavbar activeHref="/HostOrders" />
 
       <div className="ho-wrapper">
-
-        {/* ── Title bar ── */}
         <div className="ho-titlebar">
           <div className="ho-titlebar__left">
             <h1 className="ho-titlebar__title">Food Orders</h1>
-            <span className="ho-titlebar__count">{orders.length} orders</span>
+            <span className="ho-titlebar__count">
+              {orders.length} order{orders.length !== 1 ? "s" : ""}
+            </span>
           </div>
-
         </div>
 
-        {/* ── Split ── */}
         <div className="ho-split">
 
-          {/* LEFT — order list */}
+          {/* LEFT */}
           <div className={`ho-split__left${isMobile && mobilePanel === "detail" ? " ho-split__left--hidden" : ""}`}>
 
-            {/* ── Search + Filter bar ── */}
             <div className="ho-searchbar">
               <div className="ho-search-wrap">
                 <FaSearch className="ho-search-wrap__icon" />
@@ -582,7 +727,6 @@ export default function HostOrders() {
                 )}
               </div>
 
-              {/* Filter dropdown */}
               <div className="ho-filter" ref={filterRef}>
                 <button
                   className={`ho-filter__btn${statusFilter !== "all" ? " ho-filter__btn--active" : ""}`}
@@ -619,23 +763,18 @@ export default function HostOrders() {
               </div>
             </div>
 
-            {/* Active filter pills */}
             {isFiltered && (
               <div className="ho-active-filters">
                 {statusFilter !== "all" && (
                   <span className="ho-filter-pill">
                     {activeFilterLabel}
-                    <button className="ho-filter-pill__remove" onClick={() => setStatusFilter("all")}>
-                      <FaTimesCircle />
-                    </button>
+                    <button className="ho-filter-pill__remove" onClick={() => setStatusFilter("all")}><FaTimesCircle /></button>
                   </span>
                 )}
                 {searchQuery && (
                   <span className="ho-filter-pill">
                     "{searchQuery}"
-                    <button className="ho-filter-pill__remove" onClick={() => setSearchQuery("")}>
-                      <FaTimesCircle />
-                    </button>
+                    <button className="ho-filter-pill__remove" onClick={() => setSearchQuery("")}><FaTimesCircle /></button>
                   </span>
                 )}
                 <button className="ho-filter-clear-all" onClick={() => { setStatusFilter("all"); setSearchQuery(""); }}>
@@ -644,15 +783,12 @@ export default function HostOrders() {
               </div>
             )}
 
-            {/* Error */}
             {error && (
               <div className="ho-error">
                 <FaExclamationTriangle /> {error}
-
               </div>
             )}
 
-            {/* Loading skeleton */}
             {loadingOrders && (
               <div className="ho-skeleton-list">
                 {[1, 2, 3, 4, 5].map((i) => (
@@ -667,7 +803,6 @@ export default function HostOrders() {
               </div>
             )}
 
-            {/* Empty state */}
             {!loadingOrders && !error && filteredOrders.length === 0 && (
               <div className="ho-empty">
                 <FaBoxOpen className="ho-empty__icon" />
@@ -687,7 +822,6 @@ export default function HostOrders() {
               </div>
             )}
 
-            {/* Order list */}
             {!loadingOrders && !error && filteredOrders.map((order) => (
               <OrderRow
                 key={order._id}
@@ -698,7 +832,7 @@ export default function HostOrders() {
             ))}
           </div>
 
-          {/* RIGHT — detail */}
+          {/* RIGHT */}
           <div className={`ho-split__right${isMobile && mobilePanel === "list" ? " ho-split__right--hidden" : ""}`}>
             <OrderDetail
               order={selectedOrder}
@@ -706,6 +840,8 @@ export default function HostOrders() {
               actionLoading={actionLoading}
               onBack={handleBack}
               isMobile={isMobile}
+              currentUserId={userId}
+              navigate={navigate}
             />
           </div>
 
