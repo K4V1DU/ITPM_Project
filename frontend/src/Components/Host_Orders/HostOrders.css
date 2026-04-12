@@ -358,7 +358,6 @@
 .ho-row:hover      { background: #fafafa; }
 .ho-row--active    { background: #fff8f5; }
 
-/* ── Student icon — circle to match HostBooking ── */
 .ho-row__icon {
   width: 44px;
   height: 44px;
@@ -387,7 +386,6 @@
 .ho-row__icon--letter-active { background: #FF6B2B; }
 .ho-row__icon-letter { font-size: 17px; font-weight: 800; line-height: 1; }
 
-/* Delivery/pickup type pip — bottom-right corner */
 .ho-row__icon-type {
   position: absolute;
   bottom: -3px;
@@ -455,7 +453,6 @@
 .ho-detail__empty-icon { font-size: 44px; }
 .ho-detail__empty-text { font-size: 14px; color: #aaa; font-weight: 500; }
 
-/* ── Mobile back button ── */
 .ho-detail__back-btn {
   display: flex;
   align-items: center;
@@ -476,7 +473,6 @@
 .ho-detail__back-btn:hover  { background: #fff0e6; }
 .ho-detail__back-btn:active { background: #ffe4d0; }
 
-/* ── Order ID bar — flex row so badge sits on the right ── */
 .ho-detail__order-id {
   display: flex;
   align-items: center;
@@ -494,7 +490,6 @@
   word-break: break-all;
 }
 
-/* ── Header ── */
 .ho-detail__header {
   padding: 16px 24px 14px;
   border-bottom: 1px solid #f0f0f0;
@@ -519,7 +514,6 @@
 .ho-header-meta__item--delivery { color: #FF6B2B; font-weight: 600; }
 .ho-header-meta__item--pickup   { color: #1b1b1b; font-weight: 600; }
 
-/* ── Customer ── */
 .ho-detail__customer      { display: flex; align-items: center; gap: 12px; }
 .ho-detail__customer-info { display: flex; flex-direction: column; gap: 2px; }
 .ho-detail__avatar {
@@ -561,7 +555,6 @@
 .ho-detail__phone:hover { text-decoration: underline; }
 .ho-detail__no-phone { font-size: 13px; color: #aaa; margin-top: 2px; }
 
-/* ── "Message Student" pill button ── */
 .ho-contact-btn {
   display: inline-flex;
   align-items: center;
@@ -582,7 +575,6 @@
 .ho-contact-btn:active:not(:disabled) { background: #efefef; }
 .ho-contact-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
-/* ── Body ── */
 .ho-detail__body { padding: 0 0 8px; }
 .ho-detail__section {
   padding: 16px 24px;
@@ -606,8 +598,20 @@
 .ho-warn-icon { font-size: 10px; color: #f59e0b; }
 
 /* ─────────────────────────────────────────
-   FOOD SERVICE CARD (mirrors AccommodationCard)
+   FOOD SERVICE SECTION (MATCHED TO IMAGE)
 ───────────────────────────────────────── */
+
+/* Container label for the section header */
+.ho-detail__section-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 14px;
+}
+
+/* Main card container */
 .ho-fs-card {
   display: flex;
   align-items: flex-start;
@@ -617,6 +621,8 @@
   border-radius: 12px;
   padding: 14px;
 }
+
+/* Square logo wrapper with white background */
 .ho-fs-card__img-wrap {
   width: 56px;
   height: 56px;
@@ -624,24 +630,27 @@
   overflow: hidden;
   flex-shrink: 0;
   border: 1px solid #e8e8e8;
-}
-.ho-fs-card__img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.ho-fs-card__img-fallback {
-  width: 100%;
-  height: 100%;
-  background: #e8e8e8;
+  background: #fff; 
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #aaa;
-  font-size: 20px;
 }
-.ho-fs-card__info { flex: 1; min-width: 0; }
+
+/* The actual logo image */
+.ho-fs-card__img {
+  width: 80%; 
+  height: 80%;
+  object-fit: contain;
+  display: block;
+}
+
+/* Text info area */
+.ho-fs-card__info { 
+  flex: 1; 
+  min-width: 0; 
+}
+
+/* Business name */
 .ho-fs-card__name {
   font-size: 14px;
   font-weight: 700;
@@ -651,32 +660,35 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.ho-fs-card__meta {
+
+/* Operating hours with icon alignment */
+.ho-fs-card__hours {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-.ho-fs-card__tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #545454;
-  background: #efefef;
-  border-radius: 6px;
-  padding: 3px 8px;
-}
-.ho-fs-card__tag--price { color: #15803d; background: #f0fdf4; }
-.ho-fs-card__address {
-  display: flex;
-  align-items: flex-start;
   gap: 5px;
   font-size: 12px;
-  color: #757575;
-  line-height: 1.45;
+  color: #545454;
+  font-weight: 500;
+  margin-top: 6px;
+}
+
+/* Delivery status text and icon (Orange) */
+.ho-fs-card__order-type--delivery {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #FF6B2B;
+  font-weight: 500;
+  margin-top: 8px;
+  background: transparent; /* Overriding chip style to match screenshot text-only look */
+  border: none;
+  padding: 0;
+}
+.ho-fs-card__order-type--pickup {
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
 }
 
 /* ─────────────────────────────────────────
@@ -764,7 +776,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Notes ── */
 .ho-detail__notes {
   font-size: 13px;
   color: #757575;
@@ -775,7 +786,9 @@
   padding: 10px 14px;
 }
 
-/* ── Actions ── */
+/* ─────────────────────────────────────────
+   ORDER ACTIONS
+───────────────────────────────────────── */
 .ho-detail__actions {
   display: flex;
   gap: 10px;
@@ -949,7 +962,6 @@
    SPIN
 ───────────────────────────────────────── */
 .ho-spin { animation: spin 0.7s linear infinite; }
-
 /* ─────────────────────────────────────────
    RESPONSIVE — TABLET & BELOW (≤ 1024px)
 ───────────────────────────────────────── */
@@ -998,7 +1010,22 @@
   .ho-action { justify-content: center; width: 100%; }
   .ho-titlebar__title { font-size: 20px; }
   .ho-titlebar { margin-bottom: 16px; }
-  .ho-fs-card__img-wrap { width: 44px; height: 44px; }
+
+  /* Food Service Card Mobile Adjustments */
+  .ho-fs-card { 
+    padding: 12px; 
+    gap: 12px; 
+  }
+  .ho-fs-card__img-wrap { 
+    width: 48px; 
+    height: 48px; 
+    border-radius: 8px;
+  }
+  .ho-fs-card__name { font-size: 13px; }
+  .ho-fs-card__hours, 
+  .ho-fs-card__order-type--delivery { 
+    font-size: 11px; 
+  }
 }
 
 /* ─────────────────────────────────────────
@@ -1008,4 +1035,8 @@
   .ho-titlebar__count { display: none; }
   .ho-detail__header-row { flex-wrap: wrap; gap: 12px; }
   .ho-contact-btn { width: 100%; justify-content: center; }
+
+  /* Food Service Card Extra Compact */
+  .ho-fs-card { align-items: center; }
+  .ho-fs-card__order-type--delivery { margin-top: 4px; }
 }

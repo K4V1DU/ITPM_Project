@@ -152,19 +152,15 @@ const getOrdersByFoodService = async (req, res) => {
   }
 };
 
-// ==============================
-// Get Orders By Owner
-// ==============================
 const getOrdersByOwner = async (req, res) => {
   try {
     const { ownerId } = req.params;
 
-    // Step 1: Find all food services belonging to this owner
     const FoodService = require("../Models/FoodService");
     const foodServices = await FoodService.find({ owner: ownerId }).select("_id");
 
     if (!foodServices.length) {
-        return res.status(200).json({
+      return res.status(200).json({
         success: true,
         count: 0,
         data: [],
@@ -174,12 +170,13 @@ const getOrdersByOwner = async (req, res) => {
 
     const foodServiceIds = foodServices.map((fs) => fs._id);
 
-    // Step 2: Find all orders for those food services
     const orders = await FoodOrder.find({ foodService: { $in: foodServiceIds } })
-      .populate("foodService", "kitchenName address iconImage location")
+      .populate(
+        "foodService",
+        "kitchenName address iconImage location operatingHours deliveryAvailable pickupAvailable serviceType deliveryFee minOrderAmount"
+      )
       .populate("student", "name email phone profileImage")
       .sort({ createdAt: -1 });
-
 
     res.status(200).json({
       success: true,

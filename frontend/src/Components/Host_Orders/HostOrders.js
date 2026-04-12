@@ -32,7 +32,6 @@ const ORDER_API = `${API_BASE}/FoodOrder`;
 const ORANGE = "#FF6B2B";
 const FONT = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
-// ─── Notification helper — fire-and-forget ────────────────────────────────────
 async function sendNotification({ recipient, type, title, message, link, refId, refType }) {
   try {
     await fetch(`${API_BASE}/Notification`, {
@@ -120,7 +119,7 @@ function StatusBadge({ status }) {
 }
 
 // ─────────────────────────────────────────
-// STUDENT ICON (for order row — replaces KitchenIcon)
+// STUDENT ICON
 // ─────────────────────────────────────────
 function StudentIcon({ order, selected }) {
   const [failed, setFailed] = useState(false);
@@ -228,14 +227,17 @@ function ItemImage({ item }) {
 }
 
 // ─────────────────────────────────────────
-// FOOD SERVICE CARD (mirrors AccommodationCard)
+// FOOD SERVICE CARD
 // ─────────────────────────────────────────
-function FoodServiceCard({ foodService }) {
+function FoodServiceCard({ foodService, orderType }) {
   const [imgFailed, setImgFailed] = useState(false);
   if (!foodService) return null;
 
-  const iconId = foodService.iconImage ?? null;
-  const src    = iconId ? `${API_BASE}/Photo/${iconId}` : null;
+  const iconId     = foodService.iconImage ?? null;
+  const src        = iconId ? `${API_BASE}/Photo/${iconId}` : null;
+  const openTime   = foodService.operatingHours?.open  ?? null;
+  const closeTime  = foodService.operatingHours?.close ?? null;
+  const isDelivery = orderType === "delivery";
 
   return (
     <div className="ho-fs-card">
@@ -256,6 +258,7 @@ function FoodServiceCard({ foodService }) {
 
       <div className="ho-fs-card__info">
         <div className="ho-fs-card__name">{foodService.kitchenName ?? "—"}</div>
+
         <div className="ho-fs-card__meta">
           {foodService.cuisineType && (
             <span className="ho-fs-card__tag">
@@ -276,10 +279,27 @@ function FoodServiceCard({ foodService }) {
             </span>
           )}
         </div>
-        {foodService.address && (
-          <div className="ho-fs-card__address">
-            <FaMapMarkerAlt style={{ fontSize: 9, color: ORANGE, flexShrink: 0, marginTop: 1 }} />
-            {foodService.address}
+
+        {/* Operating hours */}
+        {openTime && closeTime && (
+          <div className="ho-fs-card__hours">
+            <FaClock style={{ fontSize: 10, color: ORANGE, flexShrink: 0 }} />
+            <span>{openTime} – {closeTime}</span>
+          </div>
+        )}
+
+        {/* Order type — matches header meta badge style exactly */}
+        {orderType && (
+          <div className="ho-fs-card__order-types">
+            <span
+              className={`ho-header-meta__item ho-header-meta__item--${isDelivery ? "delivery" : "pickup"}`}
+              style={{ fontSize: 12, marginTop: 6 }}
+            >
+              {isDelivery
+                ? <FaMotorcycle style={{ fontSize: 11 }} />
+                : <FaShoppingBag style={{ fontSize: 11 }} />}
+              {isDelivery ? "Delivery" : "Pickup"}
+            </span>
           </div>
         )}
       </div>
@@ -316,7 +336,6 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile, current
   const mapSrc   = showMap ? `https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed` : null;
   const mapsLink = showMap ? `https://www.google.com/maps?q=${lat},${lng}` : null;
 
-  // ── Message student — mirrors HostBooking pattern ──
   const handleMessageStudent = async () => {
     const studentId = student._id ?? (typeof order.student === "string" ? order.student : null);
     if (!studentId || !currentUserId) {
@@ -347,7 +366,6 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile, current
   return (
     <div className="ho-detail">
 
-      {/* ── Mobile back button ── */}
       {isMobile && (
         <button className="ho-detail__back-btn" onClick={onBack}>
           <FaArrowLeft style={{ fontSize: 13 }} />
@@ -355,7 +373,7 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile, current
         </button>
       )}
 
-      {/* ── Order ID bar with status badge ── */}
+      {/* ── Order ID bar ── */}
       <div className="ho-detail__order-id">
         <span className="ho-detail__order-id__text">Order ID&nbsp;&nbsp;{order._id}</span>
         <StatusBadge status={order.status} />
@@ -363,14 +381,19 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile, current
 
       {/* ── Header ── */}
       <div className="ho-detail__header">
-
-        {/* Student info + Message pill on far right */}
         <div className="ho-detail__header-row">
+
+          {/* ── Student info ── */}
           <div className="ho-detail__customer">
+            {/* BIGGER avatar */}
             <div className="ho-detail__avatar">
               {profileImg ? (
-                <img src={profileImg} alt={name} className="ho-detail__avatar-img"
-                  onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                <img
+                  src={profileImg}
+                  alt={name}
+                  className="ho-detail__avatar-img"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                />
               ) : (
                 name.charAt(0).toUpperCase()
               )}
@@ -392,7 +415,7 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile, current
             </div>
           </div>
 
-          {/* "Contact host"-style pill button */}
+          {/* ── Message pill ── */}
           <button
             className="ho-contact-btn"
             onClick={handleMessageStudent}
@@ -406,7 +429,6 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile, current
           </button>
         </div>
 
-        {/* Inline error if API call fails */}
         {msgError && (
           <div style={{
             marginTop: 8,
@@ -427,6 +449,7 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile, current
 
         <div className="ho-detail__header-divider" />
 
+        {/* ── Meta row — order type REMOVED from here ── */}
         <div className="ho-detail__header-meta">
           <span className="ho-header-meta__item">
             <FaUtensils style={{ fontSize: 11 }} />
@@ -436,11 +459,6 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile, current
           <span className="ho-header-meta__item">
             <FaClock style={{ fontSize: 10 }} />
             {timeAgo(order.createdAt)}
-          </span>
-          <span className="ho-sep">·</span>
-          <span className={`ho-header-meta__item ho-header-meta__item--${isDelivery ? "delivery" : "pickup"}`}>
-            {isDelivery ? <FaMotorcycle style={{ fontSize: 11 }} /> : <FaShoppingBag style={{ fontSize: 11 }} />}
-            {isDelivery ? "Delivery" : "Pickup"}
           </span>
           <span className="ho-sep">·</span>
           <span className="ho-header-meta__item">
@@ -455,7 +473,7 @@ function OrderDetail({ order, onAction, actionLoading, onBack, isMobile, current
         {order.foodService && (
           <div className="ho-detail__section">
             <div className="ho-detail__section-label">Food Service</div>
-            <FoodServiceCard foodService={order.foodService} />
+            <FoodServiceCard foodService={order.foodService} orderType={order.orderType} />
           </div>
         )}
 
@@ -669,7 +687,15 @@ export default function HostOrders() {
       };
       const notif = notifMap[action];
       if (studentId && notif) {
-        sendNotification({ recipient: studentId, type: "order_status", title: notif.title, message: notif.message, link: "/StudentOrders", refId: order._id, refType: "FoodOrder" });
+        sendNotification({
+          recipient: studentId,
+          type: "order_status",
+          title: notif.title,
+          message: notif.message,
+          link: "/StudentOrders",
+          refId: order._id,
+          refType: "FoodOrder",
+        });
       }
     } catch {
       showToast("Failed to update order. Please try again.");
@@ -710,7 +736,6 @@ export default function HostOrders() {
 
           {/* LEFT */}
           <div className={`ho-split__left${isMobile && mobilePanel === "detail" ? " ho-split__left--hidden" : ""}`}>
-
             <div className="ho-searchbar">
               <div className="ho-search-wrap">
                 <FaSearch className="ho-search-wrap__icon" />
