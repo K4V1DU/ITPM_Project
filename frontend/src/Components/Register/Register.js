@@ -205,12 +205,6 @@ export default function Register() {
             {step === STEPS.OTP && (
               <>
                 <div className="reg-form-header">
-                  <div className="otp-icon-wrap">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                      <polyline points="22,6 12,13 2,6"/>
-                    </svg>
-                  </div>
                   <h2 className="reg-form-title">Verify your email</h2>
                   <p className="reg-form-sub">
                     We sent a 6-digit OTP to{" "}

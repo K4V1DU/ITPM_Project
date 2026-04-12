@@ -95,40 +95,35 @@ export default function ForgotPasswordOtp() {
       </div>
 
       <div className="reg-wrapper">
+
+        {/* Left panel — no logo, no emojis */}
         <div className="reg-panel reg-panel--left">
-          <div className="reg-brand">
-            <img
-              src="/Images/logo2.png"
-              alt="Bodima Logo"
-              className="reg-brand__logo-img"
-            />
-          </div>
           <div className="reg-panel__content">
             <h1 className="reg-panel__headline">
               Check your<br />inbox.
             </h1>
             <p className="reg-panel__sub">
-              We sent a 6-digit code to your email. Enter it to verify your identity before resetting your password.
+              We sent a 6-digit code to your email. Enter it to verify your
+              identity before resetting your password.
             </p>
-            <div className="reg-panel__pills">
-              <span className="reg-pill">🔒 Secure</span>
-              <span className="reg-pill">⏱ 5 min expiry</span>
-              <span className="reg-pill">✅ One-time code</span>
-            </div>
           </div>
           <div className="reg-panel__footer">© 2026 Unisewana.</div>
         </div>
 
+        {/* Right panel — logo lives here */}
         <div className="reg-panel reg-panel--right">
           <div className="reg-form-wrapper">
 
+            {/* Logo — consistent with Login, Register & ForgotPassword */}
+            <div className="reg-brand">
+              <img
+                src="/Images/logo2.png"
+                alt="UniSewana Logo"
+                className="reg-brand__logo-img"
+              />
+            </div>
+
             <div className="reg-form-header">
-              <div className="otp-icon-wrap">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                  <polyline points="22,6 12,13 2,6"/>
-                </svg>
-              </div>
               <h2 className="reg-form-title">Verify your email</h2>
               <p className="reg-form-sub">
                 We sent a 6-digit code to<br />
@@ -204,6 +199,7 @@ export default function ForgotPasswordOtp() {
             </form>
           </div>
         </div>
+
       </div>
     </div>
   );
