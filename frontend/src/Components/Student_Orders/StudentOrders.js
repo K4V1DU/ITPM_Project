@@ -4,9 +4,9 @@ import {
   FaMotorcycle, FaShoppingBag, FaSpinner,
   FaMapMarkerAlt, FaExclamationTriangle,
   FaCheckCircle, FaUtensils, FaClock,
-  FaTimesCircle, FaSearch, FaSyncAlt,
+  FaTimesCircle, FaSearch, FaFilter,
   FaReceipt, FaBoxOpen, FaExternalLinkAlt,
-  FaPhone,
+  FaPhone, FaChevronDown, FaArrowLeft,
 } from "react-icons/fa";
 import "./StudentOrders.css";
 import StudentNavbar from "../NavBar/Student_NavBar/StudentNavbar";
@@ -46,6 +46,14 @@ const STATUS = {
   cancelled: { bg: "#fef2f2", text: "#b91c1c", dot: "#ef4444", border: "#fecaca", label: "Cancelled" },
 };
 
+const FILTER_OPTIONS = [
+  { value: "all",       label: "All Orders" },
+  { value: "pending",   label: "Pending"    },
+  { value: "accepted",  label: "Accepted"   },
+  { value: "completed", label: "Completed"  },
+  { value: "cancelled", label: "Cancelled"  },
+];
+
 // ─────────────────────────────────────────
 // STATUS BADGE
 // ─────────────────────────────────────────
@@ -60,7 +68,7 @@ function StatusBadge({ status }) {
 }
 
 // ─────────────────────────────────────────
-// ITEM IMAGE — fetches from MenuItem collection
+// ITEM IMAGE
 // ─────────────────────────────────────────
 function ItemImage({ item }) {
   const [imgSrc, setImgSrc] = useState(null);
@@ -97,7 +105,7 @@ function ItemImage({ item }) {
 }
 
 // ─────────────────────────────────────────
-// ORDER ROW — left panel list item
+// ORDER ROW
 // ─────────────────────────────────────────
 function OrderRow({ order, selected, onClick }) {
   const isDelivery = order.orderType === "delivery";
@@ -135,9 +143,9 @@ function OrderRow({ order, selected, onClick }) {
 }
 
 // ─────────────────────────────────────────
-// ORDER DETAIL — right panel
+// ORDER DETAIL
 // ─────────────────────────────────────────
-function OrderDetail({ order, onCancel }) {
+function OrderDetail({ order, onCancel, onBack, isMobile }) {
   if (!order) {
     return (
       <div className="so-detail so-detail--empty">
@@ -147,32 +155,36 @@ function OrderDetail({ order, onCancel }) {
     );
   }
 
-  const isDelivery = order.orderType === "delivery";
-  const kitchen    = order.foodService ?? {};
-  const kitchenImg = kitchen.iconImage ? photoSrc(kitchen.iconImage) : null;
+  const isDelivery  = order.orderType === "delivery";
+  const kitchen     = order.foodService ?? {};
+  const kitchenImg  = kitchen.iconImage ? photoSrc(kitchen.iconImage) : null;
 
-  // Delivery → student's pinned drop-off point (order.location)
-  // Pickup  → kitchen's location (order.foodService.location, populated by backend)
-  const delivLat  = order.location?.coordinates?.[1];
-  const delivLng  = order.location?.coordinates?.[0];
+  const delivLat    = order.location?.coordinates?.[1];
+  const delivLng    = order.location?.coordinates?.[0];
   const kitchCoords = kitchen.location?.coordinates;
-  const kitchLat  = kitchCoords ? kitchCoords[1] : null;
-  const kitchLng  = kitchCoords ? kitchCoords[0] : null;
-  const lat       = isDelivery ? delivLat : kitchLat;
-  const lng       = isDelivery ? delivLng : kitchLng;
-  const showMap   = !!(lat && lng);
-  const mapSrc    = showMap ? `https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed` : null;
-  const mapsLink  = showMap ? `https://www.google.com/maps?q=${lat},${lng}` : null;
+  const kitchLat    = kitchCoords ? kitchCoords[1] : null;
+  const kitchLng    = kitchCoords ? kitchCoords[0] : null;
+  const lat         = isDelivery ? delivLat : kitchLat;
+  const lng         = isDelivery ? delivLng : kitchLng;
+  const showMap     = !!(lat && lng);
+  const mapSrc      = showMap ? `https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed` : null;
+  const mapsLink    = showMap ? `https://www.google.com/maps?q=${lat},${lng}` : null;
 
   return (
     <div className="so-detail">
 
-      {/* ── Order ID ── */}
+      {/* ── Mobile back button ── */}
+      {isMobile && (
+        <button className="so-detail__back-btn" onClick={onBack}>
+          <FaArrowLeft style={{ fontSize: 13 }} />
+          <span>Back to Orders</span>
+        </button>
+      )}
+
       <div className="so-detail__order-id">
         <span className="so-detail__order-id__text">Order ID&nbsp;&nbsp;{order._id}</span>
       </div>
 
-      {/* ── Header: kitchen + status ── */}
       <div className="so-detail__header">
         <div className="so-detail__header-row">
           <div className="so-detail__kitchen">
@@ -218,7 +230,6 @@ function OrderDetail({ order, onCancel }) {
         </div>
       </div>
 
-      {/* ── Status timeline ── */}
       <div className="so-detail__timeline-wrap">
         <div className="so-detail__timeline">
           {["pending","accepted","completed"].map((step, i) => {
@@ -244,7 +255,6 @@ function OrderDetail({ order, onCancel }) {
           })}
         </div>
 
-        {/* Status description + cancel button — same row */}
         {order.status !== "cancelled" && (
           <div className="so-timeline__bottom-row">
             <div className="so-timeline__status-desc">
@@ -283,10 +293,7 @@ function OrderDetail({ order, onCancel }) {
         )}
       </div>
 
-      {/* ── Body ── */}
       <div className="so-detail__body">
-
-        {/* ITEMS */}
         <div className="so-detail__section">
           <div className="so-detail__section-label">Items Ordered</div>
           <div className="so-detail__items">
@@ -302,7 +309,6 @@ function OrderDetail({ order, onCancel }) {
             ))}
           </div>
 
-          {/* Totals */}
           <div className="so-detail__totals">
             <div className="so-detail__total-row">
               <span>Subtotal</span>
@@ -324,7 +330,6 @@ function OrderDetail({ order, onCancel }) {
           </div>
         </div>
 
-        {/* NOTES */}
         {order.notes && (
           <div className="so-detail__section">
             <div className="so-detail__section-label so-detail__section-label--warn">
@@ -334,7 +339,6 @@ function OrderDetail({ order, onCancel }) {
           </div>
         )}
 
-        {/* MAP — delivery shows drop-off pin, pickup shows kitchen location */}
         {showMap && mapSrc && (
           <div className="so-detail__section so-detail__section--map">
             <div className="so-detail__section-label">
@@ -374,7 +378,6 @@ function OrderDetail({ order, onCancel }) {
             )}
           </div>
         )}
-
       </div>
     </div>
   );
@@ -384,7 +387,7 @@ function OrderDetail({ order, onCancel }) {
 // CANCEL MODAL
 // ─────────────────────────────────────────
 function CancelModal({ order, onConfirm, onClose, loading }) {
-  const isPending  = order?.status === "pending";
+  const isPending   = order?.status === "pending";
   const kitchenName = order?.foodService?.kitchenName ?? "the kitchen";
   return (
     <div className="so-overlay" onClick={!loading ? onClose : undefined}>
@@ -428,13 +431,27 @@ export default function StudentOrders() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [statusFilter,  setStatusFilter]  = useState("all");
+  const [filterOpen,    setFilterOpen]    = useState(false);
   const [searchQuery,   setSearchQuery]   = useState("");
   const [lastRefresh,   setLastRefresh]   = useState(Date.now());
   const [toast,         setToast]         = useState({ show: false, msg: "" });
   const [error,         setError]         = useState(null);
   const [cancelModal,   setCancelModal]   = useState(null);
   const [cancelLoading, setCancelLoading] = useState(false);
-  const toastRef = useRef(null);
+
+  // ── Mobile panel state: "list" | "detail" ──
+  const [mobilePanel,   setMobilePanel]   = useState("list");
+  const [isMobile,      setIsMobile]      = useState(window.innerWidth <= 1024);
+
+  const toastRef  = useRef(null);
+  const filterRef = useRef(null);
+
+  // Track mobile breakpoint
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth <= 1024);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
 
   const showToast = (msg) => {
     setToast({ show: true, msg });
@@ -442,10 +459,21 @@ export default function StudentOrders() {
     toastRef.current = setTimeout(() => setToast({ show: false, msg: "" }), 2600);
   };
 
+  // Close filter dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (filterRef.current && !filterRef.current.contains(e.target)) {
+        setFilterOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   // Redirect if not logged in
   useEffect(() => { if (!userId) navigate("/Login"); }, []);
 
-  // Fetch orders by student ID
+  // Fetch orders
   useEffect(() => {
     if (!userId) return;
     setLoadingOrders(true);
@@ -466,6 +494,15 @@ export default function StudentOrders() {
       .finally(() => setLoadingOrders(false));
   }, [userId, lastRefresh]);
 
+  // ── Order row click — open detail (+ switch panel on mobile) ──
+  const handleOrderClick = (order) => {
+    setSelectedOrder(order);
+    if (isMobile) setMobilePanel("detail");
+  };
+
+  // ── Back button (mobile only) ──
+  const handleBack = () => setMobilePanel("list");
+
   const handleCancelRequest = (order) => setCancelModal(order);
 
   const handleCancelConfirm = async () => {
@@ -482,10 +519,7 @@ export default function StudentOrders() {
       setSelectedOrder(prev => prev?._id === cancelModal._id ? { ...prev, status: "cancelled" } : prev);
       showToast("Order cancelled.");
 
-      // ── Notify host: student cancelled the order ──────────────────────────
-      const hostId      = cancelModal.foodService?.owner?._id
-                       ?? cancelModal.foodService?.owner
-                       ?? null;
+      const hostId      = cancelModal.foodService?.owner?._id ?? cancelModal.foodService?.owner ?? null;
       const kitchenName = cancelModal.foodService?.kitchenName ?? "your kitchen";
       if (hostId) {
         sendNotification({
@@ -498,8 +532,6 @@ export default function StudentOrders() {
           refType:   "FoodOrder",
         });
       }
-
-      // ── Notify student: confirmation of their own cancellation ────────────
       if (userId) {
         sendNotification({
           recipient: userId,
@@ -511,7 +543,6 @@ export default function StudentOrders() {
           refType:   "FoodOrder",
         });
       }
-
       setCancelModal(null);
     } catch {
       showToast("Failed to cancel. Please try again.");
@@ -529,7 +560,8 @@ export default function StudentOrders() {
     return matchStatus && matchSearch;
   });
 
-  const TABS = ["all", "pending", "accepted", "completed", "cancelled"];
+  const activeFilterLabel = FILTER_OPTIONS.find(f => f.value === statusFilter)?.label ?? "All Orders";
+  const isFiltered = statusFilter !== "all" || searchQuery;
 
   return (
     <div className="so-page" style={{ fontFamily: FONT }}>
@@ -537,50 +569,92 @@ export default function StudentOrders() {
       <StudentNavbar activeTab="Orders" />
 
       <div className="so-wrapper">
-
-        {/* ── Title bar ── */}
-        <div className="so-titlebar">
-          <div className="so-titlebar__left">
-            <h1 className="so-titlebar__title">My Orders</h1>
-            <span className="so-titlebar__count">{orders.length} orders</span>
-          </div>
-          <button className="so-btn-refresh" onClick={() => setLastRefresh(Date.now())}>
-            <FaSyncAlt /> Refresh
-          </button>
-        </div>
-
-        {/* ── Status tabs ── */}
-        <div className="so-tabs">
-          {TABS.map(s => (
-            <button
-              key={s}
-              className={`so-tab${statusFilter === s ? " so-tab--active" : ""}`}
-              onClick={() => setStatusFilter(s)}
-            >
-              {s === "all" ? "All Orders" : s.charAt(0).toUpperCase() + s.slice(1)}
-              <span className="so-tab__count">
-                {s === "all" ? orders.length : orders.filter(o => o.status === s).length}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* ── Split panel ── */}
         <div className="so-split">
 
           {/* LEFT — order list */}
-          <div className="so-split__left">
+          <div className={`so-split__left${isMobile && mobilePanel === "detail" ? " so-split__left--hidden" : ""}`}>
 
-            {/* Search */}
-            <div className="so-search-wrap">
-              <FaSearch className="so-search-wrap__icon" />
-              <input
-                className="so-search"
-                placeholder="Search by kitchen or item name…"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-              />
+            {/* ── Search + Filter bar ── */}
+            <div className="so-searchbar">
+              <div className="so-search-wrap">
+                <FaSearch className="so-search-wrap__icon" />
+                <input
+                  className="so-search"
+                  placeholder="Search orders…"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <button className="so-search-clear" onClick={() => setSearchQuery("")}>
+                    <FaTimesCircle />
+                  </button>
+                )}
+              </div>
+
+              {/* Filter dropdown */}
+              <div className="so-filter" ref={filterRef}>
+                <button
+                  className={`so-filter__btn${statusFilter !== "all" ? " so-filter__btn--active" : ""}`}
+                  onClick={() => setFilterOpen(prev => !prev)}
+                >
+                  <FaFilter style={{ fontSize: 11 }} />
+                  <span className="so-filter__label">{activeFilterLabel}</span>
+                  <FaChevronDown className={`so-filter__chevron${filterOpen ? " so-filter__chevron--open" : ""}`} />
+                </button>
+
+                {filterOpen && (
+                  <div className="so-filter__dropdown">
+                    {FILTER_OPTIONS.map(opt => {
+                      const count = opt.value === "all"
+                        ? orders.length
+                        : orders.filter(o => o.status === opt.value).length;
+                      const s = STATUS[opt.value];
+                      return (
+                        <button
+                          key={opt.value}
+                          className={`so-filter__option${statusFilter === opt.value ? " so-filter__option--active" : ""}`}
+                          onClick={() => { setStatusFilter(opt.value); setFilterOpen(false); }}
+                        >
+                          <span className="so-filter__option-left">
+                            {s && <span className="so-filter__dot" style={{ background: s.dot }} />}
+                            {opt.label}
+                          </span>
+                          <span className={`so-filter__count${statusFilter === opt.value ? " so-filter__count--active" : ""}`}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Active filter pills */}
+            {isFiltered && (
+              <div className="so-active-filters">
+                {statusFilter !== "all" && (
+                  <span className="so-filter-pill">
+                    {activeFilterLabel}
+                    <button className="so-filter-pill__remove" onClick={() => setStatusFilter("all")}>
+                      <FaTimesCircle />
+                    </button>
+                  </span>
+                )}
+                {searchQuery && (
+                  <span className="so-filter-pill">
+                    "{searchQuery}"
+                    <button className="so-filter-pill__remove" onClick={() => setSearchQuery("")}>
+                      <FaTimesCircle />
+                    </button>
+                  </span>
+                )}
+                <button className="so-filter-clear-all"
+                  onClick={() => { setStatusFilter("all"); setSearchQuery(""); }}>
+                  Clear all
+                </button>
+              </div>
+            )}
 
             {/* Error */}
             {error && (
@@ -609,14 +683,14 @@ export default function StudentOrders() {
               <div className="so-empty">
                 <FaBoxOpen className="so-empty__icon" />
                 <div className="so-empty__title">
-                  {searchQuery || statusFilter !== "all" ? "No matching orders" : "No orders yet"}
+                  {isFiltered ? "No matching orders" : "No orders yet"}
                 </div>
                 <div className="so-empty__sub">
-                  {searchQuery || statusFilter !== "all"
+                  {isFiltered
                     ? "Try adjusting your search or filter"
                     : "Your food orders will appear here once you place one"}
                 </div>
-                {(searchQuery || statusFilter !== "all") && (
+                {isFiltered && (
                   <button className="so-empty__clear"
                     onClick={() => { setSearchQuery(""); setStatusFilter("all"); }}>
                     Clear filters
@@ -631,14 +705,19 @@ export default function StudentOrders() {
                 key={order._id}
                 order={order}
                 selected={selectedOrder?._id === order._id}
-                onClick={() => setSelectedOrder(order)}
+                onClick={() => handleOrderClick(order)}
               />
             ))}
           </div>
 
           {/* RIGHT — detail */}
-          <div className="so-split__right">
-            <OrderDetail order={selectedOrder} onCancel={handleCancelRequest} />
+          <div className={`so-split__right${isMobile && mobilePanel === "list" ? " so-split__right--hidden" : ""}`}>
+            <OrderDetail
+              order={selectedOrder}
+              onCancel={handleCancelRequest}
+              onBack={handleBack}
+              isMobile={isMobile}
+            />
           </div>
 
         </div>
@@ -646,10 +725,8 @@ export default function StudentOrders() {
 
       <Footer />
 
-      {/* Toast */}
       <div className={`so-toast${toast.show ? " so-toast--visible" : ""}`}>{toast.msg}</div>
 
-      {/* Cancel modal */}
       {cancelModal && (
         <CancelModal
           order={cancelModal}
