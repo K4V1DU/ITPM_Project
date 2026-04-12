@@ -2,7 +2,6 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import "./Register.css";
-//import "./OtpVerify.css";
 
 const API_BASE = process.env.REACT_APP_API_BASE_URL;
 const STEPS = { FORM: "form", OTP: "otp", DONE: "done" };
@@ -20,7 +19,6 @@ export default function Register() {
   const [showPass,        setShowPass]        = useState(false);
   const [showConfirm,     setShowConfirm]     = useState(false);
 
-  // OTP — 6 boxes
   const [digits,      setDigits]      = useState(["", "", "", "", "", ""]);
   const [otpError,    setOtpError]    = useState("");
   const [otpVerified, setOtpVerified] = useState(false);
@@ -66,7 +64,6 @@ export default function Register() {
     return errs;
   };
 
-  // ── OTP box handlers ──────────────────────────────────────────────
   const handleDigitChange = (index, value) => {
     if (!/^\d?$/.test(value)) return;
     const next = [...digits];
@@ -91,7 +88,6 @@ export default function Register() {
     inputRefs.current[Math.min(pasted.length, 5)]?.focus();
   };
 
-  // ── Step 1: Send OTP ──────────────────────────────────────────────
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setServerError("");
@@ -113,7 +109,6 @@ export default function Register() {
     }
   };
 
-  // ── Step 2: Verify OTP + Register ────────────────────────────────
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setOtpError("");
@@ -151,7 +146,6 @@ export default function Register() {
     }
   };
 
-  // ── Resend OTP ────────────────────────────────────────────────────
   const handleResend = async () => {
     setOtpError("");
     setOtpVerified(false);
@@ -176,29 +170,27 @@ export default function Register() {
       </div>
 
       <div className="reg-wrapper">
-        {/* Left panel */}
+
+        {/* Left panel — brand only, no logo */}
         <div className="reg-panel reg-panel--left">
-          <div className="reg-brand">
-            <img src="/Images/logo2.png" alt="UniSewana Logo" className="reg-brand__logo-img" />
-          </div>
           <div className="reg-panel__content">
             <h1 className="reg-panel__headline">Join the<br />community.</h1>
             <p className="reg-panel__sub">
               Create your account and connect with boardings, food services, and
               everything a SLIIT student needs — all in one place.
             </p>
-            <div className="reg-panel__pills">
-              <span className="reg-pill">🏠 Boardings</span>
-              <span className="reg-pill">🍽️ Food Services</span>
-              <span className="reg-pill">✨ Experiences</span>
-            </div>
           </div>
           <div className="reg-panel__footer">© 2026 Unisewana.</div>
         </div>
 
-        {/* Right panel */}
+        {/* Right panel — logo lives here */}
         <div className="reg-panel reg-panel--right">
           <div className="reg-form-wrapper">
+
+            {/* Logo — mirrors Login layout */}
+            <div className="reg-brand">
+              <img src="/Images/logo2.png" alt="UniSewana Logo" className="reg-brand__logo-img" />
+            </div>
 
             {/* SUCCESS */}
             {step === STEPS.DONE && (
@@ -235,7 +227,6 @@ export default function Register() {
                     </div>
                   )}
 
-                  {/* 6 digit boxes */}
                   <div className="otp-boxes" onPaste={handlePaste}>
                     {digits.map((d, i) => (
                       <input
@@ -296,7 +287,6 @@ export default function Register() {
                         <button key={r} type="button"
                           className={`reg-role-btn${role === r ? " reg-role-btn--active" : ""}`}
                           onClick={() => { setRole(r); setEmail(""); setErrors({}); }}>
-                          <span className="reg-role-btn__icon">{r === "student" ? "🎓" : "🏠"}</span>
                           <span>{r === "student" ? "Student" : "Host"}</span>
                         </button>
                       ))}
@@ -463,6 +453,7 @@ export default function Register() {
                 </form>
               </>
             )}
+
           </div>
         </div>
       </div>

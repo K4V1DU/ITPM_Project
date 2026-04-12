@@ -63,12 +63,12 @@
 /* ── Panels ──────────────────────────────────────────────────────────────── */
 .reg-panel { display: flex; flex-direction: column; }
 
-/* Left */
+/* Left — orange brand panel (no logo, mirrors Login left panel) */
 .reg-panel--left {
-  width: 38%;
+  width: 42%;
   background: linear-gradient(145deg, #c8541a 0%, #e67e22 50%, #f0a04b 100%);
   color: #fff;
-  padding: 48px 48px;
+  padding: 48px 52px;
   justify-content: space-between;
   position: relative;
   overflow: hidden;
@@ -81,74 +81,62 @@
   pointer-events: none;
 }
 
-/* Right */
+/* Right — form panel */
 .reg-panel--right {
   flex: 1;
   background: rgba(255, 252, 247, 0.9);
   backdrop-filter: blur(20px);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding: 40px 32px;
+  padding: 48px 32px;
   overflow-y: auto;
 }
 
-/* ── Brand ───────────────────────────────────────────────────────────────── */
-/* Logo image */
+/* ── Left panel content ──────────────────────────────────────────────────── */
+.reg-panel__content {
+  animation: fadeSlideUp 0.7s 0.15s ease both;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+.reg-panel__headline {
+  font-family: 'Fraunces', serif;
+  font-size: 54px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #fff;
+  margin-bottom: 20px;
+  letter-spacing: -1.5px;
+}
+.reg-panel__sub {
+  font-size: 15px;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 320px;
+}
+.reg-panel__footer {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  animation: fadeSlideUp 0.7s 0.3s ease both;
+}
+
+/* ── Brand / Logo (right panel — same as Login) ──────────────────────────── */
+.reg-brand {
+  display: flex;
+  align-items: center;
+  margin-bottom: 32px;
+  animation: fadeSlideDown 0.6s ease both;
+}
 .reg-brand__logo-img {
-  height: 56px;
+  height: 52px;
   width: auto;
   object-fit: contain;
 }
 
-
-.reg-brand {
-  display: flex; align-items: center; gap: 12px;
-  animation: fadeSlideDown 0.6s ease both;
-}
-.reg-brand__logo {
-  width: 44px; height: 44px;
-  background: rgba(255,255,255,0.25);
-  border: 2px solid rgba(255,255,255,0.5);
-  border-radius: 12px;
-  display: flex; align-items: center; justify-content: center;
-  font-family: 'Fraunces', serif;
-  font-size: 22px; font-weight: 700; color: #fff;
-}
-.reg-brand__name {
-  font-family: 'Fraunces', serif;
-  font-size: 22px; font-weight: 600; color: #fff;
-  letter-spacing: -0.5px;
-}
-
-/* Left content */
-.reg-panel__content { animation: fadeSlideUp 0.7s 0.15s ease both; }
-.reg-panel__headline {
-  font-family: 'Fraunces', serif;
-  font-size: 48px; font-weight: 700; line-height: 1.1;
-  color: #fff; margin-bottom: 20px; letter-spacing: -1.5px;
-}
-.reg-panel__sub {
-  font-size: 14px; line-height: 1.65;
-  color: rgba(255,255,255,0.82);
-  max-width: 300px; margin-bottom: 32px;
-}
-.reg-panel__pills { display: flex; flex-wrap: wrap; gap: 10px; }
-.reg-pill {
-  background: rgba(255,255,255,0.18);
-  border: 1.5px solid rgba(255,255,255,0.35);
-  color: #fff; padding: 7px 16px; border-radius: 20px;
-  font-size: 13px; font-weight: 500;
-  backdrop-filter: blur(4px);
-}
-.reg-panel__footer {
-  font-size: 12px; color: rgba(255,255,255,0.5);
-  animation: fadeSlideUp 0.7s 0.3s ease both;
-}
-
 /* ── Form wrapper ────────────────────────────────────────────────────────── */
 .reg-form-wrapper {
-  width: 100%; max-width: 480px;
+  width: 100%;
+  max-width: 480px;
   animation: fadeSlideUp 0.7s 0.1s ease both;
   padding: 8px 0;
 }
@@ -175,7 +163,7 @@
 }
 .reg-role-btn {
   flex: 1;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
+  display: flex; align-items: center; justify-content: center;
   padding: 12px 16px;
   border: 2px solid #e0d8cf;
   border-radius: 11px;
@@ -185,13 +173,12 @@
   cursor: pointer;
   transition: all 0.2s;
 }
-.reg-role-btn__icon { font-size: 18px; }
 .reg-role-btn--active {
   border-color: #e67e22;
   background: #fff7f0;
   color: #c8541a;
   font-weight: 600;
-  box-shadow: 0 0 0 3px rgba(230,126,34,0.1);
+  box-shadow: 0 0 0 3px rgba(230, 126, 34, 0.1);
 }
 .reg-role-btn:hover:not(.reg-role-btn--active) { border-color: #c8b4a0; }
 
@@ -222,13 +209,13 @@
   position: relative; display: flex; align-items: center;
 }
 .reg-input-icon {
-  position: absolute; left: 13px;
+  position: absolute; left: 14px;
   color: #aaa; display: flex; align-items: center;
   pointer-events: none; font-size: 13px;
 }
 .reg-input {
   width: 100%;
-  padding: 12px 12px 12px 40px;
+  padding: 13px 14px 13px 42px;
   font-size: 14px; font-family: 'DM Sans', sans-serif;
   border: 1.5px solid #e0d8cf;
   border-radius: 11px; outline: none;
@@ -237,7 +224,7 @@
 }
 .reg-input:focus {
   border-color: #e67e22;
-  box-shadow: 0 0 0 3px rgba(230,126,34,0.12);
+  box-shadow: 0 0 0 3px rgba(230, 126, 34, 0.12);
 }
 .reg-input--error {
   border-color: #fca5a5 !important;
@@ -245,17 +232,9 @@
 }
 .reg-input::placeholder { color: #bbb; }
 
-/* OTP input */
-.reg-input--otp {
-  text-align: center;
-  font-size: 22px; font-weight: 700;
-  letter-spacing: 10px;
-  padding-left: 40px;
-}
-
 /* show/hide pass */
 .reg-show-pass {
-  position: absolute; right: 12px;
+  position: absolute; right: 13px;
   background: none; border: none; cursor: pointer;
   color: #aaa; display: flex; align-items: center;
   padding: 4px; transition: color 0.2s;
@@ -303,6 +282,42 @@
   40%,80%  { transform: translateX(6px); }
 }
 
+/* ── OTP boxes ───────────────────────────────────────────────────────────── */
+.otp-icon-wrap {
+  width: 52px; height: 52px;
+  background: #fff7f0;
+  border: 1.5px solid #f0d8c0;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  color: #e67e22;
+  margin-bottom: 16px;
+}
+.otp-email-highlight { color: #c8541a; }
+.otp-boxes {
+  display: flex; gap: 10px; justify-content: center;
+  margin: 8px 0 4px;
+}
+.otp-box {
+  width: 48px; height: 56px;
+  text-align: center;
+  font-size: 22px; font-weight: 700;
+  font-family: 'DM Sans', sans-serif;
+  border: 1.5px solid #e0d8cf;
+  border-radius: 11px;
+  outline: none;
+  background: #fff; color: #1a1a1a;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  caret-color: #e67e22;
+}
+.otp-box:focus {
+  border-color: #e67e22;
+  box-shadow: 0 0 0 3px rgba(230, 126, 34, 0.12);
+}
+.otp-box--filled {
+  border-color: #e67e22;
+  background: #fff7f0;
+}
+
 /* ── Submit button ───────────────────────────────────────────────────────── */
 .reg-btn {
   width: 100%; padding: 14px;
@@ -314,17 +329,17 @@
   transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
   display: flex; align-items: center; justify-content: center;
   min-height: 50px;
-  box-shadow: 0 4px 14px rgba(230,126,34,0.35);
+  box-shadow: 0 4px 14px rgba(230, 126, 34, 0.35);
 }
 .reg-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(230,126,34,0.45);
+  box-shadow: 0 6px 20px rgba(230, 126, 34, 0.45);
 }
 .reg-btn:active:not(:disabled) { transform: translateY(0); }
 .reg-btn:disabled { opacity: 0.7; cursor: not-allowed; }
 .reg-btn__spinner {
   width: 20px; height: 20px; border-radius: 50%;
-  border: 3px solid rgba(255,255,255,0.35);
+  border: 3px solid rgba(255, 255, 255, 0.35);
   border-top-color: #fff;
   animation: spin 0.7s linear infinite;
 }
@@ -353,7 +368,7 @@
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 28px; color: #fff; margin: 0 auto 20px;
-  box-shadow: 0 8px 24px rgba(230,126,34,0.4);
+  box-shadow: 0 8px 24px rgba(230, 126, 34, 0.4);
 }
 .reg-success h2 {
   font-family: 'Fraunces', serif;
@@ -371,17 +386,108 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Responsive ──────────────────────────────────────────────────────────── */
-@media (max-width: 860px) {
-  .reg-wrapper { flex-direction: column; }
-  .reg-panel--left { width: 100%; padding: 32px 24px 36px; }
-  .reg-panel__headline { font-size: 36px; }
-  .reg-panel--right { padding: 36px 20px; }
-  .reg-row { grid-template-columns: 1fr; }
+/* ── Tablet (mirrors Login.css) ──────────────────────────────────────────── */
+@media (max-width: 820px) {
+  .reg-wrapper {
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .reg-panel--left {
+    width: 100%;
+    padding: 32px 24px 28px;
+    justify-content: flex-start;
+    flex: 0 0 auto;
+  }
+
+  .reg-panel__content {
+    margin: 0;
+  }
+
+  .reg-panel__headline {
+    font-size: 48px;
+    margin-bottom: 14px;
+  }
+
+  .reg-panel__sub {
+    font-size: 15px;
+    max-width: 100%;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .reg-panel__footer {
+    display: none;
+  }
+
+  .reg-panel--right {
+    flex: 1;
+    padding: 32px 24px 40px;
+    align-items: flex-start;
+  }
+
+  .reg-form-wrapper {
+    max-width: 100%;
+  }
+
+  .reg-brand {
+    margin-bottom: 24px;
+  }
+
+  .reg-brand__logo-img {
+    height: 44px;
+  }
 }
+
+/* ── Mobile (mirrors Login.css) ──────────────────────────────────────────── */
 @media (max-width: 480px) {
-  .reg-panel--left { padding: 24px 18px 28px; }
-  .reg-panel__headline { font-size: 30px; }
-  .reg-panel--right { padding: 28px 16px; }
-  .reg-form-title { font-size: 24px; }
+  .reg-panel--left {
+    padding: 26px 20px 24px;
+  }
+
+  .reg-panel__headline {
+    font-size: 38px;
+    margin-bottom: 10px;
+  }
+
+  .reg-panel__sub {
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .reg-panel--right {
+    padding: 28px 20px 36px;
+  }
+
+  .reg-brand__logo-img {
+    height: 40px;
+    margin-bottom: 20px;
+  }
+
+  .reg-input {
+    font-size: 16px;
+    padding: 12px 14px 12px 42px;
+  }
+
+  .reg-btn {
+    font-size: 15px;
+    min-height: 48px;
+  }
+
+  .reg-form {
+    gap: 14px;
+  }
+
+  .reg-row {
+    grid-template-columns: 1fr;
+  }
+
+  .otp-box {
+    width: 42px;
+    height: 50px;
+    font-size: 20px;
+  }
+
+  .otp-boxes {
+    gap: 7px;
+  }
 }
