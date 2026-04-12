@@ -164,7 +164,7 @@
   border-radius:   var(--up-radius);
   box-shadow:      var(--up-shadow-md);
   border:          1px solid rgba(224,216,207,.6);
-  overflow:        hidden;
+  overflow:        visible;
   animation:       fadeSlideUp .6s ease both;
 }
 @keyframes fadeSlideUp {
