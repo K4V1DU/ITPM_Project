@@ -296,6 +296,28 @@
   z-index: 1;
 }
 
+/* Back button — hidden on desktop, shown on mobile */
+.msg-chat__back-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  color: var(--msg-orange);
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  padding: 0;
+  margin-left: -4px;
+}
+.msg-chat__back-btn:hover {
+  background: rgba(255, 107, 43, 0.1);
+}
+
 .msg-chat__header-info {
   display: flex;
   flex-direction: column;
@@ -352,12 +374,11 @@
   text-align: center;
   font-size: 12px;
   color: var(--msg-mid);
-  padding: 8px 0;
+  padding: 4px 16px;
   background: rgba(255,255,255,0.7);
   border-radius: 20px;
   margin-bottom: 8px;
   align-self: center;
-  padding: 4px 16px;
 }
 
 /* ── Date divider ── */
@@ -413,7 +434,7 @@
   font-size: 14px;
   line-height: 1.5;
   display: block;
-  padding-right: 48px; /* room for timestamp */
+  padding-right: 48px;
 }
 .msg-bubble__meta {
   display: flex;
@@ -580,15 +601,70 @@
 .msg-conv-menu__item--danger       { color: #dc2626; }
 .msg-conv-menu__item--danger:hover { background: #fff5f5; }
 
-/* ── Responsive ── */
+/* ══════════════════════════════════════
+   MOBILE — WhatsApp-style slide panels
+══════════════════════════════════════ */
 @media (max-width: 768px) {
+  /* The layout becomes a horizontal track twice the viewport width.
+     Both panels sit side by side; we translate to show one at a time. */
   .msg-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: 100vw 100vw;
+    width: 200vw;
+    /* default: show sidebar (translateX 0) */
+    transform: translateX(0);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: visible; /* children handle their own overflow */
   }
+
+  /* When chat panel is active, slide the whole track left by 100vw */
+  .msg-layout[data-mobile-panel="chat"] {
+    transform: translateX(-100vw);
+  }
+
+  /* Each panel fills the viewport */
+  .msg-sidebar,
+  .msg-chat {
+    width: 100vw;
+    max-width: 100vw;
+    overflow: hidden;
+  }
+
+  /* Re-enable sidebar (it was display:none before) */
   .msg-sidebar {
-    display: none;
+    display: flex;
   }
+
+  /* Show the back arrow button in the chat header */
+  .msg-chat__back-btn {
+    display: flex;
+  }
+
+  /* Slightly tighten body padding on small screens */
   .msg-chat__body {
     padding: 12px 4% 8px;
+  }
+
+  /* Wider bubbles on narrow screens */
+  .msg-bubble {
+    max-width: 80%;
+  }
+}
+
+/* ── Extra small screens (< 400px) ── */
+@media (max-width: 400px) {
+  .msg-chat__input-bar {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .msg-chat__input {
+    padding: 9px 14px;
+    font-size: 13px;
+  }
+  .msg-chat__send-btn {
+    width: 40px;
+    height: 40px;
+  }
+  .msg-bubble__text {
+    font-size: 13px;
   }
 }

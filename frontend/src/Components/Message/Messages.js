@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import {
   FaSearch, FaPaperPlane, FaEllipsisV,
   FaTrash, FaCheckDouble, FaCheck,
-  FaChevronDown, FaUser,
+  FaChevronDown, FaUser, FaArrowLeft,
 } from "react-icons/fa";
 import "./Messages.css";
 import StudentNavbar from "../NavBar/Student_NavBar/StudentNavbar";
@@ -77,7 +77,6 @@ function ConversationItem({ conv, currentUserId, isActive, onClick, onDelete }) 
   const longPressTimer = useRef(null);
   const menuRef        = useRef(null);
 
-  // Close menu on outside click
   useEffect(() => {
     if (!showMenu) return;
     const h = (e) => {
@@ -117,7 +116,6 @@ function ConversationItem({ conv, currentUserId, isActive, onClick, onDelete }) 
         </div>
       </div>
 
-      {/* Long press context menu */}
       {showMenu && (
         <div className="msg-conv-menu" ref={menuRef} onClick={e => e.stopPropagation()}>
           <button
@@ -172,7 +170,6 @@ export default function Messages() {
   const location      = useLocation();
   const currentUserId = localStorage.getItem("CurrentUserId") ?? "";
 
-  // Read once on mount — never re-read from location.state again
   const autoOpenIdRef = useRef(location.state?.openConversationId ?? null);
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -189,6 +186,8 @@ export default function Messages() {
   const [menuOpenId,        setMenuOpenId]        = useState(null);
   const [showScrollBtn,     setShowScrollBtn]     = useState(false);
   const [currentUser,       setCurrentUser]       = useState(null);
+  // NEW: tracks which panel is visible on mobile ("sidebar" | "chat")
+  const [mobilePanel,       setMobilePanel]       = useState("sidebar");
 
   const messagesEndRef  = useRef(null);
   const messagesBodyRef = useRef(null);
@@ -222,7 +221,7 @@ export default function Messages() {
     if (!targetId || conversations.length === 0) return;
     const conv = conversations.find(c => c._id === targetId);
     if (conv) {
-      autoOpenIdRef.current = null; // clear so polling never triggers this again
+      autoOpenIdRef.current = null;
       window.history.replaceState({}, "", window.location.pathname);
       openConversation(conv);
     }
@@ -260,6 +259,7 @@ export default function Messages() {
       if (activeConv?._id === convId) {
         setActiveConv(null);
         setMessages([]);
+        setMobilePanel("sidebar"); // go back to list on mobile
       }
     } catch { /* silent */ }
   };
@@ -271,16 +271,15 @@ export default function Messages() {
     setPage(1);
     setHasMore(true);
     setMenuOpenId(null);
+    setMobilePanel("chat"); // slide to chat panel on mobile
     await fetchMessages(conv._id, 1, false);
 
-    // Mark as read
     await fetch(`${API_BASE}/message/read/${conv._id}`, {
       method:  "PUT",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify({ userId: currentUserId }),
     }).catch(() => {});
 
-    // Update unread count locally
     setConversations(prev => prev.map(c =>
       c._id === conv._id
         ? { ...c, unreadCount: { ...c.unreadCount, [currentUserId]: 0 } }
@@ -288,6 +287,11 @@ export default function Messages() {
     ));
 
     inputRef.current?.focus();
+  };
+
+  // ── Back to sidebar (mobile) ───────────────────────────────────────────────
+  const handleBackToSidebar = () => {
+    setMobilePanel("sidebar");
   };
 
   // ── Send message ───────────────────────────────────────────────────────────
@@ -298,7 +302,6 @@ export default function Messages() {
     setInput("");
     setSendingMsg(true);
 
-    // Optimistic message
     const optimistic = {
       _id:       `opt_${Date.now()}`,
       content:   text,
@@ -319,17 +322,14 @@ export default function Messages() {
       const raw  = await res.json();
       const sent = unwrap(raw);
 
-      // Replace optimistic with real message
       setMessages(prev => prev.map(m => m._id === optimistic._id ? sent : m));
 
-      // Update conversation preview
       setConversations(prev => prev.map(c =>
         c._id === activeConv._id
           ? { ...c, lastMessage: { content: text, sender: currentUserId, createdAt: sent.createdAt } }
           : c
       ).sort((a, b) => new Date(b.lastMessage?.createdAt ?? 0) - new Date(a.lastMessage?.createdAt ?? 0)));
     } catch {
-      // Remove optimistic on failure
       setMessages(prev => prev.filter(m => m._id !== optimistic._id));
       setInput(text);
     } finally {
@@ -383,7 +383,6 @@ export default function Messages() {
           }
           return prev;
         });
-        // Refresh inbox unread counts
         fetchConversations();
       } catch { /* silent */ }
     }, 3000);
@@ -421,11 +420,14 @@ export default function Messages() {
         : <StudentNavbar />
       }
 
-      <div className="msg-layout">
+      {/*
+        msg-layout now uses a sliding approach on mobile.
+        data-panel="sidebar" | "chat" drives the CSS transform.
+      */}
+      <div className="msg-layout" data-mobile-panel={mobilePanel}>
 
         {/* ══ LEFT: Conversations ══ */}
         <aside className="msg-sidebar">
-          {/* Sidebar header */}
           <div className="msg-sidebar__header">
             <div className="msg-sidebar__title-row">
               <div className="msg-sidebar__user">
@@ -447,7 +449,6 @@ export default function Messages() {
             </div>
           </div>
 
-          {/* Conversation list */}
           <div className="msg-sidebar__list">
             {loadingConvs ? (
               Array.from({ length: 4 }).map((_, i) => (
@@ -489,8 +490,15 @@ export default function Messages() {
             </div>
           ) : (
             <>
-              {/* Chat header */}
+              {/* Chat header — back arrow only visible on mobile */}
               <div className="msg-chat__header">
+                <button
+                  className="msg-chat__back-btn"
+                  onClick={handleBackToSidebar}
+                  aria-label="Back to conversations"
+                >
+                  <FaArrowLeft />
+                </button>
                 <Avatar user={otherUser} size={40} />
                 <div className="msg-chat__header-info">
                   <span className="msg-chat__header-name">{otherUser?.name ?? "User"}</span>
@@ -538,7 +546,6 @@ export default function Messages() {
                   </>
                 )}
 
-                {/* Scroll to bottom button */}
                 {showScrollBtn && (
                   <button className="msg-scroll-btn"
                     onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })}>
