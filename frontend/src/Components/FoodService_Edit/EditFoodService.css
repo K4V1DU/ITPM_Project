@@ -172,12 +172,6 @@ body {
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
-  /* Push content below the 80px icon circle that overflows 38px below cover.
-     Icon bottom = cover bottom + 38px; icon is 80px tall so top of icon = cover bottom - 42px.
-     The card starts at cover bottom, so icon top relative to card = -42px.
-     Icon extends to +38px below cover = 38px into card.
-     With 4px border the circle visually ends at ~42px into the card.
-     We add ~54px top padding to give 12px breathing room below the icon. */
   padding-top: 54px;
 }
 
@@ -205,7 +199,6 @@ body {
   padding: 6px 13px; border-radius: 50px;
   font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
   transition: all 0.15s; white-space: nowrap; flex-shrink: 0;
-  /* Keep the edit button from overlapping the icon area */
   margin-top: 54px;
 }
 .efs-edit-btn:hover { background: #FF6B2B; color: #fff; border-color: #FF6B2B; }
@@ -245,16 +238,8 @@ body {
 /* ── Inline form (edit mode) ─────────────────────────────────────────────────── */
 .efs-inline-form { animation: expandIn 0.22s ease; }
 
-/*
- * When the inline form is inside the very first section (details), the icon
- * circle overlaps the top of the card. Add enough padding-top so the title
- * row appears below the icon circle.
- * Icon circle bottom edge relative to card top ≈ 38px (overflow) + 4px border = ~42px
- * Add 12px breathing room → 54px total.
- */
 .efs-inline-form--has-icon { padding-top: 54px; }
 
-/* Title row — no cancel button here any more */
 .efs-inline-form-title-row {
   margin-bottom: 18px;
 }
@@ -276,7 +261,6 @@ body {
   background: none; border: none; cursor: pointer;
   font-size: 13px; font-weight: 700; color: #888;
   font-family: inherit; padding: 0; transition: color 0.15s;
-  /* Give it a pill shape to match the save button visually */
   padding: 9px 16px;
   border-radius: 10px;
   border: 1.5px solid #e8e8e8;
@@ -431,11 +415,10 @@ body {
   width: 100%; max-width: 480px; max-height: 90vh;
   overflow-y: auto; box-shadow: 0 24px 60px rgba(0,0,0,0.16);
   animation: modalSlide 0.22s ease;
-  /* ── Hide scrollbar everywhere ── */
-  scrollbar-width: none;        /* Firefox */
-  -ms-overflow-style: none;     /* IE / Edge */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-.efs-modal::-webkit-scrollbar { display: none; }  /* Chrome / Safari / Opera */
+.efs-modal::-webkit-scrollbar { display: none; }
 
 .efs-modal--wide { max-width: 620px; }
 
@@ -625,6 +608,19 @@ body {
   .efs-divider         { margin: 0 16px; }
   .efs-menu-header     { padding: 14px 16px 12px; }
   .efs-menu-item       { padding: 12px 16px; }
+
+  /* ── Toggle below edit/delete on mobile ── */
+  .efs-menu-item-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 76px;   /* fits both 32px buttons + 8px gap on one line */
+    gap: 6px;
+  }
+  /* Edit + Delete buttons stay on the first row */
+  .efs-menu-action-btn { order: 1; }
+  /* Toggle drops to the second row, right-aligned */
+  .efs-menu-item-actions .efs-toggle { order: 2; }
+
   .efs-row             { grid-template-columns: 1fr; }
   .efs-hours-row       { flex-direction: column; gap: 6px; }
   .efs-hours-row .efs-field { flex: none; width: 100%; }
