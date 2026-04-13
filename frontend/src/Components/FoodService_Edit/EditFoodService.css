@@ -209,7 +209,6 @@ body {
 .efs-info-icon { color: #888; flex-shrink: 0; }
 .efs-info-text { font-size: 14px; font-weight: 600; color: #333; line-height: 1.5; }
 
-/* ── info-row edit btn — no top offset needed ────────────────────────────────── */
 .efs-info-row .efs-edit-btn { margin-top: 0; }
 
 /* ── Toggle switches ─────────────────────────────────────────────────────────── */
@@ -240,13 +239,10 @@ body {
 
 .efs-inline-form--has-icon { padding-top: 54px; }
 
-.efs-inline-form-title-row {
-  margin-bottom: 18px;
-}
+.efs-inline-form-title-row { margin-bottom: 18px; }
 
 .efs-inline-form-title { font-size: 14px; font-weight: 800; color: #1b1b1b; }
 
-/* ── Bottom-right footer row (Cancel + Save) ─────────────────────────────────── */
 .efs-inline-form-footer {
   display: flex;
   align-items: center;
@@ -258,14 +254,15 @@ body {
 }
 
 .efs-cancel-link {
-  background: none; border: none; cursor: pointer;
-  font-size: 13px; font-weight: 700; color: #888;
-  font-family: inherit; padding: 0; transition: color 0.15s;
+  background: #f5f5f7;
+  border: 1.5px solid #e8e8e8;
+  color: #555;
+  cursor: pointer;
+  font-size: 13px; font-weight: 700;
+  font-family: inherit;
   padding: 9px 16px;
   border-radius: 10px;
-  border: 1.5px solid #e8e8e8;
-  background: #f5f5f7;
-  color: #555;
+  transition: all 0.15s;
 }
 .efs-cancel-link:hover { background: #1b1b1b; color: #fff; border-color: #1b1b1b; }
 
@@ -336,38 +333,23 @@ body {
 }
 
 .efs-menu-item-meta {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 3px;
+  display: flex; align-items: center; gap: 5px; margin-top: 3px;
 }
 
-.efs-meta-clock {
-  color: #aaa;
-  flex-shrink: 0;
-}
+.efs-meta-clock { color: #aaa; flex-shrink: 0; }
 
-.efs-meta-hours {
-  font-size: 12px;
-  font-weight: 600;
-  color: #888;
-}
+.efs-meta-hours { font-size: 12px; font-weight: 600; color: #888; }
+
 .efs-menu-item-desc {
-  font-size: 12px;
-  font-weight: 500;
-  color: #999;
-  line-height: 1.5;
-  margin-top: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 12px; font-weight: 500; color: #999;
+  line-height: 1.5; margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+
 .efs-meta-price {
-  font-size: 13px;
-  font-weight: 800;
-  color: #1b1b1b;
-  margin-top: 4px;
+  font-size: 13px; font-weight: 800; color: #1b1b1b; margin-top: 4px;
 }
+
 .efs-menu-item-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
 .efs-menu-action-btn {
@@ -573,10 +555,8 @@ body {
   .efs-topbar { padding: 0 16px; height: 54px; }
   .efs-page   { padding: 0 12px 84px; }
 
-  /* Hide in-card actions on mobile */
   .efs-card-actions { display: none; }
 
-  /* Show fixed bottom bar on mobile */
   .efs-bottom-bar {
     display: block;
     background: #fff;
@@ -607,19 +587,53 @@ body {
   .efs-kitchen-name    { font-size: 20px; }
   .efs-divider         { margin: 0 16px; }
   .efs-menu-header     { padding: 14px 16px 12px; }
-  .efs-menu-item       { padding: 12px 16px; }
 
-  /* ── Toggle below edit/delete on mobile ── */
+  /* ── Tighter row: more room for name & time, no side padding ── */
+  .efs-menu-item {
+    padding: 10px 0;
+    gap: 10px;
+  }
+  /* small breathing room so thumb/actions don't clip card edges */
+  .efs-menu-item-thumb   { margin-left: 12px; }
+  .efs-menu-item-actions { margin-right: 12px; }
+  .efs-menu-item-thumb {
+    width: 50px;
+    height: 50px;
+    border-radius: 8px;
+  }
+
+  /* ── Actions column: buttons row on top, toggle below ── */
   .efs-menu-item-actions {
     flex-wrap: wrap;
     justify-content: flex-end;
-    max-width: 76px;   /* fits both 32px buttons + 8px gap on one line */
+    max-width: 70px;   /* 32 + 6 + 32 = 70px — fits both buttons on one line */
     gap: 6px;
+    flex-shrink: 0;
+    align-items: center;
   }
-  /* Edit + Delete buttons stay on the first row */
+
+  /* Edit & Delete stay on first row */
   .efs-menu-action-btn { order: 1; }
-  /* Toggle drops to the second row, right-aligned */
-  .efs-menu-item-actions .efs-toggle { order: 2; }
+
+  /* Toggle: pill-shaped, same height as buttons, spans full container width */
+  .efs-menu-item-actions .efs-toggle {
+    order: 2;
+    width: 70px;
+    height: 32px;
+    border-radius: 50px;  /* fully rounded pill */
+    border: none;
+  }
+  /* Reposition thumb for the new dimensions */
+  .efs-menu-item-actions .efs-toggle .efs-toggle-thumb {
+    top: 5px;
+    left: 4px;
+    width: 18px;
+    height: 18px;
+  }
+  /* Recalculate ON translation: 70 - 4(left) - 18(thumb) - 4(right gap) = 44px */
+  .efs-menu-item-actions .efs-toggle.on .efs-toggle-thumb {
+    transform: translateX(44px);
+  }
 
   .efs-row             { grid-template-columns: 1fr; }
   .efs-hours-row       { flex-direction: column; gap: 6px; }
