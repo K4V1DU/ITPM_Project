@@ -351,10 +351,39 @@ body {
   letter-spacing: -0.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-.efs-menu-item-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
-.efs-meta-cat   { font-size: 12px; font-weight: 600; color: #888; }
-.efs-meta-price { font-size: 12px; font-weight: 800; color: #1b1b1b; }
+.efs-menu-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+}
 
+.efs-meta-clock {
+  color: #aaa;
+  flex-shrink: 0;
+}
+
+.efs-meta-hours {
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+}
+.efs-menu-item-desc {
+  font-size: 12px;
+  font-weight: 500;
+  color: #999;
+  line-height: 1.5;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.efs-meta-price {
+  font-size: 13px;
+  font-weight: 800;
+  color: #1b1b1b;
+  margin-top: 4px;
+}
 .efs-menu-item-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
 .efs-menu-action-btn {
