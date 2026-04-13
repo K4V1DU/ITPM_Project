@@ -602,38 +602,8 @@ body {
     border-radius: 8px;
   }
 
-  /* ── Actions column: buttons row on top, toggle below ── */
-  .efs-menu-item-actions {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    max-width: 70px;   /* 32 + 6 + 32 = 70px — fits both buttons on one line */
-    gap: 6px;
-    flex-shrink: 0;
-    align-items: center;
-  }
-
-  /* Edit & Delete stay on first row */
-  .efs-menu-action-btn { order: 1; }
-
-  /* Toggle: pill-shaped, same height as buttons, spans full container width */
-  .efs-menu-item-actions .efs-toggle {
-    order: 2;
-    width: 70px;
-    height: 28px;
-    border-radius: 50px;  /* fully rounded pill */
-    border: none;
-  }
-  /* Reposition thumb for the new dimensions */
-  .efs-menu-item-actions .efs-toggle .efs-toggle-thumb {
-    top: 5px;
-    left: 4px;
-    width: 18px;
-    height: 18px;
-  }
-  /* Recalculate ON translation: 70 - 4(left) - 18(thumb) - 4(right gap) = 44px */
-  .efs-menu-item-actions .efs-toggle.on .efs-toggle-thumb {
-    transform: translateX(44px);
-  }
+  /* Hide toggle inside menu item list */
+  .efs-menu-item-actions .efs-toggle { display: none; }
 
   .efs-row             { grid-template-columns: 1fr; }
   .efs-hours-row       { flex-direction: column; gap: 6px; }

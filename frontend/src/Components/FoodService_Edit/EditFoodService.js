@@ -892,10 +892,7 @@ export default function EditFoodService() {
                       </div>
                     </div>
                     <div className="efs-menu-item-actions">
-                      <Toggle
-                        checked={item.isAvailable}
-                        onChange={() => toggleMenuItemAvailable(i)}
-                      />
+                      
                       <button
                         className="efs-menu-action-btn edit"
                         onClick={() => openEditMenuItem(i)}
