@@ -43,7 +43,7 @@ const STEPS = [
 
 // ── Listing Icon — fetches from API, falls back to icon ──────────────────────
 function ListingIcon({ listingId, listingType, size = 44 }) {
-  const [src,     setSrc]     = useState(null);
+  const [src,     setSrc]    = useState(null);
   const [failed,  setFailed]  = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -99,7 +99,8 @@ function ListingIcon({ listingId, listingType, size = 44 }) {
 }
 
 export default function Payment() {
-  const location = useNavigate ? useLocation() : {};
+  // ✅ FIXED: Hooks must be called unconditionally at the top level
+  const location = useLocation();
   const navigate = useNavigate();
 
   const {
