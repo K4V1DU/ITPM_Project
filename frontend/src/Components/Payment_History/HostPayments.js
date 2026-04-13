@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaReceipt, FaCheckCircle, FaTimesCircle, FaClock,
-  FaExclamationTriangle, FaSearch, FaSyncAlt, FaBoxOpen,
+  FaExclamationTriangle, FaSearch, FaBoxOpen,
   FaUtensils, FaHome, FaCalendarAlt, FaTag, FaCoins,
-  FaFileUpload, FaBan,
-  FaSpinner, FaInfoCircle, FaImage,
+  FaFileUpload, FaBan, FaFilter, FaChevronDown, FaArrowLeft,
+  FaSpinner, FaInfoCircle,
 } from "react-icons/fa";
 import "./HostPayments.css";
 import HostNavbar from "../NavBar/Host_NavBar/HostNavbar";
@@ -18,7 +18,6 @@ const ORANGE      = "#FF6B2B";
 
 function unwrap(raw) { return raw?.data ?? raw?.result ?? raw; }
 
-// ─── Notification helper — fire-and-forget ────────────────────────────────────
 async function sendNotification({ recipient, type, title, message, link, refId, refType }) {
   try {
     await fetch(`${API_BASE}/Notification`, {
@@ -44,12 +43,21 @@ function formatDate(dateStr) {
 
 // ── Status config ──────────────────────────────────────────────────────────
 const STATUS = {
-  created:          { bg: "#fff7ed", text: "#c2410c", dot: ORANGE,    border: "#fcd9c4", label: "Awaiting Payment",  icon: <FaClock /> },
-  pending:          { bg: "#fef2f2", text: "#b91c1c", dot: "#ef4444", border: "#fecaca", label: "Verification Failed", icon: <FaTimesCircle /> },
-  verified:         { bg: "#f0fdf4", text: "#15803d", dot: "#22c55e", border: "#bbf7d0", label: "Verified",          icon: <FaCheckCircle /> },
-  manual_requested: { bg: "#f0f9ff", text: "#0369a1", dot: "#0ea5e9", border: "#bae6fd", label: "Manual Review",     icon: <FaInfoCircle /> },
+  created:          { bg: "#fff7ed", text: "#c2410c", dot: ORANGE,    border: "#fcd9c4", label: "Awaiting Payment"    },
+  pending:          { bg: "#fef2f2", text: "#b91c1c", dot: "#ef4444", border: "#fecaca", label: "Verification Failed" },
+  verified:         { bg: "#f0fdf4", text: "#15803d", dot: "#22c55e", border: "#bbf7d0", label: "Verified"            },
+  manual_requested: { bg: "#f0f9ff", text: "#0369a1", dot: "#0ea5e9", border: "#bae6fd", label: "Manual Review"       },
 };
 
+const FILTER_OPTIONS = [
+  { value: "all",              label: "All Payments"        },
+  { value: "created",          label: "Awaiting Payment"    },
+  { value: "pending",          label: "Verification Failed" },
+  { value: "verified",         label: "Verified"            },
+  { value: "manual_requested", label: "Manual Review"       },
+];
+
+// ── Status Badge ───────────────────────────────────────────────────────────
 function StatusBadge({ status }) {
   const s = STATUS[status] ?? STATUS.created;
   return (
@@ -86,7 +94,7 @@ function PaymentRow({ payment, listing, selected, onClick }) {
     >
       <div className="hp-row__icon">
         {listing?.iconUrl
-          ? <img src={listing.iconUrl} alt="" className="hp-row__icon-img" onError={e => { e.currentTarget.style.display="none"; }} />
+          ? <img src={listing.iconUrl} alt="" className="hp-row__icon-img" onError={e => { e.currentTarget.style.display = "none"; }} />
           : isFood ? <FaUtensils /> : <FaHome />}
       </div>
       <div className="hp-row__body">
@@ -103,7 +111,9 @@ function PaymentRow({ payment, listing, selected, onClick }) {
         </div>
         <div className="hp-row__ref-sub">
           <span className="hp-row__type">
-            {isFood ? <><FaUtensils style={{ fontSize: 10 }} /> Food Service</> : <><FaHome style={{ fontSize: 10 }} /> Accommodation</>}
+            {isFood
+              ? <><FaUtensils style={{ fontSize: 10 }} /> Food Service</>
+              : <><FaHome style={{ fontSize: 10 }} /> Accommodation</>}
           </span>
           <span className="hp-sep">·</span>
           <span className="hp-row__ref-code">{payment.referenceCode}</span>
@@ -113,12 +123,9 @@ function PaymentRow({ payment, listing, selected, onClick }) {
   );
 }
 
-
-// ── Receipt Section — collapsible, loads image on first expand ────────────
+// ── Receipt Section ────────────────────────────────────────────────────────
 function ReceiptSection({ payment, receiptImage, onExpand }) {
   const [open, setOpen] = useState(false);
-
-  // Reset collapsed state whenever a different payment is shown
   const prevIdRef = useRef(null);
   if (prevIdRef.current !== payment._id) {
     prevIdRef.current = payment._id;
@@ -128,15 +135,12 @@ function ReceiptSection({ payment, receiptImage, onExpand }) {
   const handleToggle = () => {
     const next = !open;
     setOpen(next);
-    // Pass uploadedAt directly so the handler doesn't rely on stale closure state
     if (next && !receiptImage) onExpand(payment._id, payment.receiptUploadedAt);
   };
 
   return (
     <div className="hp-detail__section">
       <div className="hp-detail__section-label">Receipt</div>
-
-      {/* Clickable header row */}
       <div
         className={`hp-receipt-uploaded-row hp-receipt-uploaded-row--clickable${open ? " hp-receipt-uploaded-row--open" : ""}`}
         onClick={handleToggle}
@@ -156,10 +160,8 @@ function ReceiptSection({ payment, receiptImage, onExpand }) {
         </div>
       </div>
 
-      {/* Expandable content */}
       {open && (
         <div className="hp-receipt-expanded">
-          {/* Image */}
           {receiptImage
             ? <div className="hp-receipt-img-wrap">
                 <img src={receiptImage} alt="Payment receipt" className="hp-receipt-img" />
@@ -169,7 +171,6 @@ function ReceiptSection({ payment, receiptImage, onExpand }) {
                 <span>Loading receipt…</span>
               </div>}
 
-          {/* OCR verification grid */}
           {(payment.extractedAmount !== undefined && payment.extractedAmount !== null) && (
             <div className="hp-detail__verify-grid" style={{ marginTop: 12 }}>
               <div className={`hp-verify-item${payment.amountMatched ? " hp-verify-item--ok" : " hp-verify-item--fail"}`}>
@@ -213,7 +214,7 @@ function ReceiptSection({ payment, receiptImage, onExpand }) {
 }
 
 // ── Payment Detail ─────────────────────────────────────────────────────────
-function PaymentDetail({ payment, listing, receiptImage, onExpandReceipt, onCancel, onUpload }) {
+function PaymentDetail({ payment, listing, receiptImage, onExpandReceipt, onCancel, onUpload, isMobile, onBack }) {
   if (!payment) {
     return (
       <div className="hp-detail hp-detail--empty">
@@ -226,15 +227,23 @@ function PaymentDetail({ payment, listing, receiptImage, onExpandReceipt, onCanc
   const isFood    = payment.listingType === "food";
   const canCancel = ["created", "pending"].includes(payment.status);
   const canUpload = !["verified", "manual_requested"].includes(payment.status);
-
   const PLAN_LABELS = { "1m": "1 Month", "3m": "3 Months", "6m": "6 Months", "12m": "12 Months" };
 
   return (
     <div className="hp-detail">
 
+      {/* ── Mobile back button ── */}
+      {isMobile && (
+        <button className="hp-detail__back-btn" onClick={onBack}>
+          <FaArrowLeft style={{ fontSize: 13 }} />
+          <span>Back to Payments</span>
+        </button>
+      )}
+
       {/* Payment ID strip */}
       <div className="hp-detail__id-strip">
         <span className="hp-detail__id-text">Ref&nbsp;&nbsp;{payment.referenceCode}</span>
+        <StatusBadge status={payment.status} />
       </div>
 
       {/* Header */}
@@ -244,7 +253,7 @@ function PaymentDetail({ payment, listing, receiptImage, onExpandReceipt, onCanc
             <div className="hp-detail__listing-icon">
               {listing?.iconUrl
                 ? <img src={listing.iconUrl} alt="listing" className="hp-detail__listing-img"
-                    onError={e => { e.currentTarget.style.display="none"; }} />
+                    onError={e => { e.currentTarget.style.display = "none"; }} />
                 : isFood
                   ? <FaUtensils style={{ fontSize: 18, color: ORANGE }} />
                   : <FaHome style={{ fontSize: 18, color: "#0369a1" }} />}
@@ -254,7 +263,6 @@ function PaymentDetail({ payment, listing, receiptImage, onExpandReceipt, onCanc
               <div className="hp-detail__listing-name">{listing?.name ?? "—"}</div>
             </div>
           </div>
-          <StatusBadge status={payment.status} />
         </div>
 
         <div className="hp-detail__header-divider" />
@@ -268,7 +276,7 @@ function PaymentDetail({ payment, listing, receiptImage, onExpandReceipt, onCanc
         </div>
       </div>
 
-      {/* Detail body */}
+      {/* Body */}
       <div className="hp-detail__body">
 
         {/* Payment info grid */}
@@ -276,12 +284,12 @@ function PaymentDetail({ payment, listing, receiptImage, onExpandReceipt, onCanc
           <div className="hp-detail__section-label">Payment Details</div>
           <div className="hp-detail__info-grid">
             {[
-              { label: "Reference Code",  value: payment.referenceCode,                         mono: true  },
-              { label: "Plan",            value: PLAN_LABELS[payment.plan] ?? payment.plan                  },
-              { label: "Amount",          value: `LKR ${payment.amount?.toLocaleString()}`                  },
-              { label: "Days Added",      value: `${payment.daysAdded} days`                               },
-              { label: "Created",         value: formatDate(payment.createdAt)                              },
-              { label: "New Expiry",      value: formatDate(payment.newExpireDate),              highlight: true },
+              { label: "Reference Code", value: payment.referenceCode,              mono: true      },
+              { label: "Plan",           value: PLAN_LABELS[payment.plan] ?? payment.plan           },
+              { label: "Amount",         value: `LKR ${payment.amount?.toLocaleString()}`           },
+              { label: "Days Added",     value: `${payment.daysAdded} days`                        },
+              { label: "Created",        value: formatDate(payment.createdAt)                       },
+              { label: "New Expiry",     value: formatDate(payment.newExpireDate), highlight: true  },
             ].map(({ label, value, mono, highlight }) => (
               <div key={label} className="hp-info-row">
                 <span className="hp-info-row__label">{label}</span>
@@ -293,7 +301,7 @@ function PaymentDetail({ payment, listing, receiptImage, onExpandReceipt, onCanc
           </div>
         </div>
 
-        {/* Receipt — collapsible, image loads on expand ── */}
+        {/* Receipt */}
         {payment.receiptUploadedAt && (
           <ReceiptSection
             payment={payment}
@@ -312,7 +320,6 @@ function PaymentDetail({ payment, listing, receiptImage, onExpandReceipt, onCanc
                   <FaFileUpload style={{ fontSize: 12 }} /> Upload Receipt
                 </button>
               )}
-
               {canCancel && (
                 <button className="hp-action-btn hp-action-btn--danger" onClick={() => onCancel(payment)}>
                   <FaBan style={{ fontSize: 12 }} /> Cancel Payment
@@ -321,7 +328,6 @@ function PaymentDetail({ payment, listing, receiptImage, onExpandReceipt, onCanc
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
@@ -353,21 +359,42 @@ export default function HostPayments() {
   const navigate = useNavigate();
   const hostId   = localStorage.getItem("CurrentUserId");
 
-  const [payments,       setPayments]       = useState([]);
+  const [payments,        setPayments]        = useState([]);
   const [selectedPayment, setSelectedPayment] = useState(null);
-  const [loading,        setLoading]        = useState(true);
-  const [error,          setError]          = useState(null);
-  const [statusFilter,   setStatusFilter]   = useState("all");
-  const [searchQuery,    setSearchQuery]    = useState("");
-  const [lastRefresh,    setLastRefresh]    = useState(Date.now());
-  const [toast,          setToast]          = useState({ show: false, msg: "" });
+  const [loading,         setLoading]         = useState(true);
+  const [error,           setError]           = useState(null);
+  const [statusFilter,    setStatusFilter]    = useState("all");
+  const [filterOpen,      setFilterOpen]      = useState(false);
+  const [searchQuery,     setSearchQuery]     = useState("");
+  const [lastRefresh,     setLastRefresh]     = useState(Date.now());
+  const [toast,           setToast]           = useState({ show: false, msg: "" });
+  const [listingInfo,     setListingInfo]     = useState({});
+  const [receiptImages,   setReceiptImages]   = useState({});
+  const [cancelModal,     setCancelModal]     = useState(null);
+  const [cancelLoading,   setCancelLoading]   = useState(false);
 
-  const [listingInfo,    setListingInfo]    = useState({});  // keyed by payment._id
-  const [receiptImages,  setReceiptImages]  = useState({});  // { [paymentId]: { url, uploadedAt } }
-  const [cancelModal,    setCancelModal]    = useState(null);
-  const [cancelLoading,  setCancelLoading]  = useState(false);
+  // ── Mobile panel state ────────────────────────────────────────────────────
+  const [mobilePanel, setMobilePanel] = useState("list");
+  const [isMobile,    setIsMobile]    = useState(window.innerWidth <= 1024);
 
-  const toastRef = useRef(null);
+  const toastRef  = useRef(null);
+  const filterRef = useRef(null);
+
+  // Resize listener
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth <= 1024);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+
+  // Close filter dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (filterRef.current && !filterRef.current.contains(e.target)) setFilterOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const showToast = (msg) => {
     setToast({ show: true, msg });
@@ -377,7 +404,7 @@ export default function HostPayments() {
 
   useEffect(() => { if (!hostId) navigate("/Login"); }, []);
 
-  // Refresh payments when user returns to this tab (e.g. after uploading receipt)
+  // Re-fetch on tab visibility
   useEffect(() => {
     const onVisible = () => { if (document.visibilityState === "visible") setLastRefresh(Date.now()); };
     document.addEventListener("visibilitychange", onVisible);
@@ -407,32 +434,29 @@ export default function HostPayments() {
       .finally(() => setLoading(false));
   }, [hostId, lastRefresh]);
 
-  // Fetch listing name + icon for each payment after payments load
+  // Fetch listing info per payment
   useEffect(() => {
     if (!payments.length) return;
     payments.forEach(async (p) => {
-      if (listingInfo[p._id]) return; // already fetched
+      if (listingInfo[p._id]) return;
       try {
         const endpoint = p.listingType === "food"
           ? `${API_BASE}/FoodService/${p.listing}`
           : `${API_BASE}/Accommodation/${p.listing}`;
-        const res  = await fetch(endpoint);
-        const raw  = await res.json();
-        const doc  = raw?.data ?? raw?.result ?? raw;
-        // name: kitchenName for food, title for accommodation
-        const name    = doc?.kitchenName ?? doc?.title ?? "—";
-        // iconId: iconImage for food, first image for accommodation
-        const iconId  = doc?.iconImage ?? doc?.images?.[0] ?? null;
+        const res    = await fetch(endpoint);
+        const raw    = await res.json();
+        const doc    = raw?.data ?? raw?.result ?? raw;
+        const name   = doc?.kitchenName ?? doc?.title ?? "—";
+        const iconId = doc?.iconImage ?? doc?.images?.[0] ?? null;
         const iconUrl = iconId ? `${API_BASE}/Photo/${String(iconId)}` : null;
         setListingInfo(prev => ({ ...prev, [p._id]: { name, iconUrl } }));
-      } catch { /* silent — listing may have been deleted */ }
+      } catch { /* silent */ }
     });
   }, [payments]);
 
-  // Fetch receipt image on expand — re-fetches if uploadedAt changed
+  // Fetch receipt image on expand
   const handleExpandReceipt = async (paymentId, uploadedAt) => {
     const cached = receiptImages[paymentId];
-    // Skip only if we already have this exact version
     if (cached && cached.uploadedAt === uploadedAt) return;
     try {
       const ts  = uploadedAt ? new Date(uploadedAt).getTime() : Date.now();
@@ -441,8 +465,16 @@ export default function HostPayments() {
       const blob = await res.blob();
       if (cached?.url) URL.revokeObjectURL(cached.url);
       setReceiptImages(prev => ({ ...prev, [paymentId]: { url: URL.createObjectURL(blob), uploadedAt } }));
-    } catch { /* no image stored yet */ }
+    } catch { /* no image yet */ }
   };
+
+  // Payment click — switch to detail panel on mobile
+  const handlePaymentClick = (payment) => {
+    setSelectedPayment(payment);
+    if (isMobile) setMobilePanel("detail");
+  };
+
+  const handleBack = () => setMobilePanel("list");
 
   const handleCancelConfirm = async () => {
     if (!cancelModal) return;
@@ -457,8 +489,6 @@ export default function HostPayments() {
       setPayments(prev => prev.filter(p => p._id !== cancelModal._id));
       setSelectedPayment(prev => prev?._id === cancelModal._id ? null : prev);
       showToast("Payment cancelled.");
-
-      // ── Notify host: payment cancelled ───────────────────────────────────
       if (hostId) {
         sendNotification({
           recipient: hostId,
@@ -470,7 +500,6 @@ export default function HostPayments() {
           refType:   "Payment",
         });
       }
-
       setCancelModal(null);
     } catch {
       showToast("Failed to cancel. Please try again.");
@@ -479,125 +508,176 @@ export default function HostPayments() {
     }
   };
 
-
-
-  const TABS = ["all", "created", "pending", "verified", "manual_requested"];
-
   const filteredPayments = payments.filter(p => {
     const matchStatus = statusFilter === "all" || p.status === statusFilter;
     const q = searchQuery.toLowerCase();
     const matchSearch = !q
       || p.referenceCode?.toLowerCase().includes(q)
       || p.plan?.toLowerCase().includes(q)
-      || p.listingType?.toLowerCase().includes(q);
+      || p.listingType?.toLowerCase().includes(q)
+      || (listingInfo[p._id]?.name ?? "").toLowerCase().includes(q);
     return matchStatus && matchSearch;
   });
 
-  const TAB_LABELS = {
-    all: "All", created: "Awaiting", pending: "Verification Failed",
-    verified: "Verified", manual_requested: "Manual Review",
-  };
+  const activeFilterLabel = FILTER_OPTIONS.find(f => f.value === statusFilter)?.label ?? "All Payments";
+  const isFiltered = statusFilter !== "all" || searchQuery;
 
   return (
     <div className="hp-page" style={{ fontFamily: FONT }}>
-
       <HostNavbar />
 
       <div className="hp-wrapper">
 
-        {/* Title bar */}
+        {/* ── Title bar ── */}
         <div className="hp-titlebar">
           <div className="hp-titlebar__left">
             <h1 className="hp-titlebar__title">Payment History</h1>
-            <span className="hp-titlebar__count">{payments.length} payment{payments.length !== 1 ? "s" : ""}</span>
+            <span className="hp-titlebar__count">
+              {payments.length} payment{payments.length !== 1 ? "s" : ""}
+            </span>
           </div>
-          <button className="hp-btn-refresh" onClick={() => setLastRefresh(Date.now())}>
-            <FaSyncAlt /> Refresh
-          </button>
         </div>
 
-        {/* Status tabs */}
-        <div className="hp-tabs">
-          {TABS.map(s => (
-            <button
-              key={s}
-              className={`hp-tab${statusFilter === s ? " hp-tab--active" : ""}`}
-              onClick={() => setStatusFilter(s)}
-            >
-              {TAB_LABELS[s]}
-              <span className="hp-tab__count">
-                {s === "all" ? payments.length : payments.filter(p => p.status === s).length}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* Split panel */}
+        {/* ── Split panel ── */}
         <div className="hp-split">
 
           {/* LEFT */}
-          <div className="hp-split__left">
+          <div className={`hp-split__left${isMobile && mobilePanel === "detail" ? " hp-split__left--hidden" : ""}`}>
 
-            {/* Search */}
-            <div className="hp-search-wrap">
-              <FaSearch className="hp-search-wrap__icon" />
-              <input
-                className="hp-search"
-                placeholder="Search by reference, plan, type…"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-              />
+            {/* ── Search + Filter bar (matches HostOrders style) ── */}
+            <div className="hp-searchbar">
+              <div className="hp-search-wrap">
+                <FaSearch className="hp-search-wrap__icon" />
+                <input
+                  className="hp-search"
+                  placeholder="Search by reference, plan, listing…"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <button className="hp-search-clear" onClick={() => setSearchQuery("")}>
+                    <FaTimesCircle />
+                  </button>
+                )}
+              </div>
+
+              <div className="hp-filter" ref={filterRef}>
+                <button
+                  className={`hp-filter__btn${statusFilter !== "all" ? " hp-filter__btn--active" : ""}`}
+                  onClick={() => setFilterOpen(prev => !prev)}
+                >
+                  <FaFilter style={{ fontSize: 11 }} />
+                  <span className="hp-filter__label">{activeFilterLabel}</span>
+                  <FaChevronDown className={`hp-filter__chevron${filterOpen ? " hp-filter__chevron--open" : ""}`} />
+                </button>
+
+                {filterOpen && (
+                  <div className="hp-filter__dropdown">
+                    {FILTER_OPTIONS.map(opt => {
+                      const count = opt.value === "all"
+                        ? payments.length
+                        : payments.filter(p => p.status === opt.value).length;
+                      const s = STATUS[opt.value];
+                      return (
+                        <button
+                          key={opt.value}
+                          className={`hp-filter__option${statusFilter === opt.value ? " hp-filter__option--active" : ""}`}
+                          onClick={() => { setStatusFilter(opt.value); setFilterOpen(false); }}
+                        >
+                          <span className="hp-filter__option-left">
+                            {s && <span className="hp-filter__dot" style={{ background: s.dot }} />}
+                            {opt.label}
+                          </span>
+                          <span className={`hp-filter__count${statusFilter === opt.value ? " hp-filter__count--active" : ""}`}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Error */}
+            {/* ── Active filter pills ── */}
+            {isFiltered && (
+              <div className="hp-active-filters">
+                {statusFilter !== "all" && (
+                  <span className="hp-filter-pill">
+                    {activeFilterLabel}
+                    <button className="hp-filter-pill__remove" onClick={() => setStatusFilter("all")}>
+                      <FaTimesCircle />
+                    </button>
+                  </span>
+                )}
+                {searchQuery && (
+                  <span className="hp-filter-pill">
+                    "{searchQuery}"
+                    <button className="hp-filter-pill__remove" onClick={() => setSearchQuery("")}>
+                      <FaTimesCircle />
+                    </button>
+                  </span>
+                )}
+                <button
+                  className="hp-filter-clear-all"
+                  onClick={() => { setStatusFilter("all"); setSearchQuery(""); }}
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
+
+            {/* ── Error ── */}
             {error && (
               <div className="hp-error">
                 <FaExclamationTriangle /> {error}
               </div>
             )}
 
-            {/* Loading skeleton */}
+            {/* ── Loading skeleton ── */}
             {loading && (
               <div className="hp-skeleton-list">
-                {[1,2,3,4,5].map(i => <SkeletonRow key={i} />)}
+                {[1, 2, 3, 4, 5].map(i => <SkeletonRow key={i} />)}
               </div>
             )}
 
-            {/* Empty */}
+            {/* ── Empty ── */}
             {!loading && !error && filteredPayments.length === 0 && (
               <div className="hp-empty">
                 <FaBoxOpen className="hp-empty__icon" />
                 <div className="hp-empty__title">
-                  {searchQuery || statusFilter !== "all" ? "No matching payments" : "No payments yet"}
+                  {isFiltered ? "No matching payments" : "No payments yet"}
                 </div>
                 <div className="hp-empty__sub">
-                  {searchQuery || statusFilter !== "all"
+                  {isFiltered
                     ? "Try adjusting your search or filter"
                     : "Your payment history will appear here"}
                 </div>
-                {(searchQuery || statusFilter !== "all") && (
-                  <button className="hp-empty__clear"
-                    onClick={() => { setSearchQuery(""); setStatusFilter("all"); }}>
+                {isFiltered && (
+                  <button
+                    className="hp-empty__clear"
+                    onClick={() => { setSearchQuery(""); setStatusFilter("all"); }}
+                  >
                     Clear filters
                   </button>
                 )}
               </div>
             )}
 
-            {/* List */}
-            {!loading && filteredPayments.map(payment => (
+            {/* ── Payment list ── */}
+            {!loading && !error && filteredPayments.map(payment => (
               <PaymentRow
                 key={payment._id}
                 payment={payment}
                 listing={listingInfo[payment._id]}
                 selected={selectedPayment?._id === payment._id}
-                onClick={() => setSelectedPayment(payment)}
+                onClick={() => handlePaymentClick(payment)}
               />
             ))}
           </div>
 
           {/* RIGHT */}
-          <div className="hp-split__right">
+          <div className={`hp-split__right${isMobile && mobilePanel === "list" ? " hp-split__right--hidden" : ""}`}>
             <PaymentDetail
               payment={selectedPayment}
               listing={selectedPayment ? listingInfo[selectedPayment._id] : null}
@@ -605,16 +685,18 @@ export default function HostPayments() {
               onExpandReceipt={handleExpandReceipt}
               onCancel={p => setCancelModal(p)}
               onUpload={p => navigate("/PaymentReceipt", {
-            state: {
-              paymentId:     p._id,
-              referenceCode: p.referenceCode,
-              amount:        p.amount,
-              plan:          p.plan,
-              daysAdded:     p.daysAdded,
-              newExpireDate: p.newExpireDate,
-              listingName:   listingInfo[p._id]?.name ?? (p.listingType === "food" ? "Food Service" : "Accommodation"),
-            },
-          })}
+                state: {
+                  paymentId:     p._id,
+                  referenceCode: p.referenceCode,
+                  amount:        p.amount,
+                  plan:          p.plan,
+                  daysAdded:     p.daysAdded,
+                  newExpireDate: p.newExpireDate,
+                  listingName:   listingInfo[p._id]?.name ?? (p.listingType === "food" ? "Food Service" : "Accommodation"),
+                },
+              })}
+              isMobile={isMobile}
+              onBack={handleBack}
             />
           </div>
 
@@ -635,8 +717,6 @@ export default function HostPayments() {
           loading={cancelLoading}
         />
       )}
-
-
     </div>
   );
 }
