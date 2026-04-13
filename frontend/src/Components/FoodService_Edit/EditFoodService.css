@@ -619,7 +619,7 @@ body {
   .efs-menu-item-actions .efs-toggle {
     order: 2;
     width: 70px;
-    height: 32px;
+    height: 28px;
     border-radius: 50px;  /* fully rounded pill */
     border: none;
   }
