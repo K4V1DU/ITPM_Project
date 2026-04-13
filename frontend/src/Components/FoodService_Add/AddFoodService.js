@@ -264,8 +264,7 @@ export default function AddFoodService() {
   const saveMenuItem = () => {
     if (!editingItem.name.trim()) return alert("Item name is required.");
     const p = Number(editingItem.price);
-    // ✅ Price minimum updated to LKR 100 (matching old version)
-    if (!editingItem.price || p < 100 || p > 10000) return alert("Price must be LKR 100–10,000.");
+    if (!editingItem.price || p < 30 || p > 10000) return alert("Price must be LKR 30–10,000.");
     if (Number(editingItem.prepTime) < 1 || Number(editingItem.prepTime) > 120) return alert("Prep time 1–120 min.");
     if (menuModal.mode === "add") {
       setMenuItems((prev) => [...prev, editingItem]);
@@ -381,7 +380,7 @@ export default function AddFoodService() {
               {iconPreview ? (
                 <img src={iconPreview} alt="icon" />
               ) : (
-                <UtensilsCrossed size={30} color="#fff" />
+                <Camera size={30} color="#fff" />
               )}
               <label className="afs-icon-edit-btn" htmlFor="afs-icon-upload">
                 <Camera size={12} />
@@ -696,16 +695,15 @@ export default function AddFoodService() {
           </div>
           <div className="afs-row">
             <div className="afs-field">
-              {/* ✅ Label updated to reflect new LKR 100 minimum */}
-              <label className="afs-label">Price (LKR) * 100–10,000</label>
+              <label className="afs-label">Price (LKR) * 30–10,000</label>
               <input className="afs-input" type="number" value={editingItem.price}
                 onChange={(e) => setEditingItem((p) => ({ ...p, price: e.target.value }))}
                 onBlur={(e) => {
                   const raw = Number(e.target.value);
                   if (!isNaN(raw) && e.target.value !== "")
-                    setEditingItem((p) => ({ ...p, price: String(Math.min(10000, Math.max(100, raw))) }));
+                    setEditingItem((p) => ({ ...p, price: String(Math.min(10000, Math.max(30, raw))) }));
                 }}
-                min="100" max="10000" placeholder="350" />
+                min="30" max="10000" placeholder="350" />
             </div>
             <div className="afs-field">
               <label className="afs-label">Prep time * 1–120 mins</label>
