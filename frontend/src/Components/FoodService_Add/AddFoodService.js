@@ -21,6 +21,7 @@ import {
   Plus,
   Clock,
   AlertCircle,
+  CheckCircle2,
   Pencil,
   Save,
   Camera,
@@ -89,6 +90,44 @@ const emptyMenuItem = () => ({
   imageFile: null,
 });
 
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function useToast() {
+  const [toasts, setToasts] = useState([]);
+
+  const toast = useCallback((message, type = "error") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
+  }, []);
+
+  const dismiss = useCallback((id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  return { toasts, toast, dismiss };
+}
+
+function ToastContainer({ toasts, dismiss }) {
+  return (
+    <div style={{
+      position: "fixed", top: 20, right: 20, zIndex: 9999,
+      display: "flex", flexDirection: "column", gap: 10, pointerEvents: "none",
+    }}>
+      {toasts.map((t) => (
+        <div key={t.id} className={`afs-toast afs-toast--${t.type}`}
+          style={{ pointerEvents: "all", animation: "afsToastIn 0.3s ease" }}>
+          <div className="afs-toast-icon">
+            {t.type === "error"   && <AlertCircle   size={16} />}
+            {t.type === "success" && <CheckCircle2  size={16} />}
+          </div>
+          <span className="afs-toast-msg">{t.message}</span>
+          <button className="afs-toast-close" onClick={() => dismiss(t.id)}><X size={13} /></button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Toggle Switch ────────────────────────────────────────────────────────────
 function Toggle({ checked, onChange }) {
   return (
@@ -134,6 +173,7 @@ export default function AddFoodService() {
   });
 
   // ── State ──────────────────────────────────────────────────────────────────
+  const { toasts, toast, dismiss } = useToast();
   const [isSaving, setIsSaving]   = useState(false);
   const [saveMsg,  setSaveMsg]    = useState("");
 
@@ -174,10 +214,10 @@ export default function AddFoodService() {
     setEditingSection("details");
   };
   const saveDetails = () => {
-    if (!draftName.trim())          return alert("Kitchen name is required.");
-    if (draftName.length > 60)      return alert("Name max 60 characters.");
-    if (!draftDesc.trim())          return alert("Description is required.");
-    if (draftDesc.length > 300)     return alert("Description max 300 characters.");
+    if (!draftName.trim())          return toast("Kitchen name is required.");
+    if (draftName.length > 60)      return toast("Name max 60 characters.");
+    if (!draftDesc.trim())          return toast("Description is required.");
+    if (draftDesc.length > 300)     return toast("Description max 300 characters.");
     setKitchenName(draftName);
     setDescription(draftDesc);
     setServiceType(draftType);
@@ -190,7 +230,7 @@ export default function AddFoodService() {
   };
   const saveHours = () => {
     if (timeIdx(draftClose) <= timeIdx(draftOpen))
-      return alert("Close must be after open.");
+      return toast("Close time must be after open time.");
     setOperatingHours({ open: draftOpen, close: draftClose });
     setEditingSection(null);
   };
@@ -225,8 +265,8 @@ export default function AddFoodService() {
     if (mapInstance) { mapInstance.panTo(SLIIT_LOCATION); mapInstance.setZoom(17); }
   };
   const saveLocation = () => {
-    if (!draftLocation)          return alert("Please pin a location on the map.");
-    if (!draftAddress.trim())    return alert("Please enter an address.");
+    if (!draftLocation)          return toast("Please pin a location on the map.");
+    if (!draftAddress.trim())    return toast("Please enter an address.");
     setSelectedLocation(draftLocation);
     setAddress(draftAddress);
     setHasLocation(true);
@@ -247,7 +287,7 @@ export default function AddFoodService() {
   const openAddMenuItem  = () => { setEditingItem(emptyMenuItem()); setMenuModal({ mode: "add", index: -1 }); };
   const openEditMenuItem = (index) => { setEditingItem({ ...menuItems[index] }); setMenuModal({ mode: "edit", index }); };
   const removeMenuItem   = (i) => {
-    if (menuItems.length === 1) return alert("At least one menu item is required.");
+    if (menuItems.length === 1) return toast("At least one menu item is required.");
     setMenuItems((p) => p.filter((_, idx) => idx !== i));
   };
   const toggleEditingTag = (tag) => {
@@ -262,10 +302,10 @@ export default function AddFoodService() {
     e.target.value = null;
   };
   const saveMenuItem = () => {
-    if (!editingItem.name.trim()) return alert("Item name is required.");
+    if (!editingItem.name.trim()) return toast("Item name is required.");
     const p = Number(editingItem.price);
-    if (!editingItem.price || p < 30 || p > 10000) return alert("Price must be LKR 30–10,000.");
-    if (Number(editingItem.prepTime) < 1 || Number(editingItem.prepTime) > 120) return alert("Prep time 1–120 min.");
+    if (!editingItem.price || p < 30 || p > 10000) return toast("Price must be LKR 30–10,000.");
+    if (Number(editingItem.prepTime) < 1 || Number(editingItem.prepTime) > 120) return toast("Prep time must be 1–120 minutes.");
     if (menuModal.mode === "add") {
       setMenuItems((prev) => [...prev, editingItem]);
     } else {
@@ -276,17 +316,16 @@ export default function AddFoodService() {
 
   // ── Save all ───────────────────────────────────────────────────────────────
   const handleSave = async () => {
-    if (!kitchenName.trim())       return alert("Kitchen name is required.");
-    if (!description.trim())       return alert("Description is required.");
-    if (!hasLocation)              return alert("Please set a location.");
-    if (!address.trim())           return alert("Please enter an address.");
-    if (!iconFile)                 return alert("Please upload a kitchen icon.");
-    if (!bgFile)                   return alert("Please upload a cover image.");
-    if (menuItems.length === 0)    return alert("Add at least one menu item.");
+    if (!kitchenName.trim())       return toast("Kitchen name is required.");
+    if (!description.trim())       return toast("Description is required.");
+    if (!hasLocation)              return toast("Please set a location.");
+    if (!address.trim())           return toast("Please enter an address.");
+    if (!iconFile)                 return toast("Please upload a kitchen icon.");
+    if (!bgFile)                   return toast("Please upload a cover image.");
+    if (menuItems.length === 0)    return toast("Add at least one menu item.");
 
-    // ✅ Read owner from localStorage (matches old version — fixes the 400 error)
     const owner = localStorage.getItem("CurrentUserId");
-    if (!owner) return alert("You must be logged in to create a listing.");
+    if (!owner) return toast("You must be logged in to create a listing.");
 
     setIsSaving(true);
     try {
@@ -348,7 +387,7 @@ export default function AddFoodService() {
       navigate("/Listings");
     } catch (err) {
       console.error(err);
-      alert("Error: " + (err.response?.data?.message || "Something went wrong."));
+      toast("Error: " + (err.response?.data?.message || "Something went wrong."));
     } finally {
       setIsSaving(false); setSaveMsg("");
     }
@@ -356,6 +395,7 @@ export default function AddFoodService() {
 
   return (
     <div className="afs-root">
+      <ToastContainer toasts={toasts} dismiss={dismiss} />
       <Topbar />
 
       <div className="afs-page">
@@ -499,7 +539,7 @@ export default function AddFoodService() {
                       <span className="afs-toggle-label">Delivery</span>
                     </div>
                     <Toggle checked={deliveryAvailable} onChange={(val) => {
-                      if (!val && !pickupAvailable) return alert("At least one of Delivery or Pickup must be active.");
+                      if (!val && !pickupAvailable) return toast("At least one of Delivery or Pickup must be active.");
                       setDeliveryAvailable(val);
                     }} />
                   </div>
@@ -509,7 +549,7 @@ export default function AddFoodService() {
                       <span className="afs-toggle-label">Pickup</span>
                     </div>
                     <Toggle checked={pickupAvailable} onChange={(val) => {
-                      if (!val && !deliveryAvailable) return alert("At least one of Delivery or Pickup must be active.");
+                      if (!val && !deliveryAvailable) return toast("At least one of Delivery or Pickup must be active.");
                       setPickupAvailable(val);
                     }} />
                   </div>
