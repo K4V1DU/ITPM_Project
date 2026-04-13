@@ -1,45 +1,58 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import "./AddFoodService.css";
-import {
-  GoogleMap,
-  useJsApiLoader,
-  Marker,
-} from "@react-google-maps/api";
+import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
 import { useNavigate } from "react-router-dom";
 import {
-  Trash2, RefreshCw, X, ChevronRight, ChevronLeft,
-  Home, UtensilsCrossed, Coffee, Croissant, Truck, ShoppingBag,
-  MapPin, Crosshair, Upload, Leaf, Flame, Wheat, Sprout,
-  CheckCircle, Loader2, Image as ImageIcon, Plus, Clock,
+  Trash2,
+  RefreshCw,
+  X,
+  UtensilsCrossed,
+  Truck,
+  ShoppingBag,
+  MapPin,
+  Crosshair,
+  Upload,
+  Leaf,
+  Flame,
+  Wheat,
+  Sprout,
+  Loader2,
+  Image as ImageIcon,
+  Plus,
+  Clock,
+  AlertCircle,
+  Pencil,
+  Save,
+  Camera,
+  Check,
+  ChevronLeft,
 } from "lucide-react";
 import axios from "axios";
 
+// ─── Config ───────────────────────────────────────────────────────────────────
 const GOOGLE_MAPS_API_KEY = "AIzaSyDKKnxSMEUkZyZiLT83DXCJhR4eplblzKA";
 const BASE_URL = process.env.REACT_APP_API_BASE_URL;
 const SLIIT_LOCATION = { lat: 6.9147, lng: 79.9727 };
 const LIBRARIES = ["places"];
-const mapContainerStyle = { width: "100%", height: "420px", borderRadius: "10px" };
-const defaultOptions = {
-  zoomControl: true, mapTypeControl: false, scaleControl: false,
-  streetViewControl: false, rotateControl: false, fullscreenControl: true,
-  mapTypeId: "roadmap",
+const mapContainerStyle = { width: "100%", height: "320px" };
+const defaultMapOptions = {
+  zoomControl: true,
+  mapTypeControl: false,
+  scaleControl: false,
+  streetViewControl: false,
+  rotateControl: false,
+  fullscreenControl: true,
 };
 
 const DIETARY_TAGS = [
-  { key: "Vegetarian", icon: Leaf,   color: "#e67e22", bg: "#fff4ec", border: "#e67e22" },
-  { key: "Vegan",      icon: Sprout, color: "#e67e22", bg: "#fff4ec", border: "#e67e22" },
-  { key: "Spicy",      icon: Flame,  color: "#1c1c1e", bg: "#f3f4f6", border: "#1c1c1e" },
-  { key: "Gluten-Free",icon: Wheat,  color: "#1c1c1e", bg: "#f3f4f6", border: "#1c1c1e" },
+  { key: "Vegetarian", icon: Leaf,   color: "#15803d", bg: "#f0fdf4", border: "#bbf7d0" },
+  { key: "Vegan",      icon: Sprout, color: "#166534", bg: "#dcfce7", border: "#86efac" },
+  { key: "Spicy",      icon: Flame,  color: "#b91c1c", bg: "#fff1f2", border: "#fecaca" },
+  { key: "Gluten-Free",icon: Wheat,  color: "#92400e", bg: "#fffbeb", border: "#fde68a" },
 ];
 
 const MENU_CATEGORIES = ["Breakfast", "Lunch", "Dinner", "Snacks", "Drinks", "Dessert"];
-
-const SERVICE_TYPES = [
-  { key: "Home Kitchen", icon: Home,            desc: "Cook from home" },
-  { key: "Restaurant",   icon: UtensilsCrossed, desc: "Dine-in & takeout" },
-  { key: "Cafe",         icon: Coffee,          desc: "Coffee & light bites" },
-  { key: "Bakery",       icon: Croissant,       desc: "Baked goods" },
-];
+const SERVICE_TYPES   = ["Home Kitchen", "Restaurant", "Cafe", "Bakery"];
 
 const TIME_OPTIONS = (() => {
   const opts = [];
@@ -56,13 +69,7 @@ const TIME_OPTIONS = (() => {
 
 const timeIdx = (t) => TIME_OPTIONS.indexOf(t);
 
-const clampTime = (t, opOpen, opClose) => {
-  const i = timeIdx(t), lo = timeIdx(opOpen), hi = timeIdx(opClose);
-  if (i < lo) return opOpen;
-  if (i > hi) return opClose;
-  return t;
-};
-
+// ── Returns yesterday's ISO date string (used for expireDate default) ─────────
 const getYesterday = () => {
   const d = new Date();
   d.setDate(d.getDate() - 1);
@@ -70,774 +77,715 @@ const getYesterday = () => {
 };
 
 const emptyMenuItem = () => ({
-  name: "", description: "", price: "", category: "Lunch",
+  name: "",
+  description: "",
+  price: "",
+  category: "Lunch",
   dietaryTags: [],
   AvailableHours: { open: "08:00 AM", close: "08:00 PM" },
-  isAvailable: true, prepTime: 15,
-  imagePreview: null, imageFile: null, imageId: null, imageUploading: false,
+  isAvailable: true,
+  prepTime: 15,
+  imagePreview: null,
+  imageFile: null,
 });
 
-// ─── Component ────────────────────────────────────────────────────────────────
-function AddFoodService() {
-  const navigate       = useNavigate();
-  const updatePhotoRef = useRef(null);
-  const menuImageRefs  = useRef([]);
+// ─── Toggle Switch ────────────────────────────────────────────────────────────
+function Toggle({ checked, onChange }) {
+  return (
+    <button
+      type="button"
+      className={`afs-toggle ${checked ? "on" : "off"}`}
+      onClick={() => onChange(!checked)}
+      aria-checked={checked}
+      role="switch"
+    >
+      <span className="afs-toggle-thumb" />
+    </button>
+  );
+}
 
-  const [currentStep,  setCurrentStep]  = useState(1);
-  const [showForm,     setShowForm]     = useState(false);
-  const [isSaving,     setIsSaving]     = useState(false);
-  const [saveProgress, setSaveProgress] = useState("");
+// ─── Modal ────────────────────────────────────────────────────────────────────
+function Modal({ title, onClose, children, wide }) {
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+  return (
+    <div className="afs-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className={`afs-modal ${wide ? "afs-modal--wide" : ""}`}>
+        <div className="afs-modal-header">
+          <span className="afs-modal-title">{title}</span>
+          <button className="afs-modal-close" onClick={onClose}><X size={16} /></button>
+        </div>
+        <div className="afs-modal-body">{children}</div>
+      </div>
+    </div>
+  );
+}
 
-  const [kitchenName,       setKitchenName]       = useState("");
-  const [description,       setDescription]       = useState("");
-  const [serviceType,       setServiceType]       = useState("Home Kitchen");
-  const [deliveryAvailable, setDeliveryAvailable] = useState(true);
-  const [pickupAvailable,   setPickupAvailable]   = useState(true);
-  const [operatingHours,    setOperatingHours]    = useState({ open: "08:00 AM", close: "10:00 PM" });
-
-  const [selectedLocation,    setSelectedLocation]    = useState(SLIIT_LOCATION);
-  const [address,             setAddress]             = useState("");
-  const [map,                 setMap]                 = useState(null);
-  const [hasSelectedLocation, setHasSelectedLocation] = useState(false);
-
-  const [iconPreview,   setIconPreview]   = useState(null);
-  const [iconFile,      setIconFile]      = useState(null);
-  const [iconImageId,   setIconImageId]   = useState(null);
-  const [bgPreview,     setBgPreview]     = useState(null);
-  const [bgFile,        setBgFile]        = useState(null);
-  const [bgImageId,     setBgImageId]     = useState(null);
-  const [updatingField, setUpdatingField] = useState(null);
-
-  const [menuItems,  setMenuItems]  = useState([emptyMenuItem()]);
-  const [isVerified, setIsVerified] = useState(false);
-  const [isAgreed,   setIsAgreed]   = useState(false);
+// ─── Main Component ───────────────────────────────────────────────────────────
+export default function AddFoodService() {
+  const navigate   = useNavigate();
+  const menuImgRef = useRef(null);
 
   const { isLoaded: mapIsLoaded, loadError: mapLoadError } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     libraries: LIBRARIES,
   });
 
-  // ── Navigation ────────────────────────────────────────────────────────────
-  const handleExit       = () => navigate("/Listings");
-  const handleGetStarted = () => setShowForm(true);
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [isSaving, setIsSaving]   = useState(false);
+  const [saveMsg,  setSaveMsg]    = useState("");
 
-  const handleNextStep = () => {
-    if (currentStep === 1) {
-      if (!kitchenName.trim())      return alert("Kitchen name cannot be empty.");
-      if (kitchenName.length > 60)  return alert("Kitchen name cannot exceed 60 characters.");
-      if (!description.trim())      return alert("Description cannot be empty.");
-      if (description.length > 300) return alert("Description cannot exceed 300 characters.");
-      if (!deliveryAvailable && !pickupAvailable) return alert("Enable at least Delivery or Pickup.");
-    }
-    if (currentStep === 2) {
-      if (!hasSelectedLocation) return alert("Please pin your kitchen location on the map.");
-      if (!address.trim())      return alert("Please enter your address.");
-    }
-    if (currentStep === 3) {
-      if (!iconFile && !iconImageId) return alert("Please upload a kitchen icon image.");
-      if (!bgFile && !bgImageId)     return alert("Please upload a kitchen background image.");
-    }
-    if (currentStep === 4) {
-      for (let i = 0; i < menuItems.length; i++) {
-        const it = menuItems[i];
-        if (!it.name.trim()) return alert(`Item ${i + 1}: Name required.`);
-        const p = Number(it.price);
-        if (!it.price || p < 100 || p > 10000) return alert(`Item ${i + 1}: Price must be LKR 100–10,000.`);
-        if (Number(it.prepTime) < 1 || Number(it.prepTime) > 120) return alert(`Item ${i + 1}: Prep time 1–120 min.`);
-      }
-    }
-    setCurrentStep(s => s + 1);
+  const [kitchenName,        setKitchenName]        = useState("");
+  const [description,        setDescription]        = useState("");
+  const [serviceType,        setServiceType]        = useState("Home Kitchen");
+  const [deliveryAvailable,  setDeliveryAvailable]  = useState(true);
+  const [pickupAvailable,    setPickupAvailable]    = useState(true);
+  const [operatingHours,     setOperatingHours]     = useState({ open: "08:00 AM", close: "10:00 PM" });
+  const [selectedLocation,   setSelectedLocation]   = useState(SLIIT_LOCATION);
+  const [address,            setAddress]            = useState("");
+  const [hasLocation,        setHasLocation]        = useState(false);
+  const [iconPreview,        setIconPreview]        = useState(null);
+  const [iconFile,           setIconFile]           = useState(null);
+  const [bgPreview,          setBgPreview]          = useState(null);
+  const [bgFile,             setBgFile]             = useState(null);
+  const [menuItems,          setMenuItems]          = useState([]);
+
+  const [editingSection, setEditingSection] = useState(null);
+  const [draftName,      setDraftName]      = useState("");
+  const [draftDesc,      setDraftDesc]      = useState("");
+  const [draftType,      setDraftType]      = useState("Home Kitchen");
+  const [draftOpen,      setDraftOpen]      = useState("08:00 AM");
+  const [draftClose,     setDraftClose]     = useState("10:00 PM");
+
+  const [showMapModal, setShowMapModal] = useState(false);
+  const [menuModal,    setMenuModal]    = useState(null);
+  const [editingItem,  setEditingItem]  = useState(null);
+  const [mapInstance,  setMapInstance]  = useState(null);
+  const [draftLocation,setDraftLocation]= useState(null);
+  const [draftAddress, setDraftAddress] = useState("");
+
+  // ── Inline edit handlers ───────────────────────────────────────────────────
+  const startEditDetails = () => {
+    setDraftName(kitchenName);
+    setDraftDesc(description);
+    setDraftType(serviceType);
+    setEditingSection("details");
+  };
+  const saveDetails = () => {
+    if (!draftName.trim())          return alert("Kitchen name is required.");
+    if (draftName.length > 60)      return alert("Name max 60 characters.");
+    if (!draftDesc.trim())          return alert("Description is required.");
+    if (draftDesc.length > 300)     return alert("Description max 300 characters.");
+    setKitchenName(draftName);
+    setDescription(draftDesc);
+    setServiceType(draftType);
+    setEditingSection(null);
+  };
+  const startEditHours = () => {
+    setDraftOpen(operatingHours.open);
+    setDraftClose(operatingHours.close);
+    setEditingSection("hours");
+  };
+  const saveHours = () => {
+    if (timeIdx(draftClose) <= timeIdx(draftOpen))
+      return alert("Close must be after open.");
+    setOperatingHours({ open: draftOpen, close: draftClose });
+    setEditingSection(null);
   };
 
-  const handlePreviousStep = () => setCurrentStep(s => s - 1);
-
-  // ── Menu helpers ──────────────────────────────────────────────────────────
-  const addMenuItem    = () => { setMenuItems(p => [...p, emptyMenuItem()]); menuImageRefs.current.push(null); };
-  const removeMenuItem = (i) => {
-    if (menuItems.length === 1) return alert("At least one menu item required.");
-    setMenuItems(p => p.filter((_, idx) => idx !== i));
-    menuImageRefs.current.splice(i, 1);
+  // ── Map ────────────────────────────────────────────────────────────────────
+  const openMapModal = () => {
+    setDraftLocation(selectedLocation);
+    setDraftAddress(address);
+    setShowMapModal(true);
   };
-  const updateMenuItem      = (i, f, v) => setMenuItems(p => { const u=[...p]; u[i]={...u[i],[f]:v}; return u; });
-  const updateMenuItemHours = (i, t, v) => setMenuItems(p => { const u=[...p]; u[i]={...u[i],AvailableHours:{...u[i].AvailableHours,[t]:v}}; return u; });
-  const toggleDietaryTag    = (i, tag)  => setMenuItems(p => { const u=[...p], cur=u[i].dietaryTags; u[i]={...u[i],dietaryTags:cur.includes(tag)?cur.filter(t=>t!==tag):[...cur,tag]}; return u; });
-  const setItemField        = (i, flds) => setMenuItems(p => { const u=[...p]; u[i]={...u[i],...flds}; return u; });
-
-  // ── Menu item images (deferred) ───────────────────────────────────────────
-  const handleMenuItemImageSelect = (i, e) => {
-    const file = e.target.files[0]; if (!file) return;
-    setItemField(i, { imagePreview: URL.createObjectURL(file), imageFile: file, imageId: null });
-    e.target.value = null;
+  const onMapLoad  = useCallback((m) => setMapInstance(m), []);
+  const onMapClick = (event) => {
+    const loc = { lat: event.latLng.lat(), lng: event.latLng.lng() };
+    setDraftLocation(loc);
+    new window.google.maps.Geocoder().geocode({ location: loc }, (results, status) => {
+      if (status === "OK" && results[0]) setDraftAddress(results[0].formatted_address);
+    });
   };
-  const handleMenuItemImageDelete = (i) => setItemField(i, { imagePreview: null, imageFile: null, imageId: null });
-  const triggerMenuItemUpdate = (i) => {
-    const inp = document.createElement("input"); inp.type="file"; inp.accept="image/*";
-    inp.onchange = e => handleMenuItemImageSelect(i, e); inp.click();
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition((pos) => {
+      const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      setDraftLocation(loc);
+      new window.google.maps.Geocoder().geocode({ location: loc }, (results, status) => {
+        if (status === "OK" && results[0]) setDraftAddress(results[0].formatted_address);
+      });
+      if (mapInstance) { mapInstance.panTo(loc); mapInstance.setZoom(17); }
+    });
+  };
+  const useSLIITLocation = () => {
+    setDraftLocation(SLIIT_LOCATION);
+    if (mapInstance) { mapInstance.panTo(SLIIT_LOCATION); mapInstance.setZoom(17); }
+  };
+  const saveLocation = () => {
+    if (!draftLocation)          return alert("Please pin a location on the map.");
+    if (!draftAddress.trim())    return alert("Please enter an address.");
+    setSelectedLocation(draftLocation);
+    setAddress(draftAddress);
+    setHasLocation(true);
+    setShowMapModal(false);
   };
 
-  // ── Kitchen photos (deferred) ─────────────────────────────────────────────
+  // ── Photos ─────────────────────────────────────────────────────────────────
   const handleIconSelect = (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    setIconPreview(URL.createObjectURL(file)); setIconFile(file); setIconImageId(null); e.target.value=null;
+    const f = e.target.files[0]; if (!f) return;
+    setIconPreview(URL.createObjectURL(f)); setIconFile(f); e.target.value = null;
   };
   const handleBgSelect = (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    setBgPreview(URL.createObjectURL(file)); setBgFile(file); setBgImageId(null); e.target.value=null;
-  };
-  const handleUpdateKitchenPhoto = (e) => {
-    const file = e.target.files[0]; if (!file || !updatingField) return;
-    const preview = URL.createObjectURL(file);
-    if (updatingField==="icon") { setIconPreview(preview); setIconFile(file); setIconImageId(null); }
-    else                        { setBgPreview(preview);   setBgFile(file);   setBgImageId(null); }
-    setUpdatingField(null); e.target.value=null;
-  };
-  const handleDeleteKitchenPhoto = (field) => {
-    if (field==="icon") { setIconPreview(null); setIconFile(null); setIconImageId(null); }
-    else                { setBgPreview(null);   setBgFile(null);   setBgImageId(null); }
-  };
-  const triggerKitchenUpdate = (field) => { setUpdatingField(field); updatePhotoRef.current.click(); };
-
-  // ── Map ───────────────────────────────────────────────────────────────────
-  const onMapLoad  = useCallback(m => setMap(m), []);
-  const onMapClick = event => {
-    const loc = { lat: event.latLng.lat(), lng: event.latLng.lng() };
-    setSelectedLocation(loc); setHasSelectedLocation(true);
-    new window.google.maps.Geocoder().geocode({ location: loc }, (results, status) => {
-      if (status==="OK" && results[0]) setAddress(results[0].formatted_address);
-    });
-  };
-  const handleUseCurrentLocation = () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(pos => {
-      const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      setSelectedLocation(loc); setHasSelectedLocation(true);
-      new window.google.maps.Geocoder().geocode({ location: loc }, (results, status) => {
-        if (status==="OK" && results[0]) setAddress(results[0].formatted_address);
-      });
-      if (map) { map.panTo(loc); map.setZoom(17); }
-    });
-  };
-  const handleSLIITLocation = () => {
-    setSelectedLocation(SLIIT_LOCATION); setHasSelectedLocation(true);
-    if (map) { map.panTo(SLIIT_LOCATION); map.setZoom(17); }
+    const f = e.target.files[0]; if (!f) return;
+    setBgPreview(URL.createObjectURL(f)); setBgFile(f); e.target.value = null;
   };
 
-  // ── Save ──────────────────────────────────────────────────────────────────
-  const handleSaveListing = async () => {
-    if (!hasSelectedLocation)                        return alert("Please pin your kitchen location.");
-    if (!iconPreview || (!iconFile && !iconImageId)) return alert("Please upload a kitchen icon image.");
-    if (!bgPreview   || (!bgFile   && !bgImageId))   return alert("Please upload a kitchen background image.");
-    if (!isVerified || !isAgreed)                    return alert("Please confirm accuracy and agree to terms.");
+  // ── Menu ───────────────────────────────────────────────────────────────────
+  const openAddMenuItem  = () => { setEditingItem(emptyMenuItem()); setMenuModal({ mode: "add", index: -1 }); };
+  const openEditMenuItem = (index) => { setEditingItem({ ...menuItems[index] }); setMenuModal({ mode: "edit", index }); };
+  const removeMenuItem   = (i) => {
+    if (menuItems.length === 1) return alert("At least one menu item is required.");
+    setMenuItems((p) => p.filter((_, idx) => idx !== i));
+  };
+  const toggleEditingTag = (tag) => {
+    setEditingItem((prev) => {
+      const cur = prev.dietaryTags;
+      return { ...prev, dietaryTags: cur.includes(tag) ? cur.filter((t) => t !== tag) : [...cur, tag] };
+    });
+  };
+  const handleEditingImageSelect = (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    setEditingItem((prev) => ({ ...prev, imagePreview: URL.createObjectURL(f), imageFile: f }));
+    e.target.value = null;
+  };
+  const saveMenuItem = () => {
+    if (!editingItem.name.trim()) return alert("Item name is required.");
+    const p = Number(editingItem.price);
+    // ✅ Price minimum updated to LKR 100 (matching old version)
+    if (!editingItem.price || p < 100 || p > 10000) return alert("Price must be LKR 100–10,000.");
+    if (Number(editingItem.prepTime) < 1 || Number(editingItem.prepTime) > 120) return alert("Prep time 1–120 min.");
+    if (menuModal.mode === "add") {
+      setMenuItems((prev) => [...prev, editingItem]);
+    } else {
+      setMenuItems((prev) => { const u = [...prev]; u[menuModal.index] = editingItem; return u; });
+    }
+    setMenuModal(null); setEditingItem(null);
+  };
+
+  // ── Save all ───────────────────────────────────────────────────────────────
+  const handleSave = async () => {
+    if (!kitchenName.trim())       return alert("Kitchen name is required.");
+    if (!description.trim())       return alert("Description is required.");
+    if (!hasLocation)              return alert("Please set a location.");
+    if (!address.trim())           return alert("Please enter an address.");
+    if (!iconFile)                 return alert("Please upload a kitchen icon.");
+    if (!bgFile)                   return alert("Please upload a cover image.");
+    if (menuItems.length === 0)    return alert("Add at least one menu item.");
+
+    // ✅ Read owner from localStorage (matches old version — fixes the 400 error)
+    const owner = localStorage.getItem("CurrentUserId");
+    if (!owner) return alert("You must be logged in to create a listing.");
 
     setIsSaving(true);
     try {
-      let finalIconId = iconImageId;
-      if (iconFile) {
-        setSaveProgress("Uploading kitchen icon...");
-        const fd = new FormData(); fd.append("photo", iconFile);
-        finalIconId = (await axios.post(`${BASE_URL}/Photo`, fd)).data.data._id;
-      }
-      let finalBgId = bgImageId;
-      if (bgFile) {
-        setSaveProgress("Uploading cover image...");
-        const fd = new FormData(); fd.append("photo", bgFile);
-        finalBgId = (await axios.post(`${BASE_URL}/Photo`, fd)).data.data._id;
-      }
-      setSaveProgress("Creating food service...");
+      setSaveMsg("Uploading icon…");
+      const iconFd = new FormData(); iconFd.append("photo", iconFile);
+      const iconId = (await axios.post(`${BASE_URL}/Photo`, iconFd)).data.data._id;
+
+      setSaveMsg("Uploading cover image…");
+      const bgFd = new FormData(); bgFd.append("photo", bgFile);
+      const bgId = (await axios.post(`${BASE_URL}/Photo`, bgFd)).data.data._id;
+
+      setSaveMsg("Creating food service…");
       const fsRes = await axios.post(`${BASE_URL}/Foodservice`, {
-        owner: localStorage.getItem("CurrentUserId"),
-        kitchenName, description, address,
+        owner,                        // ✅ now included — was missing before
+        kitchenName,
+        description,
+        address,
         location: { type: "Point", coordinates: [selectedLocation.lng, selectedLocation.lat] },
-        operatingHours, serviceType, deliveryAvailable, pickupAvailable,
-        iconImage: finalIconId, BackgroundImage: finalBgId,
-        isAvailable: true, expireDate: getYesterday(),
+        operatingHours,
+        serviceType,
+        deliveryAvailable,
+        pickupAvailable,
+        iconImage: iconId,
+        BackgroundImage: bgId,
+        isAvailable: true,            // ✅ from old version
+        expireDate: getYesterday(),   // ✅ from old version
       });
-      const foodServiceId = fsRes.data.data._id;
+      const newId = fsRes.data.data._id;
+
       const menuItemIds = [];
       for (let i = 0; i < menuItems.length; i++) {
         const it = menuItems[i];
-        setSaveProgress(`Saving menu item ${i+1} of ${menuItems.length}...`);
-        let imageId = it.imageId;
+        setSaveMsg(`Saving menu item ${i + 1} of ${menuItems.length}…`);
+        let imageId = null;
         if (it.imageFile) {
           const fd = new FormData(); fd.append("photo", it.imageFile);
-          const r = await axios.post(`${BASE_URL}/Photo`, fd);
+          const r  = await axios.post(`${BASE_URL}/Photo`, fd);
           if (r.data.success) imageId = r.data.data._id;
         }
-        const miRes = await axios.post(`${BASE_URL}/menuitem`, {
-          foodServiceId, name: it.name, description: it.description,
-          price: Number(it.price), category: it.category,
-          dietaryTags: it.dietaryTags, AvailableHours: it.AvailableHours,
-          isAvailable: it.isAvailable, prepTime: Number(it.prepTime),
+        const payload = {
+          foodServiceId: newId,
+          name:          it.name,
+          description:   it.description,
+          price:         Number(it.price),
+          category:      it.category,
+          dietaryTags:   it.dietaryTags,
+          AvailableHours:it.AvailableHours,
+          isAvailable:   it.isAvailable,
+          prepTime:      Number(it.prepTime),
           ...(imageId && { image: imageId }),
-        });
-        menuItemIds.push(miRes.data.data._id);
+        };
+        const r2 = await axios.post(`${BASE_URL}/menuitem`, payload);
+        menuItemIds.push(r2.data.data._id);
       }
-      setSaveProgress("Finalising...");
-      await axios.put(`${BASE_URL}/Foodservice/${foodServiceId}`, { menu: menuItemIds });
-      alert(`Food service listed with ${menuItemIds.length} menu item(s)!`);
+
+      setSaveMsg("Linking menu…");
+      await axios.put(`${BASE_URL}/Foodservice/${newId}`, { menu: menuItemIds });
+
       navigate("/Listings");
     } catch (err) {
       console.error(err);
       alert("Error: " + (err.response?.data?.message || "Something went wrong."));
-    } finally { setIsSaving(false); setSaveProgress(""); }
+    } finally {
+      setIsSaving(false); setSaveMsg("");
+    }
   };
 
-  const STEPS = [
-    { num: 1, label: "Details" }, { num: 2, label: "Location" },
-    { num: 3, label: "Photos"  }, { num: 4, label: "Menu"     },
-    { num: 5, label: "Review"  },
-  ];
-
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="afs-root">
+      <Topbar />
 
-      {/* Top Bar */}
-      <div className={`afs-topbar ${!showForm ? "dark" : ""}`}>
-        <div className="hn-nav__logo-wrap">
-          <a href="/Listings" className="hn-nav__logo">
-            <img
-              src={showForm ? "/Images/logo2.png" : "/Images/logo6.png"}
-              alt="Unisewana Logo"
-              style={{ height: "32px", width: "auto", display: "block" }}
-            />
-          </a>
+      <div className="afs-page">
+        {/* ── Cover + Icon ── */}
+        <div className="afs-hero">
+          <div className="afs-cover-wrap">
+            {bgPreview ? (
+              <img src={bgPreview} alt="cover" className="afs-cover-img" />
+            ) : (
+              <div className="afs-cover-empty">
+                <ImageIcon size={28} />
+                <span>Add cover photo</span>
+              </div>
+            )}
+            <label className="afs-cover-edit-btn" htmlFor="afs-bg-upload">
+              <Camera size={13} /> {bgPreview ? "Change cover" : "Upload cover"}
+            </label>
+            <input type="file" accept="image/*" id="afs-bg-upload" style={{ display: "none" }} onChange={handleBgSelect} />
+          </div>
+          <div className="afs-icon-wrap">
+            <div className="afs-icon-circle">
+              {iconPreview ? (
+                <img src={iconPreview} alt="icon" />
+              ) : (
+                <UtensilsCrossed size={30} color="#fff" />
+              )}
+              <label className="afs-icon-edit-btn" htmlFor="afs-icon-upload">
+                <Camera size={12} />
+              </label>
+              <input type="file" accept="image/*" id="afs-icon-upload" style={{ display: "none" }} onChange={handleIconSelect} />
+            </div>
+          </div>
         </div>
-        <button className="afs-exit-btn" onClick={handleExit}><X size={14} /> Exit</button>
+
+        {/* ── Main Card ── */}
+        <div className="afs-card">
+
+          {/* ── Details Section ── */}
+          <div className="afs-section">
+            {editingSection !== "details" ? (
+              <div className="afs-section-header">
+                <div>
+                  <div className="afs-service-type-label">{serviceType.toUpperCase()}</div>
+                  <h1 className="afs-kitchen-name">
+                    {kitchenName || <span className="afs-placeholder">Kitchen name</span>}
+                  </h1>
+                  {description && <p className="afs-description">{description}</p>}
+                  {!kitchenName && !description && (
+                    <p className="afs-hint">Tap Edit to fill in your kitchen details</p>
+                  )}
+                </div>
+                <button className="afs-edit-btn" onClick={startEditDetails}>
+                  <Pencil size={13} /> Edit
+                </button>
+              </div>
+            ) : (
+              <div className="afs-inline-form afs-inline-form--has-icon">
+                <div className="afs-inline-form-title-row">
+                  <span className="afs-inline-form-title">Kitchen details</span>
+                </div>
+                <div className="afs-field">
+                  <label className="afs-label">Kitchen name *</label>
+                  <input className="afs-input" type="text" value={draftName} onChange={(e) => setDraftName(e.target.value)}
+                    placeholder="e.g. Mama's Home Kitchen" maxLength={60} autoFocus />
+                  <div className="afs-char-hint">{draftName.length}/60</div>
+                </div>
+                <div className="afs-field">
+                  <label className="afs-label">Service type</label>
+                  <select className="afs-select" value={draftType} onChange={(e) => setDraftType(e.target.value)}>
+                    {SERVICE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="afs-field">
+                  <label className="afs-label">Description *</label>
+                  <textarea className="afs-textarea" value={draftDesc} onChange={(e) => setDraftDesc(e.target.value)}
+                    placeholder="Describe your kitchen…" maxLength={300} rows={3} />
+                  <div className="afs-char-hint">{draftDesc.length}/300</div>
+                </div>
+                <div className="afs-inline-form-footer">
+                  <button className="afs-cancel-link" onClick={() => setEditingSection(null)}>Cancel</button>
+                  <button className="afs-save-inline-btn" onClick={saveDetails}><Check size={14} /> Save</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="afs-divider" />
+
+          {/* ── Operating Hours ── */}
+          <div className="afs-section">
+            {editingSection !== "hours" ? (
+              <div className="afs-info-row">
+                <div className="afs-info-left">
+                  <Clock size={17} className="afs-info-icon" />
+                  <span className="afs-info-text">{operatingHours.open} – {operatingHours.close}</span>
+                </div>
+                <button className="afs-edit-btn" onClick={startEditHours}><Pencil size={13} /> Edit</button>
+              </div>
+            ) : (
+              <div className="afs-inline-form">
+                <div className="afs-inline-form-title-row">
+                  <span className="afs-inline-form-title">Operating hours</span>
+                </div>
+                <div className="afs-hours-row">
+                  <div className="afs-field">
+                    <label className="afs-label">Opens</label>
+                    <select className="afs-select" value={draftOpen} onChange={(e) => {
+                      const v = e.target.value; setDraftOpen(v);
+                      if (timeIdx(draftClose) <= timeIdx(v))
+                        setDraftClose(TIME_OPTIONS[timeIdx(v) + 1] || v);
+                    }}>
+                      {TIME_OPTIONS.slice(0, -1).map((t) => <option key={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <span className="afs-hours-dash">–</span>
+                  <div className="afs-field">
+                    <label className="afs-label">Closes</label>
+                    <select className="afs-select" value={draftClose} onChange={(e) => setDraftClose(e.target.value)}>
+                      {TIME_OPTIONS.filter((t) => timeIdx(t) > timeIdx(draftOpen)).map((t) => <option key={t}>{t}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="afs-inline-form-footer">
+                  <button className="afs-cancel-link" onClick={() => setEditingSection(null)}>Cancel</button>
+                  <button className="afs-save-inline-btn" onClick={saveHours}><Check size={14} /> Save</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="afs-divider" />
+
+          {/* ── Delivery & Pickup ── */}
+          <div className="afs-section">
+            <div className="afs-info-row">
+              <div className="afs-info-left">
+                <div className="afs-toggles-wrap">
+                  <div className="afs-toggle-row">
+                    <div className="afs-toggle-label-wrap">
+                      <Truck size={16} className="afs-info-icon" />
+                      <span className="afs-toggle-label">Delivery</span>
+                    </div>
+                    <Toggle checked={deliveryAvailable} onChange={(val) => {
+                      if (!val && !pickupAvailable) return alert("At least one of Delivery or Pickup must be active.");
+                      setDeliveryAvailable(val);
+                    }} />
+                  </div>
+                  <div className="afs-toggle-row">
+                    <div className="afs-toggle-label-wrap">
+                      <ShoppingBag size={16} className="afs-info-icon" />
+                      <span className="afs-toggle-label">Pickup</span>
+                    </div>
+                    <Toggle checked={pickupAvailable} onChange={(val) => {
+                      if (!val && !deliveryAvailable) return alert("At least one of Delivery or Pickup must be active.");
+                      setPickupAvailable(val);
+                    }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="afs-divider" />
+
+          {/* ── Location ── */}
+          <div className="afs-section">
+            <div className="afs-info-row">
+              <div className="afs-info-left">
+                <MapPin size={17} className="afs-info-icon" />
+                <span className="afs-info-text">
+                  {address || <span className="afs-placeholder">No location set</span>}
+                </span>
+              </div>
+              <button className="afs-edit-btn" onClick={openMapModal}><Pencil size={13} /> {hasLocation ? "Edit" : "Set"}</button>
+            </div>
+          </div>
+
+          <div className="afs-divider" />
+
+          {/* ── Menu Items ── */}
+          <div className="afs-section afs-section--menu">
+            <div className="afs-menu-header">
+              <span className="afs-menu-title">MENU ITEMS</span>
+              <button className="afs-add-menu-btn" onClick={openAddMenuItem}><Plus size={14} /> Add item</button>
+            </div>
+            {menuItems.length === 0 ? (
+              <div className="afs-menu-empty">
+                <UtensilsCrossed size={28} color="#ddd" />
+                <p>No menu items yet</p>
+                <button className="afs-btn-primary" onClick={openAddMenuItem}><Plus size={13} /> Add first item</button>
+              </div>
+            ) : (
+              <div className="afs-menu-list">
+                {menuItems.map((item, i) => (
+                  <div key={i} className="afs-menu-item">
+                    <div className="afs-menu-item-thumb">
+                      {item.imagePreview
+                        ? <img src={item.imagePreview} alt={item.name} />
+                        : <UtensilsCrossed size={20} color="#ccc" />}
+                    </div>
+                    <div className="afs-menu-item-info">
+                      <div className="afs-menu-item-name">{item.name || "Untitled"}</div>
+                      <div className="afs-menu-item-meta">
+                        <Clock size={12} className="afs-meta-clock" />
+                        <span className="afs-meta-hours">{item.AvailableHours?.open} – {item.AvailableHours?.close}</span>
+                      </div>
+                      <div className="afs-meta-price">
+                        LKR {Number(item.price || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div className="afs-menu-item-actions">
+                      <button className="afs-menu-action-btn edit" onClick={() => openEditMenuItem(i)} title="Edit"><Pencil size={13} /></button>
+                      <button className="afs-menu-action-btn del"  onClick={() => removeMenuItem(i)}   title="Delete"><Trash2 size={13} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── In-card Save / Cancel (desktop) ── */}
+          <div className="afs-card-actions">
+            <div className="afs-card-actions-inner">
+              {isSaving && saveMsg && (
+                <span className="afs-save-progress"><Loader2 size={13} className="afs-spin" />{saveMsg}</span>
+              )}
+              <div className="afs-card-actions-btns">
+                <button className="afs-bottom-cancel-btn" onClick={() => navigate("/Listings")} disabled={isSaving}>Cancel</button>
+                <button className="afs-bottom-save-btn"   onClick={handleSave}                  disabled={isSaving}>
+                  {isSaving ? <><Loader2 size={15} className="afs-spin" /> Saving…</> : <><Save size={15} /> Create service</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* ── LANDING ── */}
-      {!showForm && (
-        <div className="afs-hero" style={{ height: "calc(100vh - 58px)" }}>
-          <div className="afs-hero-bg" style={{ backgroundImage: "url('/images/foodbg1.png')" }} />
-          <div className="afs-hero-overlay" />
-          <div className="afs-hero-content">
-            <h1 className="afs-hero-title">Share your food.<br /><em>Grow your business.</em></h1>
-            <p className="afs-hero-sub">List your kitchen, set your menu, and start receiving orders from your community. Takes only a few minutes.</p>
-            <button className="afs-hero-cta" onClick={handleGetStarted}>
-              Get started <ChevronRight size={17} />
+      {/* ── Bottom Bar (mobile) ── */}
+      <div className="afs-bottom-bar">
+        <div className="afs-bottom-bar-inner">
+          {isSaving && saveMsg && (
+            <span className="afs-save-progress"><Loader2 size={13} className="afs-spin" />{saveMsg}</span>
+          )}
+          <div className="afs-bottom-bar-btns">
+            <button className="afs-bottom-cancel-btn" onClick={() => navigate("/Listings")} disabled={isSaving}>Cancel</button>
+            <button className="afs-bottom-save-btn"   onClick={handleSave}                  disabled={isSaving}>
+              {isSaving ? <><Loader2 size={15} className="afs-spin" /> Saving…</> : <><Save size={15} /> Create service</>}
             </button>
           </div>
         </div>
+      </div>
+
+      {/* ── Map Modal ── */}
+      {showMapModal && (
+        <Modal title="Set kitchen location" onClose={() => setShowMapModal(false)} wide>
+          {mapLoadError ? (
+            <div className="afs-map-error-inline">Map failed to load. Check your connection.</div>
+          ) : !mapIsLoaded ? (
+            <div className="afs-map-loading"><Loader2 size={20} className="afs-spin" color="#FF6B2B" /><span>Loading map…</span></div>
+          ) : (
+            <>
+              <div className="afs-map-wrapper">
+                <GoogleMap mapContainerStyle={mapContainerStyle} center={draftLocation || SLIIT_LOCATION}
+                  zoom={16} options={defaultMapOptions} onLoad={onMapLoad} onClick={onMapClick}>
+                  {draftLocation && <Marker position={draftLocation} draggable onDragEnd={onMapClick} />}
+                </GoogleMap>
+              </div>
+              <div className="afs-map-actions">
+                <button className="afs-map-btn" onClick={useSLIITLocation}><MapPin size={14} /> SLIIT University</button>
+                <button className="afs-map-btn" onClick={useCurrentLocation}><Crosshair size={14} /> Use my location</button>
+              </div>
+            </>
+          )}
+          <div className="afs-field">
+            <label className="afs-label">Address</label>
+            <textarea className="afs-textarea" rows="2" value={draftAddress}
+              onChange={(e) => setDraftAddress(e.target.value)} placeholder="Full address…" />
+          </div>
+          <div className="afs-modal-footer">
+            <button className="afs-btn-secondary" onClick={() => setShowMapModal(false)}>Cancel</button>
+            <button className="afs-btn-primary"   onClick={saveLocation}><Check size={14} /> Confirm location</button>
+          </div>
+        </Modal>
       )}
 
-      {/* ── FORM ── */}
-      {showForm && (
-        <>
-          {/* Progress bar */}
-          <div className="afs-progress-wrapper">
-            <div className="afs-progress-steps">
-              {STEPS.map((step, idx) => {
-                const done   = currentStep > step.num;
-                const active = currentStep === step.num;
+      {/* ── Menu Item Modal ── */}
+      {menuModal && editingItem && (
+        <Modal
+          title={menuModal.mode === "add" ? "Add menu item" : "Edit menu item"}
+          onClose={() => { setMenuModal(null); setEditingItem(null); }}
+          wide
+        >
+          <div className="afs-field">
+            <label className="afs-label">Item photo</label>
+            {!editingItem.imagePreview ? (
+              <div className="afs-upload-zone" onClick={() => menuImgRef.current?.click()}>
+                <input type="file" accept="image/*" style={{ display: "none" }} ref={menuImgRef} onChange={handleEditingImageSelect} />
+                <Upload size={18} color="#bbb" />
+                <span className="afs-upload-text">Upload item photo</span>
+              </div>
+            ) : (
+              <div className="afs-photo-preview">
+                <img src={editingItem.imagePreview} alt="item" className="afs-item-img" />
+                <div className="afs-photo-actions">
+                  <button type="button" className="afs-icon-btn del"
+                    onClick={() => setEditingItem((p) => ({ ...p, imagePreview: null, imageFile: null }))}>
+                    <Trash2 size={13} />
+                  </button>
+                  <button type="button" className="afs-icon-btn upd" onClick={() => menuImgRef.current?.click()}>
+                    <RefreshCw size={13} />
+                  </button>
+                </div>
+                <input type="file" accept="image/*" style={{ display: "none" }} ref={menuImgRef} onChange={handleEditingImageSelect} />
+              </div>
+            )}
+          </div>
+          <div className="afs-row">
+            <div className="afs-field">
+              <label className="afs-label">Item name *</label>
+              <input className="afs-input" type="text" value={editingItem.name}
+                onChange={(e) => setEditingItem((p) => ({ ...p, name: e.target.value }))}
+                placeholder="e.g. Grilled Chicken Rice" />
+            </div>
+            <div className="afs-field">
+              <label className="afs-label">Category</label>
+              <select className="afs-select" value={editingItem.category}
+                onChange={(e) => setEditingItem((p) => ({ ...p, category: e.target.value }))}>
+                {MENU_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="afs-field">
+            <label className="afs-label">Description</label>
+            <input className="afs-input" type="text" value={editingItem.description}
+              onChange={(e) => setEditingItem((p) => ({ ...p, description: e.target.value }))}
+              placeholder="Brief description…" />
+          </div>
+          <div className="afs-row">
+            <div className="afs-field">
+              {/* ✅ Label updated to reflect new LKR 100 minimum */}
+              <label className="afs-label">Price (LKR) * 100–10,000</label>
+              <input className="afs-input" type="number" value={editingItem.price}
+                onChange={(e) => setEditingItem((p) => ({ ...p, price: e.target.value }))}
+                onBlur={(e) => {
+                  const raw = Number(e.target.value);
+                  if (!isNaN(raw) && e.target.value !== "")
+                    setEditingItem((p) => ({ ...p, price: String(Math.min(10000, Math.max(100, raw))) }));
+                }}
+                min="100" max="10000" placeholder="350" />
+            </div>
+            <div className="afs-field">
+              <label className="afs-label">Prep time * 1–120 mins</label>
+              <input className="afs-input" type="number" value={editingItem.prepTime}
+                onChange={(e) => setEditingItem((p) => ({ ...p, prepTime: e.target.value }))}
+                onBlur={(e) => {
+                  const raw = Number(e.target.value);
+                  if (!isNaN(raw) && e.target.value !== "")
+                    setEditingItem((p) => ({ ...p, prepTime: String(Math.min(120, Math.max(1, raw))) }));
+                }}
+                min="1" max="120" />
+            </div>
+          </div>
+          <div className="afs-field">
+            <label className="afs-label">Available hours</label>
+            <div className="afs-hours-row">
+              <div className="afs-field" style={{ flex: 1 }}>
+                <label className="afs-label" style={{ fontSize: 10 }}>From</label>
+                <select className="afs-select" value={editingItem.AvailableHours.open}
+                  onChange={(e) => setEditingItem((p) => ({ ...p, AvailableHours: { ...p.AvailableHours, open: e.target.value } }))}>
+                  {TIME_OPTIONS.filter((t) =>
+                    timeIdx(t) >= timeIdx(operatingHours.open) && timeIdx(t) < timeIdx(operatingHours.close)
+                  ).map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <span className="afs-hours-dash">–</span>
+              <div className="afs-field" style={{ flex: 1 }}>
+                <label className="afs-label" style={{ fontSize: 10 }}>Until</label>
+                <select className="afs-select" value={editingItem.AvailableHours.close}
+                  onChange={(e) => setEditingItem((p) => ({ ...p, AvailableHours: { ...p.AvailableHours, close: e.target.value } }))}>
+                  {TIME_OPTIONS.filter((t) =>
+                    timeIdx(t) > timeIdx(editingItem.AvailableHours.open) && timeIdx(t) <= timeIdx(operatingHours.close)
+                  ).map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+          <div className="afs-field">
+            <label className="afs-label">Dietary tags</label>
+            <div className="afs-tags-row">
+              {DIETARY_TAGS.map((tag) => {
+                const active = editingItem.dietaryTags.includes(tag.key);
+                const Icon   = tag.icon;
                 return (
-                  <React.Fragment key={step.num}>
-                    <div className={`afs-progress-step ${active?"active":""} ${done?"done":""}`}>
-                      <div className="afs-progress-bubble">
-                        {done ? <CheckCircle size={16} /> : step.num}
-                      </div>
-                      <span className="afs-progress-label">{step.label}</span>
-                    </div>
-                    {idx < STEPS.length - 1 && (
-                      <div className="afs-progress-line">
-                        <div className="afs-progress-line-fill" style={{ width: done ? "100%" : "0%" }} />
-                      </div>
-                    )}
-                  </React.Fragment>
+                  <button key={tag.key} type="button" className="afs-tag-btn"
+                    style={{ background: active ? tag.bg : "#f5f5f7", color: active ? tag.color : "#aaa",
+                             borderColor: active ? tag.border : "#e8e8e8", fontWeight: active ? 700 : 500 }}
+                    onClick={() => toggleEditingTag(tag.key)}>
+                    <Icon size={13} /><span>{tag.key}</span>{active && <span className="afs-tag-check">✓</span>}
+                  </button>
                 );
               })}
             </div>
           </div>
-
-          <div className="afs-layout">
-
-            {/* ── STEP 1 ── */}
-            {currentStep === 1 && (
-              <div className="afs-card">
-                <div className="afs-card-title">Tell us about your kitchen</div>
-                <div className="afs-card-subtitle">Basic information customers will see on your listing</div>
-
-                <div className="afs-field">
-                  <label className="afs-label">Kitchen name <span>*</span></label>
-                  <input className="afs-input" type="text" value={kitchenName}
-                    onChange={e => setKitchenName(e.target.value)}
-                    placeholder="e.g. Mama's Home Kitchen" maxLength={60} />
-                  <div className="afs-field-footer">
-                    <span className={`afs-char-count ${kitchenName.length > 50 ? "warn" : ""}`}>{kitchenName.length}/60</span>
-                  </div>
-                </div>
-
-                <div className="afs-field">
-                  <label className="afs-label">Description <span>*</span></label>
-                  <textarea className="afs-textarea" value={description}
-                    onChange={e => setDescription(e.target.value)}
-                    placeholder="Describe what makes your kitchen special..." maxLength={300} />
-                  <div className="afs-field-footer">
-                    <span className={`afs-char-count ${description.length > 250 ? "warn" : ""}`}>{description.length}/300</span>
-                  </div>
-                </div>
-
-                <div className="afs-field">
-                  <label className="afs-label">Service type <span>*</span></label>
-                  <div className="afs-type-grid">
-                    {SERVICE_TYPES.map(t => {
-                      const Icon = t.icon;
-                      return (
-                        <button key={t.key} type="button"
-                          className={`afs-type-card ${serviceType === t.key ? "selected" : ""}`}
-                          onClick={() => setServiceType(t.key)}>
-                          <div className="afs-type-icon"><Icon size={18} /></div>
-                          <span className="afs-type-name">{t.key}</span>
-                          <span className="afs-type-desc">{t.desc}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="afs-field">
-                  <label className="afs-label">Operating hours <span>*</span></label>
-                  <div className="afs-time-row">
-                    <div className="afs-time-group">
-                      <span className="afs-time-label">Opens</span>
-                      <select className="afs-select" value={operatingHours.open}
-                        onChange={e => {
-                          const newOpen = e.target.value;
-                          const openIdx = TIME_OPTIONS.indexOf(newOpen);
-                          const closeIdx = TIME_OPTIONS.indexOf(operatingHours.close);
-                          const newClose = closeIdx > openIdx ? operatingHours.close : TIME_OPTIONS[openIdx + 1] || TIME_OPTIONS[openIdx];
-                          setOperatingHours({ open: newOpen, close: newClose });
-                          setMenuItems(prev => prev.map(item => {
-                            const iOpen  = clampTime(item.AvailableHours.open,  newOpen, newClose);
-                            const iClose = clampTime(item.AvailableHours.close, newOpen, newClose);
-                            return { ...item, AvailableHours: { open: iOpen, close: timeIdx(iClose) > timeIdx(iOpen) ? iClose : newClose } };
-                          }));
-                        }}>
-                        {TIME_OPTIONS.slice(0, -1).map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    <div className="afs-time-divider"><ChevronRight size={16} /></div>
-                    <div className="afs-time-group">
-                      <span className="afs-time-label">Closes</span>
-                      <select className="afs-select" value={operatingHours.close}
-                        onChange={e => {
-                          const newClose = e.target.value;
-                          setOperatingHours(p => ({ ...p, close: newClose }));
-                          setMenuItems(prev => prev.map(item => {
-                            const iOpen  = clampTime(item.AvailableHours.open,  operatingHours.open, newClose);
-                            const iClose = clampTime(item.AvailableHours.close, operatingHours.open, newClose);
-                            return { ...item, AvailableHours: { open: iOpen, close: timeIdx(iClose) > timeIdx(iOpen) ? iClose : newClose } };
-                          }));
-                        }}>
-                        {TIME_OPTIONS.filter(t => TIME_OPTIONS.indexOf(t) > TIME_OPTIONS.indexOf(operatingHours.open))
-                          .map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="afs-field">
-                  <label className="afs-label">Service options <span>*</span></label>
-                  <div className="afs-option-row">
-                    <button type="button" className={`afs-option-card ${deliveryAvailable ? "active" : ""}`}
-                      onClick={() => setDeliveryAvailable(p => !p)}>
-                      <div className="afs-option-icon-box"><Truck size={18} /></div>
-                      <span className="afs-option-name">Delivery</span>
-                      <span className={`afs-badge ${deliveryAvailable ? "on" : "off"}`}>{deliveryAvailable ? "On" : "Off"}</span>
-                    </button>
-                    <button type="button" className={`afs-option-card ${pickupAvailable ? "active" : ""}`}
-                      onClick={() => setPickupAvailable(p => !p)}>
-                      <div className="afs-option-icon-box"><ShoppingBag size={18} /></div>
-                      <span className="afs-option-name">Pickup</span>
-                      <span className={`afs-badge ${pickupAvailable ? "on" : "off"}`}>{pickupAvailable ? "On" : "Off"}</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="afs-nav">
-                  <div />
-                  <button className="afs-btn-primary" onClick={handleNextStep}>Next <ChevronRight size={15} /></button>
-                </div>
-              </div>
-            )}
-
-            {/* ── STEP 2 ── */}
-            {currentStep === 2 && (
-              <div className="afs-card">
-                <div className="afs-card-title">Set your kitchen location</div>
-                <div className="afs-card-subtitle">Click the map to pin your exact position</div>
-
-                {mapLoadError ? (
-                  <div className="afs-map-error">
-                    <MapPin size={22} />
-                    <div>
-                      <div style={{ fontWeight: 600, marginBottom: 4 }}>Map failed to load</div>
-                      <div style={{ fontSize: 12, color: "#aaa" }}>Check your internet connection and reload the page.</div>
-                    </div>
-                  </div>
-                ) : !mapIsLoaded ? (
-                  <div className="afs-map-loading">
-                    <Loader2 size={22} className="afs-spin" />
-                    <span>Loading map...</span>
-                  </div>
-                ) : (
-                  <div className="afs-map-wrapper">
-                    <GoogleMap mapContainerStyle={mapContainerStyle} center={selectedLocation}
-                      zoom={16} options={defaultOptions} onLoad={onMapLoad} onClick={onMapClick}>
-                      <Marker position={selectedLocation} draggable onDragEnd={onMapClick} />
-                    </GoogleMap>
-                  </div>
-                )}
-
-                <div className="afs-map-actions">
-                  <button className="afs-map-btn" onClick={handleSLIITLocation}><MapPin size={14} /> SLIIT University</button>
-                  <button className="afs-map-btn" onClick={handleUseCurrentLocation}><Crosshair size={14} /> Use my location</button>
-                </div>
-
-                <div className="afs-field">
-                  <label className="afs-label">Address <span>*</span></label>
-                  <textarea className="afs-textarea" rows="2" value={address}
-                    onChange={e => setAddress(e.target.value)}
-                    placeholder="Full address will appear after clicking the map, or type manually..." />
-                </div>
-
-                <div className="afs-nav">
-                  <button className="afs-btn-secondary" onClick={handlePreviousStep}><ChevronLeft size={15} /> Previous</button>
-                  <button className="afs-btn-primary" onClick={handleNextStep}>Next <ChevronRight size={15} /></button>
-                </div>
-              </div>
-            )}
-
-            {/* ── STEP 3 ── */}
-            {currentStep === 3 && (
-              <div className="afs-card">
-                <div className="afs-card-title">Kitchen photos</div>
-                <div className="afs-card-subtitle">Photos are uploaded when you save your listing</div>
-
-                <input type="file" accept="image/*" ref={updatePhotoRef} style={{ display:"none" }} onChange={handleUpdateKitchenPhoto} />
-
-                <div className="afs-field">
-                  <label className="afs-label">Icon image <span>*</span></label>
-                  <span className="afs-hint">Displayed as a circle — your kitchen's profile picture</span>
-                  {!iconPreview ? (
-                    <div className="afs-upload-zone" onClick={() => document.getElementById("icon-upload").click()}>
-                      <input type="file" accept="image/*" id="icon-upload" style={{ display:"none" }} onChange={handleIconSelect} />
-                      <div className="afs-upload-icon"><Upload size={18} /></div>
-                      <div className="afs-upload-text">Click to upload icon</div>
-                      <div className="afs-upload-hint">PNG, JPG up to 5MB</div>
-                    </div>
-                  ) : (
-                    <div className="afs-photo-preview">
-                      <img src={iconPreview} alt="icon" className="afs-preview-icon" />
-                      <div className="afs-photo-actions">
-                        <button type="button" className="afs-icon-btn del" onClick={() => handleDeleteKitchenPhoto("icon")}><Trash2 size={13} /></button>
-                        <button type="button" className="afs-icon-btn upd" onClick={() => triggerKitchenUpdate("icon")}><RefreshCw size={13} /></button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="afs-divider" />
-
-                <div className="afs-field">
-                  <label className="afs-label">Cover / Background image <span>*</span></label>
-                  <span className="afs-hint">Wide banner showcasing your kitchen or signature dish</span>
-                  {!bgPreview ? (
-                    <div className="afs-upload-zone" onClick={() => document.getElementById("bg-upload").click()}>
-                      <input type="file" accept="image/*" id="bg-upload" style={{ display:"none" }} onChange={handleBgSelect} />
-                      <div className="afs-upload-icon"><ImageIcon size={18} /></div>
-                      <div className="afs-upload-text">Click to upload cover image</div>
-                      <div className="afs-upload-hint">PNG, JPG — recommended 1200×400</div>
-                    </div>
-                  ) : (
-                    <div className="afs-photo-preview">
-                      <img src={bgPreview} alt="bg" className="afs-preview-bg" />
-                      <div className="afs-photo-actions">
-                        <button type="button" className="afs-icon-btn del" onClick={() => handleDeleteKitchenPhoto("bg")}><Trash2 size={13} /></button>
-                        <button type="button" className="afs-icon-btn upd" onClick={() => triggerKitchenUpdate("bg")}><RefreshCw size={13} /></button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="afs-nav">
-                  <button className="afs-btn-secondary" onClick={handlePreviousStep}><ChevronLeft size={15} /> Previous</button>
-                  <button className="afs-btn-primary" onClick={handleNextStep}>Next <ChevronRight size={15} /></button>
-                </div>
-              </div>
-            )}
-
-            {/* ── STEP 4 ── */}
-            {currentStep === 4 && (
-              <div>
-                <div className="afs-card" style={{ marginBottom: 16 }}>
-                  <div className="afs-card-title">Build your menu</div>
-                  <div className="afs-card-subtitle">Add the dishes and items you'll be offering</div>
-                </div>
-
-                {menuItems.map((item, index) => (
-                  <div key={index} className="afs-menu-card">
-                    <div className="afs-menu-header">
-                      <div className="afs-menu-header-left">
-                        <div className="afs-menu-num">{String(index + 1).padStart(2, "0")}</div>
-                        <span className="afs-menu-title">{item.name || "Untitled item"}</span>
-                      </div>
-                      <button type="button" className="afs-remove-btn" onClick={() => removeMenuItem(index)}>
-                        <Trash2 size={12} /> Remove
-                      </button>
-                    </div>
-
-                    <div className="afs-field">
-                      <label className="afs-label">Item photo</label>
-                      {!item.imagePreview ? (
-                        <div className="afs-upload-zone" style={{ padding:"18px 20px" }}
-                          onClick={() => menuImageRefs.current[index]?.click()}>
-                          <input type="file" accept="image/*" style={{ display:"none" }}
-                            ref={el => (menuImageRefs.current[index] = el)}
-                            onChange={e => handleMenuItemImageSelect(index, e)} />
-                          <div className="afs-upload-icon" style={{ width:34, height:34, marginBottom:6 }}><Upload size={15} /></div>
-                          <div className="afs-upload-text" style={{ fontSize:13 }}>Upload item photo</div>
-                        </div>
-                      ) : (
-                        <div className="afs-photo-preview">
-                          <img src={item.imagePreview} alt={`item-${index}`} className="afs-item-img" />
-                          <div className="afs-photo-actions">
-                            <button type="button" className="afs-icon-btn del" onClick={() => handleMenuItemImageDelete(index)}><Trash2 size={13} /></button>
-                            <button type="button" className="afs-icon-btn upd" onClick={() => triggerMenuItemUpdate(index)}><RefreshCw size={13} /></button>
-                          </div>
-                          {item.imageUploading && <div className="afs-img-uploading"><Loader2 size={16} className="afs-spin" /> Uploading...</div>}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="afs-row">
-                      <div className="afs-field">
-                        <label className="afs-label">Item name <span>*</span></label>
-                        <input className="afs-input" type="text" value={item.name}
-                          onChange={e => updateMenuItem(index, "name", e.target.value)}
-                          placeholder="e.g. Grilled Chicken Rice" />
-                      </div>
-                      <div className="afs-field">
-                        <label className="afs-label">Category <span>*</span></label>
-                        <select className="afs-select" value={item.category}
-                          onChange={e => updateMenuItem(index, "category", e.target.value)}>
-                          {MENU_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="afs-field">
-                      <label className="afs-label">Description</label>
-                      <input className="afs-input" type="text" value={item.description}
-                        onChange={e => updateMenuItem(index, "description", e.target.value)}
-                        placeholder="Brief description of the dish..." />
-                    </div>
-
-                    <div className="afs-row">
-                      <div className="afs-field">
-                        <label className="afs-label">Price (LKR) <span>* 100–10,000</span></label>
-                        <input className="afs-input" type="number" value={item.price}
-                          onChange={e => updateMenuItem(index, "price", e.target.value)}
-                          onBlur={e => {
-                            const v = Number(e.target.value);
-                            if (e.target.value === "") return;
-                            if (v < 100)        updateMenuItem(index, "price", "100");
-                            else if (v > 10000) updateMenuItem(index, "price", "10000");
-                          }}
-                          min="100" max="10000" placeholder="350" />
-                      </div>
-                      <div className="afs-field">
-                        <label className="afs-label">Prep time <span>* 1–120 mins</span></label>
-                        <input className="afs-input" type="number" value={item.prepTime}
-                          onChange={e => updateMenuItem(index, "prepTime", e.target.value)}
-                          onBlur={e => {
-                            const v = Number(e.target.value);
-                            if (e.target.value === "") return;
-                            if (v < 1)        updateMenuItem(index, "prepTime", "1");
-                            else if (v > 120) updateMenuItem(index, "prepTime", "120");
-                          }}
-                          min="1" max="120" />
-                      </div>
-                    </div>
-
-                    <div className="afs-field">
-                      <label className="afs-label">Available hours</label>
-                      <div className="afs-time-row">
-                        <div className="afs-time-group">
-                          <span className="afs-time-label">From</span>
-                          <select className="afs-select" value={item.AvailableHours.open}
-                            onChange={e => {
-                              const newOpen = e.target.value;
-                              const openIdx = TIME_OPTIONS.indexOf(newOpen);
-                              const closeIdx = TIME_OPTIONS.indexOf(item.AvailableHours.close);
-                              const opCloseIdx = TIME_OPTIONS.indexOf(operatingHours.close);
-                              updateMenuItemHours(index, "open", newOpen);
-                              if (closeIdx <= openIdx) updateMenuItemHours(index, "close", TIME_OPTIONS[Math.min(openIdx + 1, opCloseIdx)]);
-                            }}>
-                            {TIME_OPTIONS.filter(t => { const i=TIME_OPTIONS.indexOf(t); return i>=timeIdx(operatingHours.open) && i<timeIdx(operatingHours.close); }).map(t => <option key={t} value={t}>{t}</option>)}
-                          </select>
-                        </div>
-                        <div className="afs-time-divider"><ChevronRight size={16} /></div>
-                        <div className="afs-time-group">
-                          <span className="afs-time-label">Until</span>
-                          <select className="afs-select" value={item.AvailableHours.close}
-                            onChange={e => updateMenuItemHours(index, "close", e.target.value)}>
-                            {TIME_OPTIONS.filter(t => { const i=TIME_OPTIONS.indexOf(t); return i>timeIdx(item.AvailableHours.open) && i<=timeIdx(operatingHours.close); }).map(t => <option key={t} value={t}>{t}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="afs-field">
-                      <label className="afs-label">Dietary tags</label>
-                      <div className="afs-tags-row">
-                        {DIETARY_TAGS.map(tag => {
-                          const active = item.dietaryTags.includes(tag.key);
-                          const Icon = tag.icon;
-                          return (
-                            <button key={tag.key} type="button" className="afs-tag-btn"
-                              style={{ background: active ? tag.bg : "#f5f5f5", color: active ? tag.color : "#aaa", borderColor: active ? tag.border : "#e8e8e8", fontWeight: active ? 600 : 400 }}
-                              onClick={() => toggleDietaryTag(index, tag.key)}>
-                              <Icon size={13} />
-                              <span>{tag.key}</span>
-                              {active && <span className="afs-tag-check">✓</span>}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="afs-field">
-                      <div className={`afs-avail ${item.isAvailable ? "on" : "off"}`}
-                        onClick={() => updateMenuItem(index, "isAvailable", !item.isAvailable)}>
-                        <div className="afs-avail-dot" />
-                        <span>{item.isAvailable ? "Currently available" : "Not available"}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                <button type="button" className="afs-add-item-btn" onClick={addMenuItem}>
-                  <Plus size={16} /> Add another menu item
-                </button>
-
-                <div className="afs-nav" style={{ background:"#fff", borderRadius:14, padding:"16px 24px", border:"1px solid #ebebeb" }}>
-                  <button className="afs-btn-secondary" onClick={handlePreviousStep}><ChevronLeft size={15} /> Previous</button>
-                  <button className="afs-btn-primary" onClick={handleNextStep}>Next <ChevronRight size={15} /></button>
-                </div>
-              </div>
-            )}
-
-            {/* ── STEP 5 ── */}
-            {currentStep === 5 && (
-              <div className="afs-card">
-                <div className="afs-card-title">Review & publish</div>
-                <div className="afs-card-subtitle">Here's how your listing will look — images upload on save</div>
-
-                <div className="afs-section-label" style={{ marginBottom: 14 }}>Listing preview</div>
-                <div className="afs-service-card">
-                  {bgPreview
-                    ? <img src={bgPreview} alt="cover" className="afs-service-card-cover" />
-                    : <div className="afs-service-card-cover-placeholder"><ImageIcon size={28} color="#555" /></div>
-                  }
-                  <div className="afs-service-card-body">
-                    <div className="afs-service-card-avatar">
-                      {iconPreview
-                        ? <img src={iconPreview} alt="icon" />
-                        : <UtensilsCrossed size={40} color="#fff" />
-                      }
-                    </div>
-                    <div className="afs-service-card-info">
-                      <div className="afs-service-card-name">{kitchenName || "Your Kitchen Name"}</div>
-                      <div className="afs-service-card-meta">
-                        <span><Clock size={12} /> {operatingHours.open} – {operatingHours.close}</span>
-                        <span><MapPin size={12} /> {address ? address.split(",")[0] : "Location not set"}</span>
-                      </div>
-                      <div className="afs-service-card-chips">
-                        <span className="afs-chip orange">{serviceType}</span>
-                        {deliveryAvailable && <span className="afs-chip dark">Delivery</span>}
-                        {pickupAvailable   && <span className="afs-chip dark">Pickup</span>}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="afs-divider" />
-
-                <div style={{ marginBottom: 24 }}>
-                  <div className="afs-section-label">Kitchen details</div>
-                  <table className="afs-summary-table">
-                    <tbody>
-                      {[
-                        ["Name",     kitchenName],
-                        ["Type",     serviceType],
-                        ["Hours",    `${operatingHours.open} – ${operatingHours.close}`],
-                        ["Delivery", deliveryAvailable ? "Yes" : "No"],
-                        ["Pickup",   pickupAvailable   ? "Yes" : "No"],
-                        ["Address",  address],
-                      ].map(([k, v]) => (
-                        <tr key={k}><td>{k}</td><td>{v}</td></tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="afs-divider" />
-
-                <div style={{ marginBottom: 24 }}>
-                  <div className="afs-section-label">Menu — {menuItems.length} item(s)</div>
-                  {menuItems.map((item, i) => (
-                    <div key={i} className="afs-menu-preview-row">
-                      {item.imagePreview
-                        ? <img src={item.imagePreview} alt={item.name} className="afs-menu-preview-thumb" />
-                        : <div className="afs-menu-preview-noimg"><UtensilsCrossed size={16} /></div>}
-                      <span className="afs-menu-preview-name">{item.name || `Item ${i + 1}`}</span>
-                      <span className="afs-menu-preview-cat">{item.category}</span>
-                      <span className="afs-menu-preview-price">LKR {Number(item.price || 0).toLocaleString()}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="afs-divider" />
-
-                <div style={{ marginBottom: 20 }}>
-                  <div className="afs-section-label">Confirmation</div>
-                  <label className="afs-check-label">
-                    <input type="checkbox" checked={isVerified} onChange={e => setIsVerified(e.target.checked)} />
-                    I confirm all information provided is accurate and up to date.
-                  </label>
-                  <label className="afs-check-label" style={{ marginTop: 4 }}>
-                    <input type="checkbox" checked={isAgreed} onChange={e => setIsAgreed(e.target.checked)} />
-                    I agree to the Terms of Service. Images will be uploaded when I save.
-                  </label>
-                </div>
-
-                {isSaving && saveProgress && (
-                  <div className="afs-save-bar">
-                    <Loader2 size={16} className="afs-spin" />
-                    <span>{saveProgress}</span>
-                  </div>
-                )}
-
-                <div className="afs-nav">
-                  <button className="afs-btn-secondary" onClick={handlePreviousStep} disabled={isSaving}>
-                    <ChevronLeft size={15} /> Previous
-                  </button>
-                  <button className="afs-btn-save" onClick={handleSaveListing} disabled={isSaving || !isVerified || !isAgreed}>
-                    {isSaving
-                      ? <><Loader2 size={15} className="afs-spin" /> Saving...</>
-                      : <><CheckCircle size={15} /> Save listing</>
-                    }
-                  </button>
-                </div>
-              </div>
-            )}
-
+          <div className="afs-field">
+            <div className="afs-avail-row">
+              <span className="afs-avail-label">Currently available</span>
+              <Toggle checked={editingItem.isAvailable} onChange={(v) => setEditingItem((p) => ({ ...p, isAvailable: v }))} />
+            </div>
           </div>
-        </>
+          <div className="afs-modal-footer">
+            <button className="afs-btn-secondary" onClick={() => { setMenuModal(null); setEditingItem(null); }}>Cancel</button>
+            <button className="afs-btn-primary"   onClick={saveMenuItem}>
+              <Check size={14} /> {menuModal.mode === "add" ? "Add to menu" : "Save changes"}
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );
 }
 
-export default AddFoodService;
+// ─── Topbar ───────────────────────────────────────────────────────────────────
+function Topbar() {
+  return (
+    <div className="afs-topbar">
+      <a href="/Listings" className="afs-back-btn">
+        <ChevronLeft size={16} />
+        <span>Back to Listings</span>
+      </a>
+    </div>
+  );
+}
