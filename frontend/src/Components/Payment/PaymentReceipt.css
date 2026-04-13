@@ -16,7 +16,7 @@
 .pr-page {
   min-height: 100vh;
   background: #f8f9fa;
-  font-family: "'Segoe UI', 'Plus Jakarta Sans', sans-serif";
+  font-family: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
   padding-bottom: 80px;
   color: #1a1a2e;
 }
