@@ -40,6 +40,10 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import axios from "axios";
+import LoadingScreen from "../Overlays/LoadingScreen/Loader";
+
+// ── Import the shared toast hook ──────────────────────────────────────────────
+import { useToast } from "../Overlays/ToastMessages/ToastContext";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const GOOGLE_MAPS_API_KEY = "AIzaSyDKKnxSMEUkZyZiLT83DXCJhR4eplblzKA";
@@ -97,44 +101,6 @@ const emptyMenuItem = () => ({
   isNew: true,
 });
 
-// ─── Toast ────────────────────────────────────────────────────────────────────
-function useToast() {
-  const [toasts, setToasts] = useState([]);
-
-  const toast = useCallback((message, type = "error") => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
-  }, []);
-
-  const dismiss = useCallback((id) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  return { toasts, toast, dismiss };
-}
-
-function ToastContainer({ toasts, dismiss }) {
-  return (
-    <div style={{
-      position: "fixed", top: 20, right: 20, zIndex: 9999,
-      display: "flex", flexDirection: "column", gap: 10, pointerEvents: "none",
-    }}>
-      {toasts.map((t) => (
-        <div key={t.id} className={`efs-toast efs-toast--${t.type}`}
-          style={{ pointerEvents: "all", animation: "efsToastIn 0.3s ease" }}>
-          <div className="efs-toast-icon">
-            {t.type === "error"   && <AlertCircle  size={16} />}
-            {t.type === "success" && <CheckCircle2 size={16} />}
-          </div>
-          <span className="efs-toast-msg">{t.message}</span>
-          <button className="efs-toast-close" onClick={() => dismiss(t.id)}><X size={13} /></button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ─── Toggle Switch ────────────────────────────────────────────────────────────
 function Toggle({ checked, onChange }) {
   return (
@@ -180,9 +146,10 @@ export default function EditFoodService() {
     libraries: LIBRARIES,
   });
 
-  // ── State ─────────────────────────────────────────────────────────────────
-  const { toasts, toast, dismiss } = useToast();
+  // ── Toast (now from shared context) ───────────────────────────────────────
+  const { toast } = useToast();
 
+  // ── State ─────────────────────────────────────────────────────────────────
   const [isLoading,  setIsLoading]  = useState(true);
   const [loadError,  setLoadError]  = useState(null);
   const [isSaving,   setIsSaving]   = useState(false);
@@ -457,7 +424,6 @@ export default function EditFoodService() {
       setSaveMsg("Linking menu…");
       await axios.put(`${BASE_URL}/Foodservice/${id}`, { menu: menuItemIds });
 
-      // ✅ Success toast instead of alert
       toast("Food service updated successfully!", "success");
       setTimeout(() => navigate("/Listings"), 1500);
     } catch (err) {
@@ -469,16 +435,7 @@ export default function EditFoodService() {
   };
 
   // ── Loading / Error ────────────────────────────────────────────────────────
-  if (isLoading)
-    return (
-      <div className="efs-root">
-        <Topbar />
-        <div className="efs-state-screen">
-          <Loader2 size={32} className="efs-spin" color="#FF6B2B" />
-          <p>Loading food service…</p>
-        </div>
-      </div>
-    );
+  if (isLoading) return <LoadingScreen />;
   if (loadError)
     return (
       <div className="efs-root">
@@ -493,7 +450,7 @@ export default function EditFoodService() {
 
   return (
     <div className="efs-root">
-      <ToastContainer toasts={toasts} dismiss={dismiss} />
+      {/* ── ToastContainer is now rendered globally by <ToastProvider> ── */}
       <Topbar />
 
       <div className="efs-page">

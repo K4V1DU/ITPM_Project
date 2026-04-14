@@ -1,4 +1,6 @@
 import { Routes, Route } from "react-router-dom";
+import { ToastProvider } from "./Components/Overlays/ToastMessages/ToastContext.jsx";
+import "./Components/Overlays/ToastMessages/Toast.css";
 import Boardings from "./Components/Boardings/Boardings";
 import Hostpage from "./Components/HostPage/HostPage";
 import AddAccommodation from "./Components/AddAccommodation/AddAccommodation";
@@ -11,7 +13,7 @@ import Login from "./Components/Login/Login";
 import EditFoodService from "./Components/FoodService_Edit/EditFoodService";
 import HostListings from "./Components/Host_Listing/HostListings";
 import UserProfile from "./Components/User_Profile/UserProfile";
-import FoodCheckout from "./Components/Food_Checkout/FoodCheckout";
+import FoodCheckout from "./Components/Food_Checkout/FoodCheckout"
 import Payment from "./Components/Payment/Payment";
 import PaymentReceipt from "./Components/Payment/PaymentReceipt";
 import Messages from "./Components/Message/Messages";
@@ -35,13 +37,16 @@ import AdminProfile from "./Components/User_Profile/AdminProfile/AdminProfile";
 import AdminBookings from "./Components/AdminPannel/AdminBookings.js";
 import AdminOrders from "./Components/AdminPannel/AdminOrders.js";
 import StudentBookings from "./Components/Student_Bookings/StudentBooking.js";
-
+import LoadingScreen from "./Components/Overlays/LoadingScreen/Loader.jsx";
 
 
 
 function App() {
   return (
+
+    <ToastProvider>
     <Routes>
+      
       <Route path="/" element={<Login />} />
       <Route path="/Login" element={<Login />} />
       <Route path="/Boardings" element={<Boardings />} />
@@ -81,9 +86,10 @@ function App() {
       <Route path="/AdminBookings" element={<AdminBookings />} />
       <Route path="/AdminOrders" element={<AdminOrders />} />
       <Route path="/StudentBookings" element={<StudentBookings />} />
-
+      <Route path="/LoadingScreen" element={<LoadingScreen />} />
 
     </Routes>
+    </ToastProvider>
   );
 }
 
