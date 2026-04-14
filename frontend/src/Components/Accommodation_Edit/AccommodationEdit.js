@@ -4,13 +4,15 @@ import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
 import axios from "axios";
 import "./AccommodationEdit.css";
 import {
-  X, Home, MapPin, Bed, Bath, Zap, Droplets, Wifi, Car,
+  X, Home, MapPin, Zap, Droplets, Wifi, Car,
   Wind, Tv, Dumbbell, Waves, Camera, UtensilsCrossed,
-  Trash2, Plus, Users, User, Upload, RefreshCw,
+  WashingMachine, Trash2, Users, Upload, RefreshCw,
   CheckCircle, Loader2, ChevronRight, ChevronLeft,
-  Crosshair, AlertCircle, Pencil, ImagePlus, Key,
+  Crosshair, AlertCircle, Pencil, ImagePlus,
+  AlertTriangle, CheckCircle2, Info,
+  Building2, DoorOpen, CigaretteOff, VolumeX, PartyPopper, PawPrint,
 } from "lucide-react";
-import { MdApartment, MdHouse, MdBedroomParent, MdKey } from "react-icons/md";
+import { FaMars, FaVenus, FaVenusMars } from "react-icons/fa";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const GOOGLE_MAPS_API_KEY = "AIzaSyDKKnxSMEUkZyZiLT83DXCJhR4eplblzKA";
@@ -23,29 +25,39 @@ const defaultOptions      = {
   streetViewControl: false, rotateControl: false, fullscreenControl: true,
 };
 
-const ACCOMMODATION_TYPES = [
-  { key: "Apartment",    icon: MdApartment,    desc: "Flat or apartment unit"  },
-  { key: "House",        icon: MdHouse,        desc: "Full house or annex"     },
-  { key: "Shared Room",  icon: MdBedroomParent,desc: "Room shared with others" },
-  { key: "Private Room", icon: MdKey,          desc: "Your own private room"   },
+// ── Same icons/keys as AddAccommodation ───────────────────────────────────────
+const ACC_TYPES = [
+  { key: "Private Room", icon: DoorOpen,  desc: "Your own private room" },
+  { key: "Shared Room",  icon: Users,     desc: "Share with others"     },
+  { key: "Apartment",    icon: Building2, desc: "Full apartment"        },
+  { key: "House",        icon: Home,      desc: "Entire house"          },
 ];
 
 const GENDER_OPTIONS = [
-  { key: "boys",  label: "Boys Only",  icon: User  },
-  { key: "girls", label: "Girls Only", icon: User  },
-  { key: "mixed", label: "Mixed",      icon: Users },
+  { key: "mixed", label: "Mixed",      desc: "Boys & Girls",   Icon: () => <FaVenusMars size={17} /> },
+  { key: "boys",  label: "Boys Only",  desc: "Male tenants",   Icon: () => <FaMars size={17} />      },
+  { key: "girls", label: "Girls Only", desc: "Female tenants", Icon: () => <FaVenus size={17} />     },
 ];
 
+// ── WashingMachine for Washer — same as AddAccommodation ─────────────────────
 const AMENITY_LIST = [
   { key: "WiFi",    icon: Wifi            },
   { key: "Kitchen", icon: UtensilsCrossed },
   { key: "Parking", icon: Car             },
   { key: "AC",      icon: Wind            },
-  { key: "Washer",  icon: Droplets        },
+  { key: "Washer",  icon: WashingMachine  },
   { key: "CCTV",    icon: Camera          },
   { key: "TV",      icon: Tv              },
   { key: "Gym",     icon: Dumbbell        },
   { key: "Pool",    icon: Waves           },
+];
+
+// ── Same preset rules as AddAccommodation ─────────────────────────────────────
+const RULE_LIST = [
+  { key: "No Smoking",              icon: CigaretteOff },
+  { key: "Quiet hours after 10 PM", icon: VolumeX      },
+  { key: "No Party",                icon: PartyPopper  },
+  { key: "No Pets",                 icon: PawPrint     },
 ];
 
 const STEPS = [
@@ -55,6 +67,33 @@ const STEPS = [
   { num: 4, label: "Amenities" },
   { num: 5, label: "Review"    },
 ];
+
+/* ─────────────────────────────────────────────
+   TOAST SYSTEM  (same as AddAccommodation)
+───────────────────────────────────────────── */
+let _toastId = 0;
+const TOAST_ICONS = {
+  error:   <AlertCircle size={16} />,
+  success: <CheckCircle2 size={16} />,
+  warning: <AlertTriangle size={16} />,
+  info:    <Info size={16} />,
+};
+
+function ToastContainer({ toasts, onRemove }) {
+  return (
+    <div className="ae-toast-container">
+      {toasts.map(t => (
+        <div key={t.id} className={`ae-toast ae-toast--${t.type}`}>
+          <span className="ae-toast__icon">{TOAST_ICONS[t.type]}</span>
+          <span className="ae-toast__msg">{t.message}</span>
+          <button className="ae-toast__close" onClick={() => onRemove(t.id)}>
+            <X size={13} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 function AccommodationEdit() {
@@ -71,29 +110,64 @@ function AccommodationEdit() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSaving,    setIsSaving]    = useState(false);
 
-  // Step 1 – Details
-  const [title,               setTitle]               = useState("");
-  const [description,         setDescription]         = useState("");
-  const [accommodationType,   setAccommodationType]   = useState("Apartment");
-  const [genderPreference,    setGenderPreference]    = useState("mixed");
-  const [bedrooms,            setBedrooms]            = useState(1);
-  const [beds,                setBeds]                = useState(1);
-  const [bathrooms,           setBathrooms]           = useState(1);
-  const [pricePerMonth,       setPricePerMonth]       = useState("");
-  const [keyMoneyDuration,    setKeyMoneyDuration]    = useState(0);
-  const [electricityIncluded, setElectricityIncluded] = useState(false);
-  const [waterIncluded,       setWaterIncluded]       = useState(false);
-  const [newRule,             setNewRule]             = useState("");
-  const [rules,               setRules]               = useState([]);
+  // ── Toast ────────────────────────────────────────────────────────────────
+  const [toasts, setToasts] = useState([]);
+  const addToast = useCallback((message, type = "error", duration = 4500) => {
+    const id = ++_toastId;
+    setToasts(p => [...p, { id, message, type }]);
+    if (duration > 0) setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), duration);
+  }, []);
+  const removeToast = useCallback(id => setToasts(p => p.filter(t => t.id !== id)), []);
 
-  // Step 2 – Location
+  // ── Validation errors  (same pattern as AddAccommodation) ────────────────
+  const [errors, setErrors] = useState({});
+  const setError     = (key, msg) => setErrors(p => ({ ...p, [key]: msg }));
+  const clearError   = (key)      => setErrors(p => { const n = { ...p }; delete n[key]; return n; });
+  const clearAllErrors = ()       => setErrors({});
+
+  const FieldError = ({ field }) =>
+    errors[field] ? (
+      <p className="ae-field-error"><AlertCircle size={12} /> {errors[field]}</p>
+    ) : null;
+
+  // ── Counter component  (identical to AddAccommodation's Counter) ──────────
+  const Counter = ({ label, value, setter, min = 1, max = 10, errorKey }) => (
+    <div className={`ae-counter${errors[errorKey] ? " ae-counter--error" : ""}`}>
+      <span className="ae-counter__label">{label}</span>
+      <div className="ae-counter__controls">
+        <button type="button" className="ae-counter__btn"
+          onClick={() => { setter(v => Math.max(min, Number(v) - 1)); clearError(errorKey); }}
+          disabled={Number(value) <= min}>−</button>
+        <span className="ae-counter__val">{value}</span>
+        <button type="button" className="ae-counter__btn"
+          onClick={() => { setter(v => Math.min(max, Number(v) + 1)); clearError(errorKey); }}
+          disabled={Number(value) >= max}>+</button>
+      </div>
+    </div>
+  );
+
+  // ── Step 1 ───────────────────────────────────────────────────────────────
+  const [title,            setTitle]            = useState("");
+  const [description,      setDescription]      = useState("");
+  const [accType,          setAccType]          = useState("Private Room");
+  const [genderPref,       setGenderPref]       = useState("mixed");
+  const [bedrooms,         setBedrooms]         = useState(1);
+  const [beds,             setBeds]             = useState(1);
+  const [bathrooms,        setBathrooms]        = useState(1);
+  const [pricePerMonth,    setPricePerMonth]    = useState("");
+  const [keyMoneyDuration, setKeyMoneyDuration] = useState(0);
+  const [utilities,        setUtilities]        = useState({ electricity: false, water: false });
+  const [rules,            setRules]            = useState([]);
+  const [otherRules,       setOtherRules]       = useState("");
+
+  // ── Step 2 ───────────────────────────────────────────────────────────────
   const [map,                 setMap]                 = useState(null);
   const [selectedLocation,    setSelectedLocation]    = useState(SLIIT_LOCATION);
   const [address,             setAddress]             = useState("");
   const [hasSelectedLocation, setHasSelectedLocation] = useState(false);
   const [distance,            setDistance]            = useState("Distance not available");
 
-  // Step 3 – Photos
+  // ── Step 3 ───────────────────────────────────────────────────────────────
   const fileInputRef   = useRef(null);
   const updateInputRef = useRef(null);
   const [photos,           setPhotos]           = useState([]);
@@ -101,32 +175,41 @@ function AccommodationEdit() {
   const [isUploading,      setIsUploading]      = useState(false);
   const [updatingIndex,    setUpdatingIndex]    = useState(null);
 
-  // Step 4 – Amenities
+  // ── Step 4 ───────────────────────────────────────────────────────────────
   const [amenities, setAmenities] = useState([]);
 
-  // Step 5 – Review
+  // ── Step 5 ───────────────────────────────────────────────────────────────
   const [isVerified, setIsVerified] = useState(false);
   const [isAgreed,   setIsAgreed]   = useState(false);
+
+  // ── Derived ───────────────────────────────────────────────────────────────
+  const calculatedKeyMoney = pricePerMonth && keyMoneyDuration
+    ? Number(pricePerMonth) * Number(keyMoneyDuration) : 0;
 
   // ── Load data ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!id) { setLoadError("No accommodation ID provided."); setIsLoading(false); return; }
-    const fetchData = async () => {
+    (async () => {
       try {
         const res  = await axios.get(`${BASE_URL}/accommodation/${id}`);
         const data = res.data.data;
         setTitle(data.title || "");
         setDescription(data.description || "");
-        setAccommodationType(data.accommodationType || "Apartment");
-        setGenderPreference(data.genderPreference || "mixed");
+        setAccType(data.accommodationType || "Private Room");
+        setGenderPref(data.genderPreference || "mixed");
         setBedrooms(data.bedrooms || 1);
         setBeds(data.beds || 1);
         setBathrooms(data.bathrooms || 1);
         setPricePerMonth(data.pricePerMonth?.toString() || "");
         setKeyMoneyDuration(data.keyMoneyDuration || 0);
-        setElectricityIncluded(data.utilityBills?.electricityIncluded ?? false);
-        setWaterIncluded(data.utilityBills?.waterIncluded ?? false);
-        setRules(data.rules || []);
+        setUtilities({
+          electricity: data.utilityBills?.electricityIncluded ?? false,
+          water:       data.utilityBills?.waterIncluded       ?? false,
+        });
+        const allRules   = data.rules || [];
+        const presetKeys = RULE_LIST.map(r => r.key);
+        setRules(allRules.filter(r => presetKeys.includes(r)));
+        setOtherRules(allRules.filter(r => !presetKeys.includes(r)).join(", "));
         setAddress(data.address || "");
         setAmenities(data.amenities || []);
         if (data.location?.coordinates) {
@@ -143,53 +226,55 @@ function AccommodationEdit() {
         setLoadError("Failed to load accommodation data. Please try again.");
         setIsLoading(false);
       }
-    };
-    fetchData();
+    })();
   }, [id]);
 
   // ── Distance ──────────────────────────────────────────────────────────────
-  const calcDistance = (lat1, lon1, lat2, lon2) => {
-    const R    = 6371e3;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a    = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-    const d    = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return d > 1000 ? (d / 1000).toFixed(2) + " km" : Math.round(d) + " m";
-  };
-
   useEffect(() => {
-    setDistance(calcDistance(SLIIT_LOCATION.lat, SLIIT_LOCATION.lng, selectedLocation.lat, selectedLocation.lng));
+    const R    = 6371e3;
+    const dLat = (selectedLocation.lat - SLIIT_LOCATION.lat) * Math.PI / 180;
+    const dLon = (selectedLocation.lng - SLIIT_LOCATION.lng) * Math.PI / 180;
+    const a    = Math.sin(dLat/2)**2 + Math.cos(SLIIT_LOCATION.lat*Math.PI/180)*Math.cos(selectedLocation.lat*Math.PI/180)*Math.sin(dLon/2)**2;
+    const d    = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    setDistance(d > 1000 ? (d/1000).toFixed(2)+" km" : Math.round(d)+" m");
   }, [selectedLocation]);
 
   // ── Map ───────────────────────────────────────────────────────────────────
   const onMapLoad  = useCallback(m => setMap(m), []);
   const onMapClick = (e) => {
     const loc = { lat: e.latLng.lat(), lng: e.latLng.lng() };
-    setSelectedLocation(loc); setHasSelectedLocation(true);
+    setSelectedLocation(loc); setHasSelectedLocation(true); clearError("location");
     new window.google.maps.Geocoder().geocode({ location: loc }, (results, status) => {
-      if (status === "OK" && results[0]) setAddress(results[0].formatted_address);
+      if (status === "OK" && results[0]) { setAddress(results[0].formatted_address); clearError("address"); }
     });
   };
   const handleCurrentLocation = () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(pos => {
-      const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      setSelectedLocation(loc); setHasSelectedLocation(true);
-      if (map) { map.panTo(loc); map.setZoom(17); }
-      new window.google.maps.Geocoder().geocode({ location: loc }, (results, status) => {
-        if (status === "OK" && results[0]) setAddress(results[0].formatted_address);
-      });
-    });
+    if (!navigator.geolocation) { addToast("Geolocation is not supported.", "warning"); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setSelectedLocation(loc); setHasSelectedLocation(true); clearError("location");
+        if (map) { map.panTo(loc); map.setZoom(17); }
+        new window.google.maps.Geocoder().geocode({ location: loc }, (results, status) => {
+          if (status === "OK" && results[0]) { setAddress(results[0].formatted_address); clearError("address"); }
+        });
+      },
+      () => addToast("Could not get your location. Check browser permissions.", "warning"),
+    );
   };
   const handleSLIIT = () => {
-    setSelectedLocation(SLIIT_LOCATION); setHasSelectedLocation(true);
+    setSelectedLocation(SLIIT_LOCATION); setHasSelectedLocation(true); clearError("location");
     if (map) { map.panTo(SLIIT_LOCATION); map.setZoom(17); }
   };
 
   // ── Photos ────────────────────────────────────────────────────────────────
   const handlePhotoUpload = async (e) => {
     const files = Array.from(e.target.files);
-    if (uploadedImageIds.length + files.length > 5) return alert("Max 5 images.");
+    if (!files.length) return;
+    if (uploadedImageIds.length >= 5) { addToast("Maximum 5 photos allowed.", "warning"); return; }
+    if (uploadedImageIds.length + files.length > 5) {
+      addToast(`You can only add ${5 - uploadedImageIds.length} more photo(s).`, "warning"); return;
+    }
     setIsUploading(true);
     for (const file of files) {
       const fd = new FormData(); fd.append("photo", file);
@@ -198,10 +283,12 @@ function AccommodationEdit() {
         if (res.data.success) {
           setPhotos(p => [...p, URL.createObjectURL(file)]);
           setUploadedImageIds(p => [...p, res.data.data._id]);
+          clearError("photos");
         }
-      } catch { console.error("Upload failed"); }
+      } catch { addToast("Photo upload failed. Please try again.", "error"); }
     }
     setIsUploading(false);
+    e.target.value = null;
   };
   const handleDeletePhoto = async (index) => {
     if (!window.confirm("Delete this photo?")) return;
@@ -209,7 +296,7 @@ function AccommodationEdit() {
       await axios.delete(`${BASE_URL}/photo/${uploadedImageIds[index]}`);
       setPhotos(p => p.filter((_, i) => i !== index));
       setUploadedImageIds(p => p.filter((_, i) => i !== index));
-    } catch { alert("Delete failed."); }
+    } catch { addToast("Photo deletion failed.", "error"); }
   };
   const triggerUpdate = (index) => { setUpdatingIndex(index); updateInputRef.current.click(); };
   const handlePhotoUpdate = async (e) => {
@@ -221,136 +308,153 @@ function AccommodationEdit() {
       if (res.data.success) {
         const updated = [...photos]; updated[updatingIndex] = URL.createObjectURL(file); setPhotos(updated);
       }
-    } catch { alert("Update failed."); }
+    } catch { addToast("Photo update failed.", "error"); }
     finally { setIsUploading(false); }
   };
 
-  // ── Amenities ─────────────────────────────────────────────────────────────
+  // ── Amenities & Rules ─────────────────────────────────────────────────────
   const toggleAmenity = (key) =>
-    setAmenities(prev => prev.includes(key) ? prev.filter(a => a !== key) : [...prev, key]);
+    setAmenities(p => p.includes(key) ? p.filter(a => a !== key) : [...p, key]);
+  const toggleRule = (key) =>
+    setRules(p => p.includes(key) ? p.filter(r => r !== key) : [...p, key]);
 
-  // ── Navigation ────────────────────────────────────────────────────────────
+  const clampValue = (value, min, max, setter) => {
+    if (value === "") return;
+    const num = Number(value);
+    setter(num < min ? min : num > max ? max : num);
+  };
+
+  // ── Validation  (same logic as AddAccommodation) ──────────────────────────
+  const validateStep1 = () => {
+    let valid = true;
+    if (!title.trim())                              { setError("title",       "Title is required.");                            valid = false; }
+    else if (title.length > 80)                     { setError("title",       "Title cannot exceed 80 characters.");            valid = false; }
+    if (!description.trim())                        { setError("description", "Description is required.");                      valid = false; }
+    else if (description.length > 400)              { setError("description", "Description cannot exceed 400 characters.");     valid = false; }
+    if (bedrooms < 1 || bedrooms > 10)              { setError("bedrooms",    "Bedrooms must be between 1 and 10.");            valid = false; }
+    if (beds < 1 || beds > 10)                      { setError("beds",        "Beds must be between 1 and 10.");                valid = false; }
+    if (bathrooms < 1 || bathrooms > 10)            { setError("bathrooms",   "Bathrooms must be between 1 and 10.");           valid = false; }
+    const numPrice = Number(pricePerMonth);
+    if (!pricePerMonth || numPrice < 1000 || numPrice > 500000) { setError("price", "Price must be between LKR 1,000 and 500,000."); valid = false; }
+    const numKey = Number(keyMoneyDuration);
+    if (numKey < 0 || numKey > 6)                   { setError("keyDuration", "Key money duration must be 0–6 months.");       valid = false; }
+    if (!valid) addToast("Please fix the highlighted fields before continuing.", "error");
+    return valid;
+  };
+  const validateStep2 = () => {
+    let valid = true;
+    if (!hasSelectedLocation) { setError("location", "Please pin your location on the map."); valid = false; }
+    if (!address.trim())      { setError("address",  "Address is required.");                  valid = false; }
+    if (!valid) addToast("Please complete the location details.", "error");
+    return valid;
+  };
+  const validateStep3 = () => {
+    if (uploadedImageIds.length === 0) {
+      setError("photos", "Please upload at least one photo.");
+      addToast("Please upload at least one photo.", "error");
+      return false;
+    }
+    clearError("photos");
+    return true;
+  };
+  const validateStep5 = () => {
+    let valid = true;
+    if (!isVerified) { setError("verify", "Please confirm accuracy.");   valid = false; }
+    if (!isAgreed)   { setError("agree",  "Please agree to the terms."); valid = false; }
+    if (!valid) addToast("Please fix the highlighted fields before saving.", "error");
+    return valid;
+  };
+
   const handleNext = () => {
-    if (currentStep === 1) {
-      if (!title.trim())       return alert("Property title is required.");
-      if (!description.trim()) return alert("Description is required.");
-      if (!pricePerMonth || Number(pricePerMonth) < 1) return alert("Please enter a valid monthly rent.");
-    }
-    if (currentStep === 2) {
-      if (!hasSelectedLocation) return alert("Please pin your property location on the map.");
-      if (!address.trim())      return alert("Please enter the address.");
-    }
-    if (currentStep === 3) {
-      if (uploadedImageIds.length === 0) return alert("Please upload at least one photo.");
-    }
+    const validators = { 1: validateStep1, 2: validateStep2, 3: validateStep3 };
+    if (validators[currentStep] && !validators[currentStep]()) return;
+    clearAllErrors();
     setCurrentStep(s => s + 1);
   };
-  const handlePrev = () => setCurrentStep(s => s - 1);
+  const handlePrev = () => { clearAllErrors(); setCurrentStep(s => s - 1); };
   const handleExit = () => navigate(-1);
 
   // ── Save ──────────────────────────────────────────────────────────────────
   const handleSave = async () => {
-    if (!isVerified || !isAgreed) return alert("Please confirm accuracy and agree to terms.");
+    if (!validateStep5()) return;
     setIsSaving(true);
     try {
       await axios.put(`${BASE_URL}/accommodation/${id}`, {
         title, description, address,
-        accommodationType, genderPreference,
+        accommodationType: accType,
+        genderPreference: genderPref,
         bedrooms: Number(bedrooms), beds: Number(beds), bathrooms: Number(bathrooms),
         pricePerMonth: Number(pricePerMonth), keyMoneyDuration: Number(keyMoneyDuration),
-        utilityBills: { electricityIncluded, waterIncluded },
+        utilityBills: { electricityIncluded: utilities.electricity, waterIncluded: utilities.water },
         location: { type: "Point", coordinates: [selectedLocation.lng, selectedLocation.lat] },
-        distance, amenities, rules, images: uploadedImageIds,
+        distance, amenities,
+        rules: otherRules ? [...rules, otherRules] : rules,
+        images: uploadedImageIds,
       });
-      alert("Accommodation updated successfully!");
-      navigate(-1);
+      addToast("Accommodation updated successfully! Redirecting…", "success", 3000);
+      setTimeout(() => navigate(-1), 1800);
     } catch (err) {
-      alert("Error: " + (err.response?.data?.message || "Something went wrong."));
+      addToast(err.response?.data?.message || "Something went wrong. Please try again.", "error");
     } finally { setIsSaving(false); }
   };
 
-  // ── Loading / Error states ────────────────────────────────────────────────
+  // ── Loading / Error ───────────────────────────────────────────────────────
   if (isLoading) return (
     <div className="ae-root">
       <div className="ae-topbar">
-        <div className="ae-topbar-brand">
-          <div className="ae-topbar-brand-dot"><Home size={15} /></div>
-          Manage <span>Listing</span>
-        </div>
+        <a href="/Listings" className="hn-nav__logo">
+          <img src="/Images/logo2.png" alt="Unisewana Logo" style={{ height:"32px", width:"auto", display:"block" }} />
+        </a>
         <button className="ae-exit-btn" onClick={handleExit}><X size={14} /> Exit</button>
       </div>
-      <div className="ae-state-screen">
-        <Loader2 size={32} className="ae-spin" color="#e67e22" />
-        <p>Loading accommodation data…</p>
-      </div>
+      <div className="ae-state-screen"><Loader2 size={32} className="ae-spin" /><p>Loading accommodation data…</p></div>
     </div>
   );
 
   if (loadError) return (
     <div className="ae-root">
       <div className="ae-topbar">
-        <div className="ae-topbar-brand">
-          <div className="ae-topbar-brand-dot"><Home size={15} /></div>
-          Manage <span>Listing</span>
-        </div>
+        <a href="/Listings" className="hn-nav__logo">
+          <img src="/Images/logo2.png" alt="Unisewana Logo" style={{ height:"32px", width:"auto", display:"block" }} />
+        </a>
         <button className="ae-exit-btn" onClick={handleExit}><X size={14} /> Exit</button>
       </div>
       <div className="ae-state-screen">
-        <AlertCircle size={32} color="#c0392b" />
-        <p style={{ color: "#c0392b", fontWeight: 500 }}>{loadError}</p>
-        <button className="ae-btn-back" onClick={handleExit}>Go Back</button>
+        <AlertCircle size={32} style={{ color:"#cf1322" }} />
+        <p style={{ color:"#cf1322", fontWeight:500 }}>{loadError}</p>
+        <button className="ae-btn-primary" onClick={handleExit}>Go Back</button>
       </div>
     </div>
   );
 
-  // ── Main render ───────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="ae-root">
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
 
-      {/* ── Top Bar ── */}
+      <input type="file" multiple accept="image/*" ref={fileInputRef}   hidden onChange={handlePhotoUpload} />
+      <input type="file"          accept="image/*" ref={updateInputRef} hidden onChange={handlePhotoUpdate} />
+
+      {/* Top Bar */}
       <div className="ae-topbar">
-<a href="/Listings" className="hn-nav__logo">
-            <img
-              src="/Images/logo2.png"
-              alt="Unisewana Logo"
-              style={{ height: "32px", width: "auto", display: "block"  }}
-            />
-            
-          </a>
-
-
-
+        <a href="/Listings" className="hn-nav__logo">
+          <img src="/Images/logo2.png" alt="Unisewana Logo" style={{ height:"32px", width:"auto", display:"block" }} />
+        </a>
         <div className="ae-topbar-center">
           <Pencil size={13} />
           <span>Editing listing</span>
           <div className="ae-topbar-center-dot" />
-          <span style={{ color: "#1c1c1e", fontWeight: 700 }}>{title || "…"}</span>
+          <span style={{ color:"#1c1c1e", fontWeight:700 }}>{title || "…"}</span>
         </div>
         <button className="ae-exit-btn" onClick={handleExit}><X size={14} /> Exit</button>
       </div>
 
-      {/* ── Progress Bar ── */}
+      {/* Flat Progress Bar */}
       <div className="ae-progress-wrapper">
-        <div className="ae-progress-steps">
-          {STEPS.map((step, idx) => {
-            const done   = currentStep > step.num;
-            const active = currentStep === step.num;
-            return (
-              <React.Fragment key={step.num}>
-                <div className={`ae-progress-step ${active ? "active" : ""} ${done ? "done" : ""}`}>
-                  <div className="ae-progress-bubble">
-                    {done ? <CheckCircle size={16} /> : step.num}
-                  </div>
-                  <span className="ae-progress-label">{step.label}</span>
-                </div>
-                {idx < STEPS.length - 1 && (
-                  <div className="ae-progress-line">
-                    <div className="ae-progress-line-fill" style={{ width: done ? "100%" : "0%" }} />
-                  </div>
-                )}
-              </React.Fragment>
-            );
-          })}
+        <div className="ae-progress-bar">
+          {STEPS.map(step => (
+            <div key={step.num} className={`ae-progress-segment${currentStep >= step.num ? " filled" : ""}`} />
+          ))}
         </div>
       </div>
 
@@ -364,153 +468,172 @@ function AccommodationEdit() {
 
             <div className="ae-field">
               <label className="ae-label">Property title <span>*</span></label>
-              <input className="ae-input" type="text" value={title}
-                onChange={e => setTitle(e.target.value)}
-                placeholder="e.g. Cozy 2-Bedroom Apartment near SLIIT" maxLength={80} />
-              <div className="ae-field-footer">
-                <span className={`ae-char-count ${title.length > 65 ? "warn" : ""}`}>{title.length}/80</span>
+              <input className={`ae-input${errors.title ? " ae-input--error" : ""}`}
+                type="text" value={title} maxLength={80}
+                onChange={e => { setTitle(e.target.value); clearError("title"); }}
+                placeholder="e.g. Cozy 2-Bedroom Apartment near SLIIT" />
+              <div className="ae-field-footer" style={{ justifyContent:"space-between" }}>
+                <FieldError field="title" />
+                <span className={`ae-char-count${title.length > 65 ? " warn" : ""}`}>{title.length}/80</span>
               </div>
             </div>
 
             <div className="ae-field">
               <label className="ae-label">Description <span>*</span></label>
-              <textarea className="ae-textarea" value={description}
-                onChange={e => setDescription(e.target.value)}
-                placeholder="Describe your property — location perks, room quality, nearby facilities…"
-                maxLength={400} />
-              <div className="ae-field-footer">
-                <span className={`ae-char-count ${description.length > 320 ? "warn" : ""}`}>{description.length}/400</span>
+              <textarea className={`ae-textarea${errors.description ? " ae-input--error" : ""}`}
+                value={description} maxLength={400}
+                onChange={e => { setDescription(e.target.value); clearError("description"); }}
+                placeholder="Describe your property — location perks, room quality, nearby facilities…" />
+              <div className="ae-field-footer" style={{ justifyContent:"space-between" }}>
+                <FieldError field="description" />
+                <span className={`ae-char-count${description.length > 320 ? " warn" : ""}`}>{description.length}/400</span>
               </div>
             </div>
 
+            {/* Accommodation type — same grid as AddAccommodation */}
             <div className="ae-field">
               <label className="ae-label">Accommodation type <span>*</span></label>
               <div className="ae-type-grid">
-                {ACCOMMODATION_TYPES.map(t => {
-                  const TypeIcon = t.icon;
+                {ACC_TYPES.map(t => {
+                  const Icon = t.icon;
                   return (
-                  <button key={t.key} type="button"
-                    className={`ae-type-card ${accommodationType === t.key ? "selected" : ""}`}
-                    onClick={() => setAccommodationType(t.key)}>
-                    <div className="ae-type-icon-box"><TypeIcon size={24} /></div>
-                    <span className="ae-type-name">{t.key}</span>
-                    <span className="ae-type-desc">{t.desc}</span>
-                  </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="ae-field">
-              <label className="ae-label">Gender preference <span>*</span></label>
-              <div className="ae-option-row">
-                {GENDER_OPTIONS.map(g => {
-                  const Icon   = g.icon;
-                  const active = genderPreference === g.key;
-                  return (
-                    <button key={g.key} type="button"
-                      className={`ae-option-card ${active ? "active" : ""}`}
-                      onClick={() => setGenderPreference(g.key)}>
-                      <div className="ae-option-icon-box"><Icon size={18} /></div>
-                      <span className="ae-option-name">{g.label}</span>
-                      <span className={`ae-badge ${active ? "on" : "off"}`}>{active ? "✓" : "—"}</span>
+                    <button key={t.key} type="button"
+                      className={`ae-type-card${accType === t.key ? " selected" : ""}`}
+                      onClick={() => setAccType(t.key)}>
+                      <div className="ae-type-icon"><Icon size={18} /></div>
+                      <span className="ae-type-name">{t.key}</span>
+                      <span className="ae-type-desc">{t.desc}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
+            {/* Gender preference — same option-card + desc as AddAccommodation */}
+            <div className="ae-field">
+              <label className="ae-label">Accommodation for <span>*</span></label>
+              <div className="ae-option-row">
+                {GENDER_OPTIONS.map(g => (
+                  <button key={g.key} type="button"
+                    className={`ae-option-card${genderPref === g.key ? " active" : ""}`}
+                    onClick={() => setGenderPref(g.key)}>
+                    <div className="ae-option-icon-box"><g.Icon /></div>
+                    <div className="ae-option-info">
+                      <span className="ae-option-name">{g.label}</span>
+                      <span className="ae-option-desc">{g.desc}</span>
+                    </div>
+                    {genderPref === g.key && <CheckCircle size={16} style={{ color:"#FF6B2B", flexShrink:0 }} />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="ae-divider" />
 
+            {/* Capacity — Counter component same as AddAccommodation */}
             <div className="ae-field">
-              <label className="ae-label">Room configuration</label>
-              <div className="ae-three-cols">
+              <label className="ae-label">Capacity <span>(1–10 each)</span></label>
+              <div className="ae-counters-row">
                 <div>
-                  <label className="ae-sub-label">Bedrooms</label>
-                  <input className="ae-input" type="number" min="1" max="10"
-                    value={bedrooms} onChange={e => setBedrooms(e.target.value)} />
+                  <Counter label="Bedrooms"  value={bedrooms}  setter={setBedrooms}  errorKey="bedrooms" />
+                  <FieldError field="bedrooms" />
                 </div>
                 <div>
-                  <label className="ae-sub-label">Beds</label>
-                  <input className="ae-input" type="number" min="1" max="10"
-                    value={beds} onChange={e => setBeds(e.target.value)} />
+                  <Counter label="Beds"      value={beds}      setter={setBeds}      errorKey="beds" />
+                  <FieldError field="beds" />
                 </div>
                 <div>
-                  <label className="ae-sub-label">Bathrooms</label>
-                  <input className="ae-input" type="number" min="1" max="10"
-                    value={bathrooms} onChange={e => setBathrooms(e.target.value)} />
+                  <Counter label="Bathrooms" value={bathrooms} setter={setBathrooms} errorKey="bathrooms" />
+                  <FieldError field="bathrooms" />
                 </div>
               </div>
             </div>
 
             <div className="ae-divider" />
 
+            {/* Utilities — same utility-card style as AddAccommodation */}
+            <div className="ae-field">
+              <label className="ae-label">Utilities included</label>
+              <div className="ae-utility-row">
+                <button type="button"
+                  className={`ae-utility-card${utilities.electricity ? " active" : ""}`}
+                  onClick={() => setUtilities(u => ({ ...u, electricity: !u.electricity }))}>
+                  <Zap size={18} />
+                  <span>Electricity</span>
+                  <span className={`ae-badge${utilities.electricity ? " on" : " off"}`}>
+                    {utilities.electricity ? "Included" : "Not incl."}
+                  </span>
+                </button>
+                <button type="button"
+                  className={`ae-utility-card${utilities.water ? " active" : ""}`}
+                  onClick={() => setUtilities(u => ({ ...u, water: !u.water }))}>
+                  <Droplets size={18} />
+                  <span>Water</span>
+                  <span className={`ae-badge${utilities.water ? " on" : " off"}`}>
+                    {utilities.water ? "Included" : "Not incl."}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <div className="ae-divider" />
+
+            {/* Pricing */}
             <div className="ae-field">
               <label className="ae-label">Pricing</label>
               <div className="ae-row">
                 <div>
                   <label className="ae-sub-label">Rent / month (LKR) <span>*</span></label>
-                  <input className="ae-input" type="number" value={pricePerMonth}
-                    onChange={e => setPricePerMonth(e.target.value)} placeholder="e.g. 25000" />
+                  <input className={`ae-input${errors.price ? " ae-input--error" : ""}`}
+                    type="number" value={pricePerMonth} placeholder="e.g. 25000"
+                    onChange={e => { setPricePerMonth(e.target.value); clearError("price"); }}
+                    onBlur={e => clampValue(e.target.value, 1000, 500000, setPricePerMonth)} />
+                  <FieldError field="price" />
                 </div>
                 <div>
                   <label className="ae-sub-label">Key money (months)</label>
-                  <input className="ae-input" type="number" min="0" max="6"
-                    value={keyMoneyDuration} onChange={e => setKeyMoneyDuration(e.target.value)} />
+                  <input className={`ae-input${errors.keyDuration ? " ae-input--error" : ""}`}
+                    type="number" min="0" max="6" value={keyMoneyDuration}
+                    onChange={e => { setKeyMoneyDuration(e.target.value); clearError("keyDuration"); }}
+                    onBlur={e => clampValue(e.target.value, 0, 6, setKeyMoneyDuration)} />
+                  <FieldError field="keyDuration" />
                 </div>
               </div>
             </div>
 
-            <div className="ae-field">
-              <label className="ae-label">Utility bills included</label>
-              <div className="ae-option-row">
-                <button type="button"
-                  className={`ae-option-card ${electricityIncluded ? "active" : ""}`}
-                  onClick={() => setElectricityIncluded(p => !p)}>
-                  <div className="ae-option-icon-box"><Zap size={18} /></div>
-                  <span className="ae-option-name">Electricity</span>
-                  <span className={`ae-badge ${electricityIncluded ? "on" : "off"}`}>{electricityIncluded ? "Incl." : "Excl."}</span>
-                </button>
-                <button type="button"
-                  className={`ae-option-card ${waterIncluded ? "active" : ""}`}
-                  onClick={() => setWaterIncluded(p => !p)}>
-                  <div className="ae-option-icon-box"><Droplets size={18} /></div>
-                  <span className="ae-option-name">Water</span>
-                  <span className={`ae-badge ${waterIncluded ? "on" : "off"}`}>{waterIncluded ? "Incl." : "Excl."}</span>
-                </button>
+            {calculatedKeyMoney > 0 && (
+              <div className="ae-key-money-info">
+                <span>🔑 Key money total:</span>
+                <strong>LKR {calculatedKeyMoney.toLocaleString()}</strong>
               </div>
-            </div>
+            )}
 
             <div className="ae-divider" />
 
+            {/* House rules — same RULE_LIST grid + other textarea as AddAccommodation */}
             <div className="ae-field">
-              <label className="ae-label">House rules <span>(optional)</span></label>
-              <div className="ae-rule-input-row">
-                <input className="ae-input" placeholder="e.g. No smoking, No pets…"
-                  value={newRule} onChange={e => setNewRule(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === "Enter" && newRule.trim()) {
-                      setRules(p => [...p, newRule.trim()]); setNewRule("");
-                    }
-                  }} />
-                <button className="ae-add-rule-btn" type="button" onClick={() => {
-                  if (newRule.trim()) { setRules(p => [...p, newRule.trim()]); setNewRule(""); }
-                }}><Plus size={16} /></button>
+              <label className="ae-label">House rules</label>
+              <div className="ae-rules-grid">
+                {RULE_LIST.map(({ key, icon: Icon }) => {
+                  const active = rules.includes(key);
+                  return (
+                    <button key={key} type="button"
+                      className={`ae-rule-item${active ? " active" : ""}`}
+                      onClick={() => toggleRule(key)}>
+                      <Icon size={15} />
+                      <span>{key}</span>
+                      {active && <CheckCircle size={12} className="ae-rule-check" />}
+                    </button>
+                  );
+                })}
               </div>
-              {rules.length > 0 && (
-                <div className="ae-rules-list">
-                  {rules.map((rule, i) => (
-                    <div key={i} className="ae-rule-chip">
-                      <CheckCircle size={12} />
-                      <span>{rule}</span>
-                      <button type="button" className="ae-rule-del"
-                        onClick={() => setRules(p => p.filter((_, idx) => idx !== i))}>
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+            </div>
+
+            <div className="ae-field">
+              <label className="ae-label">Other rules <span>optional</span></label>
+              <textarea className="ae-textarea" rows="2"
+                value={otherRules} onChange={e => setOtherRules(e.target.value)}
+                placeholder="e.g. No loud music after 11 PM, no overnight guests…" />
             </div>
 
             <div className="ae-nav">
@@ -530,15 +653,12 @@ function AccommodationEdit() {
               <div className="ae-map-error">
                 <MapPin size={22} />
                 <div>
-                  <div style={{ fontWeight: 600, marginBottom: 4 }}>Map failed to load</div>
-                  <div style={{ fontSize: 12, color: "#aaa" }}>Check your internet connection and reload.</div>
+                  <div style={{ fontWeight:600, marginBottom:4 }}>Map failed to load</div>
+                  <div style={{ fontSize:12, color:"#aaa" }}>Check your internet connection and reload.</div>
                 </div>
               </div>
             ) : !mapIsLoaded ? (
-              <div className="ae-map-loading">
-                <Loader2 size={22} className="ae-spin" />
-                <span>Loading map…</span>
-              </div>
+              <div className="ae-map-loading"><Loader2 size={22} className="ae-spin" /><span>Loading map…</span></div>
             ) : (
               <div className="ae-map-wrapper">
                 <GoogleMap mapContainerStyle={mapContainerStyle} center={selectedLocation}
@@ -546,6 +666,10 @@ function AccommodationEdit() {
                   <Marker position={selectedLocation} draggable onDragEnd={onMapClick} />
                 </GoogleMap>
               </div>
+            )}
+
+            {errors.location && (
+              <div className="ae-location-error"><AlertCircle size={14} /> {errors.location}</div>
             )}
 
             <div className="ae-map-actions">
@@ -560,10 +684,13 @@ function AccommodationEdit() {
               </div>
             )}
 
-            <div className="ae-field" style={{ marginTop: 16 }}>
+            <div className="ae-field" style={{ marginTop:16 }}>
               <label className="ae-label">Address <span>*</span></label>
-              <textarea className="ae-textarea" rows="2" value={address}
-                onChange={e => setAddress(e.target.value)} placeholder="Full address…" />
+              <textarea className={`ae-textarea${errors.address ? " ae-input--error" : ""}`}
+                rows="2" value={address}
+                onChange={e => { setAddress(e.target.value); clearError("address"); }}
+                placeholder="Full address…" />
+              <FieldError field="address" />
             </div>
 
             <div className="ae-nav">
@@ -579,37 +706,39 @@ function AccommodationEdit() {
             <div className="ae-card-title">Property photos</div>
             <div className="ae-card-subtitle">Upload up to 5 photos — the first photo is used as the cover</div>
 
-            <input type="file" multiple accept="image/*" ref={fileInputRef} hidden onChange={handlePhotoUpload} />
-            <input type="file" accept="image/*" ref={updateInputRef} hidden onChange={handlePhotoUpdate} />
-
-            <div className="ae-upload-zone" onClick={() => fileInputRef.current.click()}>
-              <div className="ae-upload-icon">
-                {isUploading ? <Loader2 size={18} className="ae-spin" /> : <Upload size={18} />}
+            <div className="ae-field">
+              <label className="ae-label">Photos <span>* at least 1 required</span></label>
+              <div className={`ae-upload-zone${errors.photos ? " ae-upload-zone--error" : ""}`}
+                onClick={() => {
+                  if (uploadedImageIds.length >= 5) { addToast("Maximum 5 photos allowed.", "warning"); return; }
+                  fileInputRef.current.click();
+                }}>
+                <div className="ae-upload-icon">
+                  {isUploading ? <Loader2 size={20} className="ae-spin" /> : <Upload size={20} />}
+                </div>
+                <div className="ae-upload-text">
+                  {isUploading ? "Uploading…" : uploadedImageIds.length >= 5 ? "Maximum photos reached" : "Click to add photos"}
+                </div>
+                <div className="ae-upload-hint">PNG, JPG — up to 5 photos · {uploadedImageIds.length}/5 uploaded</div>
               </div>
-              <div className="ae-upload-text">{isUploading ? "Uploading…" : "Click to upload photos"}</div>
-              <div className="ae-upload-hint">PNG, JPG — up to 5 photos · {uploadedImageIds.length}/5 uploaded</div>
+              <FieldError field="photos" />
             </div>
 
-            {/* ── 5 photo slots always on one row ── */}
             <div className="ae-photo-grid">
-              {[0, 1, 2, 3, 4].map(index => (
+              {[0,1,2,3,4].map(index => (
                 <div key={index} className="ae-photo-box">
                   {photos[index] ? (
                     <div className="ae-photo-box-inner">
                       {index === 0 && <div className="ae-photo-cover-badge">Cover</div>}
                       <img src={photos[index]} alt={`photo-${index}`} />
                       <div className="ae-photo-box-actions">
-                        <button type="button" className="ae-icon-btn del" onClick={() => handleDeletePhoto(index)}>
-                          <Trash2 size={12} />
-                        </button>
-                        <button type="button" className="ae-icon-btn upd" onClick={() => triggerUpdate(index)}>
-                          <RefreshCw size={12} />
-                        </button>
+                        <button type="button" className="ae-icon-btn del" onClick={() => handleDeletePhoto(index)}><Trash2 size={11} /></button>
+                        <button type="button" className="ae-icon-btn upd" onClick={() => triggerUpdate(index)}><RefreshCw size={11} /></button>
                       </div>
                     </div>
                   ) : (
                     <div className="ae-photo-box-empty" onClick={() => fileInputRef.current.click()}>
-                      <Plus size={18} />
+                      <ImagePlus size={18} />
                     </div>
                   )}
                 </div>
@@ -629,16 +758,17 @@ function AccommodationEdit() {
             <div className="ae-card-title">Amenities</div>
             <div className="ae-card-subtitle">Select all facilities available at your property</div>
 
+            {/* Same column-grid style as AddAccommodation amenities */}
             <div className="ae-amenities-grid">
               {AMENITY_LIST.map(({ key, icon: Icon }) => {
                 const active = amenities.includes(key);
                 return (
                   <button key={key} type="button"
-                    className={`ae-amenity-item ${active ? "active" : ""}`}
+                    className={`ae-amenity-item${active ? " active" : ""}`}
                     onClick={() => toggleAmenity(key)}>
-                    <div className="ae-amenity-icon-box"><Icon size={16} /></div>
+                    <Icon size={15} />
                     <span>{key}</span>
-                    {active && <CheckCircle size={13} className="ae-amenity-check" />}
+                    {active && <CheckCircle size={12} className="ae-amenity-check" />}
                   </button>
                 );
               })}
@@ -657,80 +787,84 @@ function AccommodationEdit() {
             <div className="ae-card-title">Review & save</div>
             <div className="ae-card-subtitle">Confirm everything looks right before saving changes</div>
 
-            {/* Preview card */}
             <div className="ae-section-label">Listing preview</div>
             <div className="ae-preview-card">
               {photos[0]
                 ? <img src={photos[0]} alt="cover" className="ae-preview-cover" />
-                : <div className="ae-preview-cover-placeholder"><ImagePlus size={28} color="#555" /></div>
-              }
+                : <div className="ae-preview-cover-placeholder"><ImagePlus size={28} color="#555" /></div>}
               <div className="ae-preview-body">
                 <div className="ae-preview-name">{title || "Your Property Title"}</div>
                 <div className="ae-preview-meta">
                   <span><MapPin size={12} /> {address ? address.split(",")[0] : "Location not set"}</span>
-                  <span><Zap size={12} /> LKR {Number(pricePerMonth || 0).toLocaleString()} / month</span>
+                  <span><Zap size={12} /> LKR {Number(pricePerMonth||0).toLocaleString()} / month</span>
                 </div>
                 <div className="ae-preview-chips">
-                  <span className="ae-chip orange">{accommodationType}</span>
-                  <span className="ae-chip dark">{genderPreference === "boys" ? "Boys Only" : genderPreference === "girls" ? "Girls Only" : "Mixed"}</span>
-                  {electricityIncluded && <span className="ae-chip dark"><Zap size={11} /> Electricity incl.</span>}
-                  {waterIncluded      && <span className="ae-chip dark"><Droplets size={11} /> Water incl.</span>}
+                  <span className="ae-chip orange">{accType}</span>
+                  <span className="ae-chip dark">{genderPref==="boys"?"Boys Only":genderPref==="girls"?"Girls Only":"Mixed"}</span>
+                  {utilities.electricity && <span className="ae-chip dark"><Zap size={11}/> Electricity incl.</span>}
+                  {utilities.water       && <span className="ae-chip dark"><Droplets size={11}/> Water incl.</span>}
                 </div>
               </div>
             </div>
 
             <div className="ae-divider" />
 
-            {/* Summary table */}
-            <div style={{ marginBottom: 24 }}>
+            <div style={{ marginBottom:24 }}>
               <div className="ae-section-label">Property details</div>
               <table className="ae-summary-table">
                 <tbody>
                   {[
-                    ["Title",      title],
-                    ["Type",       accommodationType],
-                    ["Gender",     genderPreference === "boys" ? "Boys Only" : genderPreference === "girls" ? "Girls Only" : "Mixed"],
-                    ["Bedrooms",   bedrooms],
-                    ["Beds",       beds],
-                    ["Bathrooms",  bathrooms],
-                    ["Rent",       `LKR ${Number(pricePerMonth || 0).toLocaleString()} / month`],
-                    ["Key money",  keyMoneyDuration > 0 ? `${keyMoneyDuration} month(s)` : "None"],
-                    ["Distance",   distance],
-                    ["Address",    address],
-                    ["Amenities",  amenities.length > 0 ? amenities.join(", ") : "None selected"],
-                    ["Rules",      rules.length > 0 ? rules.join(", ") : "None"],
-                    ["Photos",     `${uploadedImageIds.length} uploaded`],
-                  ].map(([k, v]) => (
-                    <tr key={k}><td>{k}</td><td>{v}</td></tr>
-                  ))}
+                    ["Title",     title],
+                    ["Type",      accType],
+                    ["Gender",    genderPref==="boys"?"Boys Only":genderPref==="girls"?"Girls Only":"Mixed"],
+                    ["Bedrooms",  bedrooms],
+                    ["Beds",      beds],
+                    ["Bathrooms", bathrooms],
+                    ["Rent",      `LKR ${Number(pricePerMonth||0).toLocaleString()} / month`],
+                    ["Key money", keyMoneyDuration>0?`${keyMoneyDuration} month(s)`:"None"],
+                    ["Distance",  distance],
+                    ["Address",   address],
+                    ["Amenities", amenities.length>0?amenities.join(", "):"None selected"],
+                    ["Rules",     [...rules,...(otherRules?[otherRules]:[])].join(", ")||"None"],
+                    ["Photos",    `${uploadedImageIds.length} uploaded`],
+                  ].map(([k,v]) => <tr key={k}><td>{k}</td><td>{v}</td></tr>)}
                 </tbody>
               </table>
             </div>
 
             <div className="ae-divider" />
 
-            {/* Confirmation */}
-            <div style={{ marginBottom: 20 }}>
-              <div className="ae-section-label">Confirmation</div>
-              <label className="ae-check-label">
-                <input type="checkbox" checked={isVerified} onChange={e => setIsVerified(e.target.checked)} />
+            {/* Confirmation — same verify section style as AddAccommodation */}
+            <div className="ae-verify-section">
+              <div className="ae-verify-section__title">Confirmation</div>
+              <label className={`ae-check-label${errors.verify ? " ae-check-label--error" : ""}`}>
+                <input type="checkbox" checked={isVerified}
+                  onChange={e => { setIsVerified(e.target.checked); clearError("verify"); }} />
                 I confirm all updated information is accurate and up to date.
               </label>
-              <label className="ae-check-label" style={{ marginTop: 4 }}>
-                <input type="checkbox" checked={isAgreed} onChange={e => setIsAgreed(e.target.checked)} />
+              {errors.verify && <p className="ae-field-error" style={{ marginLeft:26 }}><AlertCircle size={12} /> {errors.verify}</p>}
+
+              <label className={`ae-check-label${errors.agree ? " ae-check-label--error" : ""}`} style={{ marginTop:4 }}>
+                <input type="checkbox" checked={isAgreed}
+                  onChange={e => { setIsAgreed(e.target.checked); clearError("agree"); }} />
                 I agree to the Terms of Service and listing guidelines.
               </label>
+              {errors.agree && <p className="ae-field-error" style={{ marginLeft:26 }}><AlertCircle size={12} /> {errors.agree}</p>}
             </div>
+
+            {isSaving && (
+              <div className="ae-saving-indicator">
+                <Loader2 size={15} className="ae-spin" />
+                Saving your changes…
+              </div>
+            )}
 
             <div className="ae-nav">
               <button className="ae-btn-secondary" onClick={handlePrev} disabled={isSaving}>
                 <ChevronLeft size={15} /> Previous
               </button>
-              <button className="ae-btn-save-final" onClick={handleSave} disabled={isSaving || !isVerified || !isAgreed}>
-                {isSaving
-                  ? <><Loader2 size={15} className="ae-spin" /> Saving…</>
-                  : <><CheckCircle size={15} /> Save changes</>
-                }
+              <button className="ae-btn-save" onClick={handleSave} disabled={isSaving || !isVerified || !isAgreed}>
+                {isSaving ? <><Loader2 size={15} className="ae-spin"/> Saving…</> : <><CheckCircle size={15}/> Save changes</>}
               </button>
             </div>
           </div>
