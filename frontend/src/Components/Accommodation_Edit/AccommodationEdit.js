@@ -25,21 +25,17 @@ const defaultOptions      = {
   streetViewControl: false, rotateControl: false, fullscreenControl: true,
 };
 
-// ── Same icons/keys as AddAccommodation ───────────────────────────────────────
 const ACC_TYPES = [
   { key: "Private Room", icon: DoorOpen,  desc: "Your own private room" },
   { key: "Shared Room",  icon: Users,     desc: "Share with others"     },
   { key: "Apartment",    icon: Building2, desc: "Full apartment"        },
   { key: "House",        icon: Home,      desc: "Entire house"          },
 ];
-
 const GENDER_OPTIONS = [
   { key: "mixed", label: "Mixed",      desc: "Boys & Girls",   Icon: () => <FaVenusMars size={17} /> },
   { key: "boys",  label: "Boys Only",  desc: "Male tenants",   Icon: () => <FaMars size={17} />      },
   { key: "girls", label: "Girls Only", desc: "Female tenants", Icon: () => <FaVenus size={17} />     },
 ];
-
-// ── WashingMachine for Washer — same as AddAccommodation ─────────────────────
 const AMENITY_LIST = [
   { key: "WiFi",    icon: Wifi            },
   { key: "Kitchen", icon: UtensilsCrossed },
@@ -51,15 +47,12 @@ const AMENITY_LIST = [
   { key: "Gym",     icon: Dumbbell        },
   { key: "Pool",    icon: Waves           },
 ];
-
-// ── Same preset rules as AddAccommodation ─────────────────────────────────────
 const RULE_LIST = [
   { key: "No Smoking",              icon: CigaretteOff },
   { key: "Quiet hours after 10 PM", icon: VolumeX      },
   { key: "No Party",                icon: PartyPopper  },
   { key: "No Pets",                 icon: PawPrint     },
 ];
-
 const STEPS = [
   { num: 1, label: "Details"   },
   { num: 2, label: "Location"  },
@@ -69,7 +62,17 @@ const STEPS = [
 ];
 
 /* ─────────────────────────────────────────────
-   TOAST SYSTEM  (same as AddAccommodation)
+   PHOTO ITEM SHAPE
+   Each entry in `photos[]` is one of:
+     { kind:"existing", existingId, preview }          ← loaded from server
+     { kind:"new",      file, preview }                ← user added, not yet uploaded
+     { kind:"replace",  existingId, file, preview }    ← user swapped an existing photo
+   `deletedIds[]` holds existingIds the user removed.
+   Nothing hits the server until handleSave().
+───────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────
+   TOAST SYSTEM
 ───────────────────────────────────────────── */
 let _toastId = 0;
 const TOAST_ICONS = {
@@ -78,7 +81,6 @@ const TOAST_ICONS = {
   warning: <AlertTriangle size={16} />,
   info:    <Info size={16} />,
 };
-
 function ToastContainer({ toasts, onRemove }) {
   return (
     <div className="ae-toast-container">
@@ -86,9 +88,7 @@ function ToastContainer({ toasts, onRemove }) {
         <div key={t.id} className={`ae-toast ae-toast--${t.type}`}>
           <span className="ae-toast__icon">{TOAST_ICONS[t.type]}</span>
           <span className="ae-toast__msg">{t.message}</span>
-          <button className="ae-toast__close" onClick={() => onRemove(t.id)}>
-            <X size={13} />
-          </button>
+          <button className="ae-toast__close" onClick={() => onRemove(t.id)}><X size={13} /></button>
         </div>
       ))}
     </div>
@@ -119,18 +119,16 @@ function AccommodationEdit() {
   }, []);
   const removeToast = useCallback(id => setToasts(p => p.filter(t => t.id !== id)), []);
 
-  // ── Validation errors  (same pattern as AddAccommodation) ────────────────
+  // ── Validation errors ────────────────────────────────────────────────────
   const [errors, setErrors] = useState({});
   const setError     = (key, msg) => setErrors(p => ({ ...p, [key]: msg }));
   const clearError   = (key)      => setErrors(p => { const n = { ...p }; delete n[key]; return n; });
   const clearAllErrors = ()       => setErrors({});
 
   const FieldError = ({ field }) =>
-    errors[field] ? (
-      <p className="ae-field-error"><AlertCircle size={12} /> {errors[field]}</p>
-    ) : null;
+    errors[field] ? <p className="ae-field-error"><AlertCircle size={12} /> {errors[field]}</p> : null;
 
-  // ── Counter component  (identical to AddAccommodation's Counter) ──────────
+  // ── Counter component ────────────────────────────────────────────────────
   const Counter = ({ label, value, setter, min = 1, max = 10, errorKey }) => (
     <div className={`ae-counter${errors[errorKey] ? " ae-counter--error" : ""}`}>
       <span className="ae-counter__label">{label}</span>
@@ -167,13 +165,15 @@ function AccommodationEdit() {
   const [hasSelectedLocation, setHasSelectedLocation] = useState(false);
   const [distance,            setDistance]            = useState("Distance not available");
 
-  // ── Step 3 ───────────────────────────────────────────────────────────────
-  const fileInputRef   = useRef(null);
-  const updateInputRef = useRef(null);
-  const [photos,           setPhotos]           = useState([]);
-  const [uploadedImageIds, setUploadedImageIds] = useState([]);
-  const [isUploading,      setIsUploading]      = useState(false);
-  const [updatingIndex,    setUpdatingIndex]    = useState(null);
+  // ── Step 3 — LOCAL-ONLY photo state ──────────────────────────────────────
+  // photos[] entries: { kind, existingId?, file?, preview }
+  // deletedIds[] entries: existingId strings to DELETE on save
+  // Nothing is sent to the server until handleSave()
+  const fileInputRef    = useRef(null);
+  const updateInputRef  = useRef(null);
+  const [photos,      setPhotos]      = useState([]);   // display list
+  const [deletedIds,  setDeletedIds]  = useState([]);   // IDs to DELETE on save
+  const [replacingIdx, setReplacingIdx] = useState(null);
 
   // ── Step 4 ───────────────────────────────────────────────────────────────
   const [amenities, setAmenities] = useState([]);
@@ -217,9 +217,13 @@ function AccommodationEdit() {
           setSelectedLocation({ lat, lng });
           setHasSelectedLocation(true);
         }
+        // Build initial photos as "existing" kind — no server calls yet
         if (data.images?.length) {
-          setUploadedImageIds(data.images);
-          setPhotos(data.images.map(imgId => `${BASE_URL}/photo/${imgId}`));
+          setPhotos(data.images.map(imgId => ({
+            kind: "existing",
+            existingId: imgId,
+            preview: `${BASE_URL}/photo/${imgId}`,
+          })));
         }
         setIsLoading(false);
       } catch {
@@ -267,49 +271,50 @@ function AccommodationEdit() {
     if (map) { map.panTo(SLIIT_LOCATION); map.setZoom(17); }
   };
 
-  // ── Photos ────────────────────────────────────────────────────────────────
-  const handlePhotoUpload = async (e) => {
+  // ── LOCAL-ONLY photo handlers — zero server calls here ───────────────────
+
+  // Add new photos locally
+  const handlePhotoAdd = (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
-    if (uploadedImageIds.length >= 5) { addToast("Maximum 5 photos allowed.", "warning"); return; }
-    if (uploadedImageIds.length + files.length > 5) {
-      addToast(`You can only add ${5 - uploadedImageIds.length} more photo(s).`, "warning"); return;
-    }
-    setIsUploading(true);
-    for (const file of files) {
-      const fd = new FormData(); fd.append("photo", file);
-      try {
-        const res = await axios.post(`${BASE_URL}/photo`, fd);
-        if (res.data.success) {
-          setPhotos(p => [...p, URL.createObjectURL(file)]);
-          setUploadedImageIds(p => [...p, res.data.data._id]);
-          clearError("photos");
-        }
-      } catch { addToast("Photo upload failed. Please try again.", "error"); }
-    }
-    setIsUploading(false);
+    const slots = 5 - photos.length;
+    if (slots <= 0) { addToast("Maximum 5 photos allowed.", "warning"); return; }
+    files.slice(0, slots).forEach(file => {
+      setPhotos(p => [...p, { kind: "new", file, preview: URL.createObjectURL(file) }]);
+    });
+    clearError("photos");
     e.target.value = null;
   };
-  const handleDeletePhoto = async (index) => {
-    if (!window.confirm("Delete this photo?")) return;
-    try {
-      await axios.delete(`${BASE_URL}/photo/${uploadedImageIds[index]}`);
-      setPhotos(p => p.filter((_, i) => i !== index));
-      setUploadedImageIds(p => p.filter((_, i) => i !== index));
-    } catch { addToast("Photo deletion failed.", "error"); }
+
+  // Mark a photo for deletion (just remove from display + queue the ID)
+  const handleDeletePhoto = (index) => {
+    const item = photos[index];
+    // If it has a server ID (existing or replace), queue it for deletion on save
+    if (item.existingId) {
+      setDeletedIds(p => [...p, item.existingId]);
+    }
+    // Revoke local preview URL to free memory
+    if (item.kind !== "existing") URL.revokeObjectURL(item.preview);
+    setPhotos(p => p.filter((_, i) => i !== index));
   };
-  const triggerUpdate = (index) => { setUpdatingIndex(index); updateInputRef.current.click(); };
-  const handlePhotoUpdate = async (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    setIsUploading(true);
-    const fd = new FormData(); fd.append("photo", file);
-    try {
-      const res = await axios.put(`${BASE_URL}/photo/${uploadedImageIds[updatingIndex]}`, fd);
-      if (res.data.success) {
-        const updated = [...photos]; updated[updatingIndex] = URL.createObjectURL(file); setPhotos(updated);
-      }
-    } catch { addToast("Photo update failed.", "error"); }
-    finally { setIsUploading(false); }
+
+  // Queue a replacement locally (old ID queued for deletion, new file staged)
+  const triggerReplace = (index) => { setReplacingIdx(index); updateInputRef.current.click(); };
+  const handlePhotoReplace = (e) => {
+    const file = e.target.files[0];
+    if (!file || replacingIdx === null) return;
+    const item = photos[replacingIdx];
+    // Queue the old server ID for deletion on save
+    if (item.existingId) {
+      setDeletedIds(p => [...p, item.existingId]);
+    }
+    if (item.kind !== "existing") URL.revokeObjectURL(item.preview);
+    const updated = [...photos];
+    // The replaced slot is now a plain "new" upload (old ID already queued for deletion)
+    updated[replacingIdx] = { kind: "new", file, preview: URL.createObjectURL(file) };
+    setPhotos(updated);
+    setReplacingIdx(null);
+    e.target.value = null;
   };
 
   // ── Amenities & Rules ─────────────────────────────────────────────────────
@@ -317,27 +322,27 @@ function AccommodationEdit() {
     setAmenities(p => p.includes(key) ? p.filter(a => a !== key) : [...p, key]);
   const toggleRule = (key) =>
     setRules(p => p.includes(key) ? p.filter(r => r !== key) : [...p, key]);
-
   const clampValue = (value, min, max, setter) => {
     if (value === "") return;
     const num = Number(value);
     setter(num < min ? min : num > max ? max : num);
   };
 
-  // ── Validation  (same logic as AddAccommodation) ──────────────────────────
+  // ── Step Validation ───────────────────────────────────────────────────────
   const validateStep1 = () => {
     let valid = true;
-    if (!title.trim())                              { setError("title",       "Title is required.");                            valid = false; }
-    else if (title.length > 80)                     { setError("title",       "Title cannot exceed 80 characters.");            valid = false; }
-    if (!description.trim())                        { setError("description", "Description is required.");                      valid = false; }
-    else if (description.length > 400)              { setError("description", "Description cannot exceed 400 characters.");     valid = false; }
-    if (bedrooms < 1 || bedrooms > 10)              { setError("bedrooms",    "Bedrooms must be between 1 and 10.");            valid = false; }
-    if (beds < 1 || beds > 10)                      { setError("beds",        "Beds must be between 1 and 10.");                valid = false; }
-    if (bathrooms < 1 || bathrooms > 10)            { setError("bathrooms",   "Bathrooms must be between 1 and 10.");           valid = false; }
+    if (!title.trim())             { setError("title",       "Title is required.");                        valid = false; }
+    else if (title.length > 80)    { setError("title",       "Title cannot exceed 80 characters.");        valid = false; }
+    if (!description.trim())       { setError("description", "Description is required.");                  valid = false; }
+    else if (description.length > 400) { setError("description", "Description cannot exceed 400 characters."); valid = false; }
+    if (bedrooms < 1 || bedrooms > 10)   { setError("bedrooms",  "Bedrooms must be between 1 and 10.");   valid = false; }
+    if (beds < 1 || beds > 10)           { setError("beds",      "Beds must be between 1 and 10.");       valid = false; }
+    if (bathrooms < 1 || bathrooms > 10) { setError("bathrooms", "Bathrooms must be between 1 and 10."); valid = false; }
     const numPrice = Number(pricePerMonth);
-    if (!pricePerMonth || numPrice < 1000 || numPrice > 500000) { setError("price", "Price must be between LKR 1,000 and 500,000."); valid = false; }
+    if (!pricePerMonth || numPrice < 1000 || numPrice > 500000)
+      { setError("price", "Price must be between LKR 1,000 and 500,000."); valid = false; }
     const numKey = Number(keyMoneyDuration);
-    if (numKey < 0 || numKey > 6)                   { setError("keyDuration", "Key money duration must be 0–6 months.");       valid = false; }
+    if (numKey < 0 || numKey > 6) { setError("keyDuration", "Key money duration must be 0–6 months."); valid = false; }
     if (!valid) addToast("Please fix the highlighted fields before continuing.", "error");
     return valid;
   };
@@ -349,9 +354,9 @@ function AccommodationEdit() {
     return valid;
   };
   const validateStep3 = () => {
-    if (uploadedImageIds.length === 0) {
-      setError("photos", "Please upload at least one photo.");
-      addToast("Please upload at least one photo.", "error");
+    if (photos.length === 0) {
+      setError("photos", "Please add at least one photo.");
+      addToast("Please add at least one photo.", "error");
       return false;
     }
     clearError("photos");
@@ -374,11 +379,55 @@ function AccommodationEdit() {
   const handlePrev = () => { clearAllErrors(); setCurrentStep(s => s - 1); };
   const handleExit = () => navigate(-1);
 
-  // ── Save ──────────────────────────────────────────────────────────────────
+  // ── SAVE — all photo ops happen here ─────────────────────────────────────
   const handleSave = async () => {
     if (!validateStep5()) return;
     setIsSaving(true);
+
     try {
+      // ── 1. Delete removed photos ─────────────────────────────────────────
+      for (const deleteId of deletedIds) {
+        try {
+          await axios.delete(`${BASE_URL}/photo/${deleteId}`);
+        } catch {
+          // Log but don't abort — the photo may already be gone
+          console.warn(`Failed to delete photo ${deleteId}`);
+        }
+      }
+
+      // ── 2. Upload / process each photo slot ──────────────────────────────
+      //    existing → keep ID as-is (no server call needed)
+      //    new      → POST to get a new ID
+      const finalImageIds = [];
+
+      for (let i = 0; i < photos.length; i++) {
+        const item = photos[i];
+
+        if (item.kind === "existing") {
+          // Already on the server and not replaced — just keep the ID
+          finalImageIds.push(item.existingId);
+
+        } else if (item.kind === "new") {
+          // Brand-new photo — upload it now
+          const fd = new FormData();
+          fd.append("photo", item.file);
+          try {
+            const res = await axios.post(`${BASE_URL}/photo`, fd);
+            if (res.data.success) {
+              finalImageIds.push(res.data.data._id);
+            } else {
+              throw new Error("Upload response indicated failure");
+            }
+          } catch {
+            addToast(`Photo ${i + 1} upload failed. Please try again.`, "error");
+            setIsSaving(false);
+            return;
+          }
+        }
+        // "replace" kind is no longer used (replaced photos become "new" with old ID queued for deletion)
+      }
+
+      // ── 3. Save accommodation ─────────────────────────────────────────────
       await axios.put(`${BASE_URL}/accommodation/${id}`, {
         title, description, address,
         accommodationType: accType,
@@ -389,16 +438,20 @@ function AccommodationEdit() {
         location: { type: "Point", coordinates: [selectedLocation.lng, selectedLocation.lat] },
         distance, amenities,
         rules: otherRules ? [...rules, otherRules] : rules,
-        images: uploadedImageIds,
+        images: finalImageIds,
       });
+
       addToast("Accommodation updated successfully! Redirecting…", "success", 3000);
       setTimeout(() => navigate(-1), 1800);
+
     } catch (err) {
       addToast(err.response?.data?.message || "Something went wrong. Please try again.", "error");
-    } finally { setIsSaving(false); }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  // ── Loading / Error ───────────────────────────────────────────────────────
+  // ── Loading / Error states ─────────────────────────────────────────────────
   if (isLoading) return (
     <div className="ae-root">
       <div className="ae-topbar">
@@ -432,8 +485,9 @@ function AccommodationEdit() {
     <div className="ae-root">
       <ToastContainer toasts={toasts} onRemove={removeToast} />
 
-      <input type="file" multiple accept="image/*" ref={fileInputRef}   hidden onChange={handlePhotoUpload} />
-      <input type="file"          accept="image/*" ref={updateInputRef} hidden onChange={handlePhotoUpdate} />
+      {/* Hidden file inputs — only wired to local handlers */}
+      <input type="file" multiple accept="image/*" ref={fileInputRef}    hidden onChange={handlePhotoAdd} />
+      <input type="file"          accept="image/*" ref={updateInputRef}  hidden onChange={handlePhotoReplace} />
 
       {/* Top Bar */}
       <div className="ae-topbar">
@@ -490,7 +544,6 @@ function AccommodationEdit() {
               </div>
             </div>
 
-            {/* Accommodation type — same grid as AddAccommodation */}
             <div className="ae-field">
               <label className="ae-label">Accommodation type <span>*</span></label>
               <div className="ae-type-grid">
@@ -509,7 +562,6 @@ function AccommodationEdit() {
               </div>
             </div>
 
-            {/* Gender preference — same option-card + desc as AddAccommodation */}
             <div className="ae-field">
               <label className="ae-label">Accommodation for <span>*</span></label>
               <div className="ae-option-row">
@@ -530,7 +582,6 @@ function AccommodationEdit() {
 
             <div className="ae-divider" />
 
-            {/* Capacity — Counter component same as AddAccommodation */}
             <div className="ae-field">
               <label className="ae-label">Capacity <span>(1–10 each)</span></label>
               <div className="ae-counters-row">
@@ -551,15 +602,13 @@ function AccommodationEdit() {
 
             <div className="ae-divider" />
 
-            {/* Utilities — same utility-card style as AddAccommodation */}
             <div className="ae-field">
               <label className="ae-label">Utilities included</label>
               <div className="ae-utility-row">
                 <button type="button"
                   className={`ae-utility-card${utilities.electricity ? " active" : ""}`}
                   onClick={() => setUtilities(u => ({ ...u, electricity: !u.electricity }))}>
-                  <Zap size={18} />
-                  <span>Electricity</span>
+                  <Zap size={18} /><span>Electricity</span>
                   <span className={`ae-badge${utilities.electricity ? " on" : " off"}`}>
                     {utilities.electricity ? "Included" : "Not incl."}
                   </span>
@@ -567,8 +616,7 @@ function AccommodationEdit() {
                 <button type="button"
                   className={`ae-utility-card${utilities.water ? " active" : ""}`}
                   onClick={() => setUtilities(u => ({ ...u, water: !u.water }))}>
-                  <Droplets size={18} />
-                  <span>Water</span>
+                  <Droplets size={18} /><span>Water</span>
                   <span className={`ae-badge${utilities.water ? " on" : " off"}`}>
                     {utilities.water ? "Included" : "Not incl."}
                   </span>
@@ -578,7 +626,6 @@ function AccommodationEdit() {
 
             <div className="ae-divider" />
 
-            {/* Pricing */}
             <div className="ae-field">
               <label className="ae-label">Pricing</label>
               <div className="ae-row">
@@ -610,7 +657,6 @@ function AccommodationEdit() {
 
             <div className="ae-divider" />
 
-            {/* House rules — same RULE_LIST grid + other textarea as AddAccommodation */}
             <div className="ae-field">
               <label className="ae-label">House rules</label>
               <div className="ae-rules-grid">
@@ -620,8 +666,7 @@ function AccommodationEdit() {
                     <button key={key} type="button"
                       className={`ae-rule-item${active ? " active" : ""}`}
                       onClick={() => toggleRule(key)}>
-                      <Icon size={15} />
-                      <span>{key}</span>
+                      <Icon size={15} /><span>{key}</span>
                       {active && <CheckCircle size={12} className="ae-rule-check" />}
                     </button>
                   );
@@ -679,8 +724,7 @@ function AccommodationEdit() {
 
             {hasSelectedLocation && (
               <div className="ae-distance-badge">
-                <MapPin size={13} />
-                <span><strong>{distance}</strong> from SLIIT University</span>
+                <MapPin size={13} /><span><strong>{distance}</strong> from SLIIT University</span>
               </div>
             )}
 
@@ -700,29 +744,45 @@ function AccommodationEdit() {
           </div>
         )}
 
-        {/* ══ STEP 3 — Photos ══ */}
+        {/* ══ STEP 3 — Photos (local-only) ══ */}
         {currentStep === 3 && (
           <div className="ae-card">
             <div className="ae-card-title">Property photos</div>
-            <div className="ae-card-subtitle">Upload up to 5 photos — the first photo is used as the cover</div>
+            <div className="ae-card-subtitle">
+              Changes are saved only when you click <strong>Save changes</strong> — feel free to add, remove or replace photos here
+            </div>
 
             <div className="ae-field">
               <label className="ae-label">Photos <span>* at least 1 required</span></label>
               <div className={`ae-upload-zone${errors.photos ? " ae-upload-zone--error" : ""}`}
                 onClick={() => {
-                  if (uploadedImageIds.length >= 5) { addToast("Maximum 5 photos allowed.", "warning"); return; }
+                  if (photos.length >= 5) { addToast("Maximum 5 photos allowed.", "warning"); return; }
                   fileInputRef.current.click();
                 }}>
-                <div className="ae-upload-icon">
-                  {isUploading ? <Loader2 size={20} className="ae-spin" /> : <Upload size={20} />}
-                </div>
+                <div className="ae-upload-icon"><Upload size={20} /></div>
                 <div className="ae-upload-text">
-                  {isUploading ? "Uploading…" : uploadedImageIds.length >= 5 ? "Maximum photos reached" : "Click to add photos"}
+                  {photos.length >= 5 ? "Maximum photos reached" : "Click to add photos"}
                 </div>
-                <div className="ae-upload-hint">PNG, JPG — up to 5 photos · {uploadedImageIds.length}/5 uploaded</div>
+                <div className="ae-upload-hint">
+                  PNG, JPG — up to 5 photos · {photos.length}/5 · uploaded on save
+                </div>
               </div>
               <FieldError field="photos" />
             </div>
+
+            {/* Pending changes summary badge */}
+            {(deletedIds.length > 0 || photos.some(p => p.kind === "new")) && (
+              <div className="ae-pending-badge">
+                <AlertTriangle size={13} />
+                <span>
+                  {[
+                    deletedIds.length > 0 && `${deletedIds.length} photo${deletedIds.length > 1 ? "s" : ""} queued for deletion`,
+                    photos.filter(p => p.kind === "new").length > 0 && `${photos.filter(p => p.kind === "new").length} new photo${photos.filter(p => p.kind === "new").length > 1 ? "s" : ""} ready to upload`,
+                  ].filter(Boolean).join(" · ")}
+                  {" "}— will apply on Save
+                </span>
+              </div>
+            )}
 
             <div className="ae-photo-grid">
               {[0,1,2,3,4].map(index => (
@@ -730,10 +790,18 @@ function AccommodationEdit() {
                   {photos[index] ? (
                     <div className="ae-photo-box-inner">
                       {index === 0 && <div className="ae-photo-cover-badge">Cover</div>}
-                      <img src={photos[index]} alt={`photo-${index}`} />
+                      {/* Dim new/pending photos slightly so user knows they're staged */}
+                      {photos[index].kind === "new" && <div className="ae-photo-pending-overlay">New</div>}
+                      <img src={photos[index].preview} alt={`photo-${index}`} />
                       <div className="ae-photo-box-actions">
-                        <button type="button" className="ae-icon-btn del" onClick={() => handleDeletePhoto(index)}><Trash2 size={11} /></button>
-                        <button type="button" className="ae-icon-btn upd" onClick={() => triggerUpdate(index)}><RefreshCw size={11} /></button>
+                        <button type="button" className="ae-icon-btn del"
+                          onClick={() => handleDeletePhoto(index)} title="Remove photo">
+                          <Trash2 size={11} />
+                        </button>
+                        <button type="button" className="ae-icon-btn upd"
+                          onClick={() => triggerReplace(index)} title="Replace photo">
+                          <RefreshCw size={11} />
+                        </button>
                       </div>
                     </div>
                   ) : (
@@ -758,7 +826,6 @@ function AccommodationEdit() {
             <div className="ae-card-title">Amenities</div>
             <div className="ae-card-subtitle">Select all facilities available at your property</div>
 
-            {/* Same column-grid style as AddAccommodation amenities */}
             <div className="ae-amenities-grid">
               {AMENITY_LIST.map(({ key, icon: Icon }) => {
                 const active = amenities.includes(key);
@@ -785,12 +852,12 @@ function AccommodationEdit() {
         {currentStep === 5 && (
           <div className="ae-card">
             <div className="ae-card-title">Review & save</div>
-            <div className="ae-card-subtitle">Confirm everything looks right before saving changes</div>
+            <div className="ae-card-subtitle">Confirm everything looks right — photo changes will be applied when you save</div>
 
             <div className="ae-section-label">Listing preview</div>
             <div className="ae-preview-card">
               {photos[0]
-                ? <img src={photos[0]} alt="cover" className="ae-preview-cover" />
+                ? <img src={photos[0].preview} alt="cover" className="ae-preview-cover" />
                 : <div className="ae-preview-cover-placeholder"><ImagePlus size={28} color="#555" /></div>}
               <div className="ae-preview-body">
                 <div className="ae-preview-name">{title || "Your Property Title"}</div>
@@ -826,7 +893,7 @@ function AccommodationEdit() {
                     ["Address",   address],
                     ["Amenities", amenities.length>0?amenities.join(", "):"None selected"],
                     ["Rules",     [...rules,...(otherRules?[otherRules]:[])].join(", ")||"None"],
-                    ["Photos",    `${uploadedImageIds.length} uploaded`],
+                    ["Photos",    `${photos.length} (${photos.filter(p=>p.kind==="new").length} new, ${deletedIds.length} to delete)`],
                   ].map(([k,v]) => <tr key={k}><td>{k}</td><td>{v}</td></tr>)}
                 </tbody>
               </table>
@@ -834,7 +901,6 @@ function AccommodationEdit() {
 
             <div className="ae-divider" />
 
-            {/* Confirmation — same verify section style as AddAccommodation */}
             <div className="ae-verify-section">
               <div className="ae-verify-section__title">Confirmation</div>
               <label className={`ae-check-label${errors.verify ? " ae-check-label--error" : ""}`}>
@@ -843,7 +909,6 @@ function AccommodationEdit() {
                 I confirm all updated information is accurate and up to date.
               </label>
               {errors.verify && <p className="ae-field-error" style={{ marginLeft:26 }}><AlertCircle size={12} /> {errors.verify}</p>}
-
               <label className={`ae-check-label${errors.agree ? " ae-check-label--error" : ""}`} style={{ marginTop:4 }}>
                 <input type="checkbox" checked={isAgreed}
                   onChange={e => { setIsAgreed(e.target.checked); clearError("agree"); }} />
@@ -855,7 +920,7 @@ function AccommodationEdit() {
             {isSaving && (
               <div className="ae-saving-indicator">
                 <Loader2 size={15} className="ae-spin" />
-                Saving your changes…
+                Applying photo changes and saving your listing…
               </div>
             )}
 
