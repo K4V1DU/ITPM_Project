@@ -38,6 +38,8 @@ import {
 import "./FoodService.css";
 import StudentNavbar from "../NavBar/Student_NavBar/StudentNavbar";
 import Footer from "../NavBar/Footer/Footer";
+import LoadingScreen from "../Overlays/LoadingScreen/Loader";
+import { useToast } from "../Overlays/ToastMessages/ToastContext";
 
 // ─────────────────────────────────────────
 // CONFIG
@@ -695,6 +697,9 @@ export default function FoodService() {
   const { id: FOOD_SERVICE_ID } = useParams();
   const navigate = useNavigate();
 
+  // ── Shared toast ──────────────────────
+  const { toast } = useToast();
+
   // ── API state ─────────────────────────
   const [service, setService] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
@@ -716,6 +721,7 @@ export default function FoodService() {
   const [loadingService, setLoadingService] = useState(true);
   const [loadingMenu, setLoadingMenu] = useState(true);
   const [loadingReviews, setLoadingReviews] = useState(true);
+  const [imagesReady, setImagesReady] = useState(false);
   const [errorService, setErrorService] = useState(null);
 
   // ── UI state ──────────────────────────
@@ -724,7 +730,6 @@ export default function FoodService() {
   const [cart, setCart] = useState({});
   const [modal, setModal] = useState(null);
   const [modalQty, setModalQty] = useState(1);
-  const [toast, setToast] = useState({ show: false, msg: "" });
   const [expanded, setExpanded] = useState({});
   const [orderType, setOrderType] = useState("delivery");
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -744,16 +749,48 @@ export default function FoodService() {
   const [isCartVisible, setIsCartVisible] = useState(false);
 
   const sectionRefs = useRef({});
-  const toastTimer = useRef(null);
   const actionMenuRef = useRef(null);
   const activeCategoriesRef = useRef([]);
-  // NEW: ref attached to the cart aside element
   const cartRef = useRef(null);
 
   const userId = localStorage.getItem("CurrentUserId");
   const isLoggedIn = !!userId;
   const userRole = currentUser?.role ?? null;
   const isStudent = userRole === "student";
+
+  // ── Preload all page images once data is ready ────────────────────────
+  // Fires when both service and menu data have finished fetching.
+  // Collects the hero, icon, and every menu item image, then resolves
+  // (or rejects — we count errors too so we never hang) all of them
+  // before setting imagesReady = true and hiding the LoadingScreen.
+  useEffect(() => {
+    if (loadingService || loadingMenu) return;
+
+    const urls = [];
+    if (service?.BackgroundImage) urls.push(photoSrc(service.BackgroundImage));
+    if (service?.iconImage)       urls.push(photoSrc(service.iconImage));
+    menuItems.forEach((item) => {
+      if (item.image) urls.push(photoSrc(item.image));
+    });
+
+    if (urls.length === 0) {
+      setImagesReady(true);
+      return;
+    }
+
+    let settled = 0;
+    const onSettle = () => {
+      settled += 1;
+      if (settled >= urls.length) setImagesReady(true);
+    };
+
+    urls.forEach((url) => {
+      const img = new Image();
+      img.onload  = onSettle;
+      img.onerror = onSettle; // count broken images too — don't block forever
+      img.src = url;
+    });
+  }, [loadingService, loadingMenu, service, menuItems]);
 
   // ── IntersectionObserver: track cart visibility (mobile only) ─────────
   useEffect(() => {
@@ -762,10 +799,7 @@ export default function FoodService() {
       ([entry]) => {
         setIsCartVisible(entry.isIntersecting);
       },
-      {
-        // Cart is "visible" when at least 30% of it appears in the viewport
-        threshold: 0.3,
-      }
+      { threshold: 0.3 }
     );
     observer.observe(cartRef.current);
     return () => observer.disconnect();
@@ -846,11 +880,12 @@ export default function FoodService() {
         }),
       });
       setIsFavourited((p) => !p);
-      showToast(
+      toast(
         isFavourited ? "Removed from favourites" : "Saved to favourites!",
+        isFavourited ? undefined : "success",
       );
     } catch {
-      showToast("Failed to update favourites.");
+      toast("Failed to update favourites.");
     } finally {
       setFavPending(false);
     }
@@ -983,7 +1018,7 @@ export default function FoodService() {
       ...prev,
       [item._id]: { ...item, qty: (prev[item._id]?.qty || 0) + 1 },
     }));
-    showToast(`Added "${item.name}" to cart`);
+    toast(`Added "${item.name}" to cart`, "success");
   };
   const changeQty = (id, delta) => {
     setCart((prev) => {
@@ -999,16 +1034,6 @@ export default function FoodService() {
   const cartItems = Object.values(cart);
   const cartTotal = cartItems.reduce((s, i) => s + i.price * i.qty, 0);
   const cartCount = cartItems.reduce((s, i) => s + i.qty, 0);
-
-  // ── Toast ─────────────────────────────────────────────────────────────
-  const showToast = (msg) => {
-    setToast({ show: true, msg });
-    clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(
-      () => setToast({ show: false, msg: "" }),
-      2400,
-    );
-  };
 
   // ── Item modal ────────────────────────────────────────────────────────
   const openModal = (item) => {
@@ -1103,9 +1128,9 @@ export default function FoodService() {
         return updated;
       });
       setShowReviewModal(false);
-      showToast("Thanks for your review!");
+      toast("Thanks for your review!", "success");
     } catch {
-      showToast("Failed to submit — please try again.");
+      toast("Failed to submit — please try again.");
     } finally {
       setReviewSubmitting(false);
     }
@@ -1132,9 +1157,9 @@ export default function FoodService() {
         return updated;
       });
       setEditingReview(null);
-      showToast("Review updated.");
+      toast("Review updated.", "success");
     } catch {
-      showToast("Failed to update — please try again.");
+      toast("Failed to update — please try again.");
     } finally {
       setReviewActionLoading(false);
     }
@@ -1154,15 +1179,15 @@ export default function FoodService() {
         return updated;
       });
       setDeletingReviewId(null);
-      showToast("Review deleted.");
+      toast("Review deleted.", "success");
     } catch {
-      showToast("Failed to delete — please try again.");
+      toast("Failed to delete — please try again.");
     } finally {
       setReviewActionLoading(false);
     }
   };
 
-  // ── Checkout handler (shared between cart button and sticky bar) ───────
+  // ── Checkout handler ──────────────────────────────────────────────────
   const handleCheckout = () => {
     if (!isLoggedIn || !isStudent) {
       setShowLoginRequired(true);
@@ -1201,11 +1226,17 @@ export default function FoodService() {
   activeCategoriesRef.current = activeCategories;
   const previewReviews = reviews.slice(0, 4);
 
-  // ── Whether to show the sticky bar ────────────────────────────────────
-  // Show if: cart has items AND cart section not currently visible AND kitchen is open
   const showStickyBar = cartItems.length > 0 && !isCartVisible && isOpen;
 
   // ── Guards ────────────────────────────────────────────────────────────
+
+  // Show LoadingScreen until both data fetches AND image preloading are done.
+  // Error takes priority — if something failed we skip the loader and show
+  // the error state immediately.
+  if (!errorService && (loadingService || loadingMenu || !imagesReady)) {
+    return <LoadingScreen />;
+  }
+
   if (!FOOD_SERVICE_ID) {
     return (
       <div
@@ -1354,90 +1385,82 @@ export default function FoodService() {
             </div>
 
             <div className="fs-restaurant-header__info">
-              {loadingService ? (
-                <>
-                  <Skeleton h={32} w="60%" mb={10} />
-                  <Skeleton h={16} w="80%" mb={12} />
-                  <Skeleton h={16} w="40%" />
-                </>
-              ) : (
-                <>
-                  <h1 className="fs-restaurant-header__title">{kitchenName}</h1>
-                  <div className="fs-restaurant-header__meta">
-                    <span style={{ fontWeight: 600, color: "#1b1b1b" }}>
-                      ⭐ {liveRatingAvg.toFixed(1)}
+              <>
+                <h1 className="fs-restaurant-header__title">{kitchenName}</h1>
+                <div className="fs-restaurant-header__meta">
+                  <span style={{ fontWeight: 600, color: "#1b1b1b" }}>
+                    ⭐ {liveRatingAvg.toFixed(1)}
+                  </span>
+                  {[`(${liveRatingCount} ratings)`, service?.serviceType]
+                    .filter(Boolean)
+                    .map((t) => (
+                      <span key={t} style={{ display: "contents" }}>
+                        <span style={{ color: "#ccc" }}>•</span>
+                        <span>{t}</span>
+                      </span>
+                    ))}
+                </div>
+                <div
+                  className="fs-restaurant-header__badges-row"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span className="fs-restaurant-header__badge">
+                    <span
+                      className="fs-restaurant-header__status-dot"
+                      style={{ background: isOpen ? "#038a3a" : "#dc2626" }}
+                    />
+                    <span
+                      style={{
+                        color: isOpen ? "#038a3a" : "#dc2626",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {isOpen ? "Open" : "Closed"}
                     </span>
-                    {[`(${liveRatingCount} ratings)`, service?.serviceType]
-                      .filter(Boolean)
-                      .map((t) => (
-                        <span key={t} style={{ display: "contents" }}>
-                          <span style={{ color: "#ccc" }}>•</span>
-                          <span>{t}</span>
-                        </span>
-                      ))}
-                  </div>
-                  <div
-                    className="fs-restaurant-header__badges-row"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <span className="fs-restaurant-header__badge">
-                      <span
-                        className="fs-restaurant-header__status-dot"
-                        style={{ background: isOpen ? "#038a3a" : "#dc2626" }}
-                      />
-                      <span
-                        style={{
-                          color: isOpen ? "#038a3a" : "#dc2626",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {isOpen ? "Open" : "Closed"}
-                      </span>
-                      <span
-                        className="fs-restaurant-header__time"
-                        style={{ color: "#545454" }}
-                      >
-                        · {openTime} – {closeTime}
-                      </span>
+                    <span
+                      className="fs-restaurant-header__time"
+                      style={{ color: "#545454" }}
+                    >
+                      · {openTime} – {closeTime}
                     </span>
-                    {canDeliver && (
-                      <span
-                        className="fs-restaurant-header__badge fs-restaurant-header__badge--mode"
-                        style={{
-                          fontSize: 12,
-                          color: "#038a3a",
-                          fontWeight: 600,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
-                        <FaMotorcycle /> Delivery
-                      </span>
-                    )}
-                    {canPickup && (
-                      <span
-                        className="fs-restaurant-header__badge fs-restaurant-header__badge--mode"
-                        style={{
-                          fontSize: 12,
-                          color: "#0369a1",
-                          fontWeight: 600,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
-                        <FaShoppingBag /> Pickup
-                      </span>
-                    )}
-                  </div>
-                </>
-              )}
+                  </span>
+                  {canDeliver && (
+                    <span
+                      className="fs-restaurant-header__badge fs-restaurant-header__badge--mode"
+                      style={{
+                        fontSize: 12,
+                        color: "#038a3a",
+                        fontWeight: 600,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <FaMotorcycle /> Delivery
+                    </span>
+                  )}
+                  {canPickup && (
+                    <span
+                      className="fs-restaurant-header__badge fs-restaurant-header__badge--mode"
+                      style={{
+                        fontSize: 12,
+                        color: "#0369a1",
+                        fontWeight: 600,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <FaShoppingBag /> Pickup
+                    </span>
+                  )}
+                </div>
+              </>
             </div>
 
             <div className="fs-restaurant-header__actions">
@@ -1516,11 +1539,11 @@ export default function FoodService() {
                         }
                         const hostId = service?.owner?._id ?? service?.owner;
                         if (!hostId) {
-                          showToast("Host info not available.");
+                          toast("Host info not available.");
                           return;
                         }
                         try {
-                          showToast("Opening chat…");
+                          toast("Opening chat…");
                           const res = await fetch(
                             `${API_BASE}/message/conversation`,
                             {
@@ -1538,7 +1561,7 @@ export default function FoodService() {
                             state: { openConversationId: conv._id },
                           });
                         } catch {
-                          showToast("Failed to open chat. Try again.");
+                          toast("Failed to open chat. Try again.");
                         }
                       }}
                     >
@@ -1558,7 +1581,7 @@ export default function FoodService() {
                       onClick={() => {
                         setShowActionMenu(false);
                         navigator.clipboard?.writeText(window.location.href);
-                        showToast("Link copied!");
+                        toast("Link copied!", "success");
                       }}
                     >
                       <FaShare style={{ fontSize: 13 }} /> Share this kitchen
@@ -1571,7 +1594,7 @@ export default function FoodService() {
                           setShowLoginRequired(true);
                           return;
                         }
-                        showToast("Report submitted. Thank you.");
+                        toast("Report submitted. Thank you.", "success");
                       }}
                     >
                       <FaFlag style={{ fontSize: 13 }} /> Report
@@ -1584,7 +1607,7 @@ export default function FoodService() {
           {/* ── END TOP ROW ── */}
 
           {/* ── BOTTOM ROW: full-width address + description ── */}
-          {!loadingService && (address || service?.description) && (
+          {(address || service?.description) && (
             <div className="fs-restaurant-header__bottom">
               {address && (
                 <div className="fs-restaurant-header__address">
@@ -1625,29 +1648,7 @@ export default function FoodService() {
 
           {/* Menu */}
           <main>
-            {loadingMenu ? (
-              <div style={{ padding: "32px 0" }}>
-                {[1, 2, 3, 4].map((i) => (
-                  <div
-                    key={i}
-                    style={{
-                      display: "flex",
-                      gap: 16,
-                      padding: "16px 0",
-                      borderBottom: "1px solid #f0f0f0",
-                    }}
-                  >
-                    <div style={{ flex: 1 }}>
-                      <Skeleton h={18} w="55%" mb={8} />
-                      <Skeleton h={13} w="90%" mb={6} />
-                      <Skeleton h={13} w="70%" mb={6} />
-                      <Skeleton h={14} w="30%" />
-                    </div>
-                    <Skeleton w={96} h={96} radius={10} />
-                  </div>
-                ))}
-              </div>
-            ) : menuItems.length === 0 ? (
+            {menuItems.length === 0 ? (
               <div
                 style={{
                   textAlign: "center",
@@ -1689,7 +1690,7 @@ export default function FoodService() {
             )}
           </main>
 
-          {/* Cart — ref attached here for IntersectionObserver */}
+          {/* Cart */}
           <aside className="fs-cart" ref={cartRef}>
             <div className="fs-cart__box">
               <div className="fs-cart__header">
@@ -1849,24 +1850,20 @@ export default function FoodService() {
         <div className="fs-wrapper">
           <div className="fs-reviews__header">What guests are saying</div>
           <div className="fs-reviews__rating-row">
-            {loadingService ? (
-              <Skeleton h={48} w={80} radius={8} />
-            ) : (
-              <>
-                <span className="fs-reviews__score">
-                  {liveRatingAvg.toFixed(1)}
-                </span>
-                <div>
-                  <div style={{ fontSize: 18 }}>
-                    {"★".repeat(Math.round(liveRatingAvg))}
-                    {"☆".repeat(5 - Math.round(liveRatingAvg))}
-                  </div>
-                  <div style={{ fontSize: 14, color: "#757575" }}>
-                    {liveRatingCount} ratings
-                  </div>
+            <>
+              <span className="fs-reviews__score">
+                {liveRatingAvg.toFixed(1)}
+              </span>
+              <div>
+                <div style={{ fontSize: 18 }}>
+                  {"★".repeat(Math.round(liveRatingAvg))}
+                  {"☆".repeat(5 - Math.round(liveRatingAvg))}
                 </div>
-              </>
-            )}
+                <div style={{ fontSize: 14, color: "#757575" }}>
+                  {liveRatingCount} ratings
+                </div>
+              </div>
+            </>
           </div>
 
           <button
@@ -2141,14 +2138,7 @@ export default function FoodService() {
         />
       )}
 
-      <div className={`fs-toast${toast.show ? " fs-toast--visible" : ""}`}>
-        {toast.msg}
-      </div>
-
-      {/* ══ MOBILE STICKY CHECKOUT BAR ══
-          Only rendered in CSS on screens ≤ 1024px.
-          Appears when cart has items, kitchen is open, and cart section
-          is not currently in the viewport. Clicking scrolls to the cart. */}
+      {/* ══ MOBILE STICKY CHECKOUT BAR ══ */}
       <div
         className={`fs-mobile-checkout-bar${showStickyBar ? " fs-mobile-checkout-bar--visible" : ""}`}
         style={{ fontFamily: FONT }}
@@ -2158,7 +2148,6 @@ export default function FoodService() {
           onClick={scrollToCart}
           style={{ fontFamily: FONT }}
         >
-          {/* Left: cart icon + item count badge */}
           <div className="fs-mobile-checkout-bar__left">
             <div className="fs-mobile-checkout-bar__icon-wrap">
               <FaShoppingCart style={{ fontSize: 16 }} />
@@ -2168,7 +2157,6 @@ export default function FoodService() {
               {orderType === "delivery" ? "Go to checkout" : "Place pickup order"}
             </span>
           </div>
-          {/* Right: total */}
           <span className="fs-mobile-checkout-bar__total">
             LKR {orderTotal.toLocaleString()}
           </span>
