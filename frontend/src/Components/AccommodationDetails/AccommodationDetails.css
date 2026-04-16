@@ -47,13 +47,7 @@
 .acd-vitem { display:flex;align-items:flex-start;gap:10px;background:#fff5f5;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;font-size:13px;color:#dc2626; }
 .acd-vitem__icon { flex-shrink:0;margin-top:1px;font-size:14px; }
 
-/* ── CRITICAL: wrapper must clip horizontal overflow ── */
-.acd-wrapper {
-  max-width:1200px;
-  margin:0 auto;
-  padding:0 24px;
-  overflow-x: hidden; /* safety net — clips anything that escapes */
-}
+.acd-wrapper { max-width:1200px;margin:0 auto;padding:0 24px; }
 
 .acd-lhdr {
   padding: 24px 0 0;
@@ -191,13 +185,11 @@
 
 .acd-divider { height:1px;background:#e2e2e2;margin:20px 0 0; }
 
-/* ── CRITICAL: grid children must have min-width:0 or they won't shrink ── */
 .acd-grid > main,
 .acd-grid > aside {
   min-width: 0;
   max-width: 100%;
 }
-
 /* ─── Gallery ─────────────────────────────────────────────────
    KEY FIX: width + overflow hidden on the wrapper so the thumb
    strip can never push the page wider than 100%.
@@ -287,34 +279,15 @@
 .acd-pickers { display:flex;flex-direction:column;gap:0;margin-bottom:12px; }
 
 .acd-pickers__row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  border: 1px solid #e2e2e2;
-  border-radius: 12px;
-  overflow: hidden;
-  margin-bottom: 10px;
-  min-width: 0;          /* ← prevent grid blowout */
+  display:grid; grid-template-columns:1fr 1fr;
+  border:1px solid #e2e2e2; border-radius:12px;
+  overflow:hidden; margin-bottom:10px;
 }
 .acd-pickers__cell { padding:12px 14px;display:flex;flex-direction:column;gap:4px;background:#fff; }
 .acd-pickers__cell--left  { border-right:1px solid #e2e2e2; }
 .acd-pickers__cell:focus-within { background:#fff8f5; }
 .acd-pickers__cell-label { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#1b1b1b;display:flex;align-items:center; }
-.acd-pickers__cell-input {
-  width: 100%;
-  min-width: 0;          /* ← prevent input from expanding past cell */
-  max-width: 100%;       /* ← hard cap */
-  border: none;
-  outline: none;
-  font-size: 13px;
-  font-weight: 500;
-  color: #1b1b1b;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
-  font-family: inherit;
-}
+.acd-pickers__cell-input { width:100%;border:none;outline:none;font-size:13px;font-weight:500;color:#1b1b1b;background:transparent;padding:0;cursor:pointer;-webkit-appearance:none;appearance:none;font-family:inherit; }
 input[type="date"].acd-pickers__cell-input,
 input[type="time"].acd-pickers__cell-input { -webkit-appearance:textfield;appearance:textfield; }
 .acd-pickers__cell-input::-webkit-datetime-edit-text,
@@ -462,10 +435,16 @@ input[type="time"].acd-pickers__cell-input { -webkit-appearance:textfield;appear
   .acd-rcard__inner--left  { padding-right:0; border-right:none; }
   .acd-rcard__inner--right { padding-left:0; }
 
-  /* ── Mobile gallery ── */
+  /* ── Mobile gallery ──────────────────────────────────────────
+     Main image: aspect-ratio keeps proportions without a fixed px
+     height that could overflow on narrow screens.
+     Thumb strip: the base styles already do the right thing once
+     width:100% is on .acd-gallery and .acd-gallery__thumbs;
+     these rules just tune the sizing for small screens.
+  ──────────────────────────────────────────────────────────── */
   .acd-gallery__main {
-    height: auto;
-    aspect-ratio: 16 / 9;
+    height: auto;           /* drop fixed px height */
+    aspect-ratio: 16 / 9;  /* keep proportion instead */
   }
 
   .acd-gallery__thumb {
@@ -475,45 +454,6 @@ input[type="time"].acd-pickers__cell-input { -webkit-appearance:textfield;appear
 
   /* Extra bottom space so content isn't hidden behind float bar */
   .acd-grid { padding-bottom:90px; }
-
-  /* ── Grid children: guarantee they shrink on mobile ── */
-  .acd-grid > main,
-  .acd-grid > aside {
-    min-width: 0;
-    width: 100%;
-  }
-
-  /* ── Amenities: narrower min so columns fit small screens ── */
-  .acd-amenities {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  }
-
-  /* ── Booking card: tighter padding on small screens ── */
-  .acd-bcard {
-    padding: 16px 14px;
-  }
-
-  /* ── Pickers: ensure inputs can't expand past their cell ── */
-  .acd-pickers__cell-input {
-    max-width: 100%;
-    min-width: 0;
-  }
-
-  /* ── Host card: stack vertically, full-width button ── */
-  .acd-hostcard {
-    flex-direction: column;
-  }
-
-  .acd-hostcard__btn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  /* ── Section headings: prevent long words from overflowing ── */
-  .acd-sec-title {
-    overflow-wrap: break-word;
-    word-break: break-word;
-  }
 
   /* ── FLOATING BOOK NOW BAR ── */
   .acd-float-book {
