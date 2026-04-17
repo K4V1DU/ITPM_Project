@@ -368,11 +368,30 @@ exports.approveManualPayment = async (req, res) => {
       });
     }
 
+    // Resolve duration from stored days, with plan fallback for legacy/incomplete records.
+    const resolvedDaysAdded =
+      Number(payment.daysAdded) > 0
+        ? Number(payment.daysAdded)
+        : (PLANS[payment.plan]?.daysAdded || 0);
+
+    if (!resolvedDaysAdded) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot approve payment without a valid duration. Plan '${payment.plan || "unknown"}' has no days mapping.`,
+      });
+    }
+
+    // Keep payment.daysAdded consistent with the resolved plan duration.
+    if (Number(payment.daysAdded) !== resolvedDaysAdded) {
+      payment.daysAdded = resolvedDaysAdded;
+      await payment.save();
+    }
+
     // Update the linked FoodService or Accommodation listing
     const finalExpireDate = await applyExpireDateToListing(
       payment.listing,
       payment.listingType,
-      payment.daysAdded
+      resolvedDaysAdded
     );
 
     // Update the payment record with admin details from your model

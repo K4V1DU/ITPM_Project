@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import AdminNavBar from '../NavBar/Admin_NavBar/AdminNavBar';
+import { useToast } from "../Overlays/ToastMessages/ToastContext";
 import './AdminPayments.css';
 
 const API_BASE = process.env.REACT_APP_API_BASE_URL;
@@ -22,6 +23,20 @@ const fmtStr = (val) => {
     return JSON.stringify(val);
   }
   return String(val);
+};
+
+const pickId = (...candidates) => {
+  for (const value of candidates) {
+    if (!value) continue;
+    if (typeof value === "string") return value;
+    if (typeof value === "object") {
+      if (typeof value._id === "string") return value._id;
+      if (typeof value.id === "string") return value.id;
+      if (typeof value.userId === "string") return value.userId;
+      if (typeof value.hostId === "string") return value.hostId;
+    }
+  }
+  return null;
 };
 
 /* ── Inline SVG Icons ─────────────────────────────────────────── */
@@ -407,6 +422,7 @@ function PaymentRow({ p, onReceipt, onVerify, onReject, onContactHost }) {
 /* ─── Main Component ─────────────────────────────────────────────────────── */
 export default function AdminPayments() {
   const navigate = useNavigate();
+  const { toast: pushToast } = useToast();
   const userId   = localStorage.getItem("CurrentUserId");
 
   const [payments,     setPayments]     = useState([]);
@@ -415,14 +431,8 @@ export default function AdminPayments() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter,   setTypeFilter]   = useState("all");
   const [receiptModal, setReceiptModal] = useState(null);
-  const [toast,        setToast]        = useState(null);
 
   useEffect(() => { if (!userId) navigate("/Login"); }, [userId, navigate]);
-
-  useEffect(() => {
-    document.body.classList.add("ap-page-active");
-    return () => document.body.classList.remove("ap-page-active");
-  }, []);
 
   const fetchPayments = () => {
     setLoading(true);
@@ -443,8 +453,7 @@ export default function AdminPayments() {
   useEffect(() => { fetchPayments(); }, []);
 
   const showToast = (msg, type = "success") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
+    pushToast(msg, type);
   };
 
   /* ── Approve ─────────────────────────────────────────────────────────── */
@@ -458,11 +467,26 @@ export default function AdminPayments() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setPayments(p => p.map(x => x._id === id ? { ...x, status: "verified" } : x));
+        const approvedPayment = data.payment;
+        const updatedExpireDate = approvedPayment?.newExpireDate;
+        const updatedDays = approvedPayment?.daysAdded;
+        setPayments(p => p.map(x => x._id === id ? {
+          ...x,
+          status: "verified",
+          newExpireDate: updatedExpireDate ?? x.newExpireDate,
+          daysAdded: updatedDays ?? x.daysAdded,
+          listing: x.listing
+            ? {
+                ...x.listing,
+                expireDate: updatedExpireDate ?? x.listing.expireDate,
+                isAvailable: true,
+              }
+            : x.listing,
+        } : x));
         showToast("Payment approved and listing activated.");
 
         // ── Send notification to host ──
-        const hostId = payment?.host?._id || payment?.host?.id;
+        const hostId = pickId(payment?.host, payment?.hostId, payment?.ownerId, payment?.userId);
         if (hostId) {
           await sendNotification({
             recipient: hostId,
@@ -499,7 +523,7 @@ export default function AdminPayments() {
         showToast("Payment rejected.");
 
         // ── Send notification to host ──
-        const hostId = payment?.host?._id || payment?.host?.id;
+        const hostId = pickId(payment?.host, payment?.hostId, payment?.ownerId, payment?.userId);
         if (hostId) {
           await sendNotification({
             recipient: hostId,
@@ -529,7 +553,7 @@ export default function AdminPayments() {
       });
       const data = await res.json();
       if (data.success && data.data?._id) {
-        navigate(`/AdminMessages?conversationId=${data.data._id}`);
+        navigate("/Messages", { state: { openConversationId: data.data._id } });
       } else {
         showToast("Could not open conversation.", "error");
       }
@@ -570,16 +594,6 @@ export default function AdminPayments() {
   return (
     <div className="ap-page">
       <AdminNavBar activeHref="/AdminPayments" />
-
-      {/* Toast */}
-      {toast && (
-        <div className={`ap-toast ap-toast--${toast.type}`}>
-          <span className="ap-toast__icon">
-            {toast.type === "success" ? <IconCheck /> : <IconX />}
-          </span>
-          {toast.msg}
-        </div>
-      )}
 
       {/* Receipt Modal */}
       {receiptModal && (

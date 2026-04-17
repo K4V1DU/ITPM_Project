@@ -67,17 +67,6 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 /* ── Page shell ──────────────────────────────────────────────── */
-body.ap-page-active {
-  overflow-y: auto !important;
-  height: auto !important;
-}
-
-body.ap-page-active #root {
-  min-height: 100dvh;
-  height: auto !important;
-  overflow: visible !important;
-}
-
 .ap-page {
   position: relative;
   min-height: 100dvh;
@@ -448,7 +437,7 @@ body.ap-page-active #root {
 .ap-table th:nth-child(4), .ap-table td:nth-child(4) { width: 12%; }
 .ap-table th:nth-child(5), .ap-table td:nth-child(5) { width: 13%; }
 .ap-table th:nth-child(6), .ap-table td:nth-child(6) { width: 18%; }
-.ap-table th:nth-child(7), .ap-table td:nth-child(7) { width: 22%; }
+.ap-table th:nth-child(7), .ap-table td:nth-child(7) { width: 24%; min-width: 220px; }
 
 .ap-row td {
   padding: 13px 14px;
@@ -461,7 +450,7 @@ body.ap-page-active #root {
 }
 .ap-row td:first-child { padding-left: 24px; }
 /* last col (actions) doesn't ellipsis */
-.ap-row td:last-child  { padding-right: 24px; white-space: normal; overflow: visible; }
+.ap-row td:last-child  { padding-right: 24px; white-space: nowrap; overflow: visible; }
 
 .ap-row:hover td       { background: #faf8ff; }
 .ap-row--expanded td   { background: #f5f0ff; }
@@ -892,6 +881,8 @@ body.ap-page-active #root {
   gap: 5px;
   align-items: center;
   flex-wrap: nowrap;
+  white-space: nowrap;
+  min-width: max-content;
 }
 
 .ap-btn {
@@ -915,6 +906,11 @@ body.ap-page-active #root {
     box-shadow 120ms var(--ap-ease);
   flex-shrink: 0;
   line-height: 1;
+}
+
+.ap-actions .ap-btn {
+  height: 28px;
+  padding: 0 8px;
 }
 
 .ap-btn__icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
