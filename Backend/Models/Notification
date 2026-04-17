@@ -18,6 +18,7 @@ const NotificationSchema = new mongoose.Schema(
         "order_placed",       // student placed an order
         "order_status",       // order accepted / rejected / ready
         "payment_verified",   // host payment confirmed
+        "payment_rejected",   // host payment rejected by admin
         "message_received",   // new chat message
         "booking_request",    // new boarding booking request
         "booking_status",     // booking accepted / rejected
