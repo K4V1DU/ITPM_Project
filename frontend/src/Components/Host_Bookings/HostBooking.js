@@ -66,6 +66,7 @@ const STATUS = {
   pending:   { bg: "#fff7ed", text: "#c2410c", dot: ORANGE,    border: "#fcd9c4", label: "Pending"   },
   confirmed: { bg: "#f7f7f7", text: "#1b1b1b", dot: "#1b1b1b", border: "#e2e2e2", label: "Confirmed" },
   completed: { bg: "#f0fdf4", text: "#15803d", dot: "#22c55e", border: "#bbf7d0", label: "Completed" },
+  rejected:  { bg: "#fef2f2", text: "#b91c1c", dot: "#ef4444", border: "#fecaca", label: "Rejected"  },
   cancelled: { bg: "#fef2f2", text: "#b91c1c", dot: "#ef4444", border: "#fecaca", label: "Cancelled" },
 };
 
@@ -74,6 +75,7 @@ const FILTER_OPTIONS = [
   { value: "pending",   label: "Pending"      },
   { value: "confirmed", label: "Confirmed"    },
   { value: "completed", label: "Completed"    },
+  { value: "rejected",  label: "Rejected"     },
   { value: "cancelled", label: "Cancelled"    },
 ];
 
@@ -83,31 +85,31 @@ const FILTER_OPTIONS = [
 function ConfirmModal({ action, onConfirm, onCancel, loading }) {
   const isConfirm  = action === "confirmed";
   const isComplete = action === "completed";
-  const isCancel   = action === "cancelled";
+  const isReject   = action === "rejected";
   return (
     <div className="hb-overlay" onClick={!loading ? onCancel : undefined}>
       <div className="hb-modal" onClick={(e) => e.stopPropagation()}>
-        <div className={`hb-modal__icon-wrap hb-modal__icon-wrap--${isCancel ? "danger" : "primary"}`}>
-          {isCancel ? <FaTimesCircle /> : <FaCheckCircle />}
+        <div className={`hb-modal__icon-wrap hb-modal__icon-wrap--${isReject ? "danger" : "primary"}`}>
+          {isReject ? <FaTimesCircle /> : <FaCheckCircle />}
         </div>
         <h3 className="hb-modal__title">
-          {isConfirm ? "Confirm Booking" : isComplete ? "Mark as Completed" : "Cancel Booking"}
+          {isConfirm ? "Confirm Booking" : isComplete ? "Mark as Completed" : "Reject Booking"}
         </h3>
         <p className="hb-modal__desc">
           {isConfirm
             ? "Confirm this booking? The student will be notified their visit is approved."
             : isComplete
             ? "Mark this booking as completed? This confirms the visit has taken place."
-            : "Cancel this booking? This action cannot be undone and the student will be notified."}
+            : "Reject this booking? This action cannot be undone and the student will be notified."}
         </p>
         <div className="hb-modal__btns">
           <button className="hb-modal__btn hb-modal__btn--ghost" onClick={onCancel} disabled={loading}>Back</button>
           <button
-            className={`hb-modal__btn hb-modal__btn--${isCancel ? "danger" : isComplete ? "dark" : "primary"}`}
+            className={`hb-modal__btn hb-modal__btn--${isReject ? "danger" : isComplete ? "dark" : "primary"}`}
             onClick={onConfirm}
             disabled={loading}
           >
-            {loading ? <FaSpinner className="hb-spin" /> : isConfirm ? "Confirm" : isComplete ? "Mark Completed" : "Yes, Cancel"}
+            {loading ? <FaSpinner className="hb-spin" /> : isConfirm ? "Confirm" : isComplete ? "Mark Completed" : "Yes, Reject"}
           </button>
         </div>
       </div>
@@ -459,8 +461,8 @@ function BookingDetail({ booking, onAction, actionLoading, onBack, isMobile, cur
                 <button className="hb-action hb-action--primary" onClick={() => onAction(booking, "confirmed")} disabled={busy}>
                   {busy ? <FaSpinner className="hb-spin" /> : <FaCheckCircle />} Confirm Booking
                 </button>
-                <button className="hb-action hb-action--ghost" onClick={() => onAction(booking, "cancelled")} disabled={busy}>
-                  <FaTimesCircle /> Cancel
+                <button className="hb-action hb-action--ghost" onClick={() => onAction(booking, "rejected")} disabled={busy}>
+                  <FaTimesCircle /> Reject
                 </button>
               </>
             )}
@@ -469,8 +471,8 @@ function BookingDetail({ booking, onAction, actionLoading, onBack, isMobile, cur
                 <button className="hb-action hb-action--dark" onClick={() => onAction(booking, "completed")} disabled={busy}>
                   {busy ? <FaSpinner className="hb-spin" /> : <FaCheckCircle />} Mark Completed
                 </button>
-                <button className="hb-action hb-action--ghost" onClick={() => onAction(booking, "cancelled")} disabled={busy}>
-                  <FaTimesCircle /> Cancel
+                <button className="hb-action hb-action--ghost" onClick={() => onAction(booking, "rejected")} disabled={busy}>
+                  <FaTimesCircle /> Reject
                 </button>
               </>
             )}
@@ -575,7 +577,7 @@ export default function HostBooking() {
       showToast(
         action === "confirmed"   ? "Booking confirmed."
         : action === "completed" ? "Booking marked as completed."
-        : "Booking cancelled."
+        : "Booking rejected."
       );
 
       const studentId = booking.student?._id ?? booking.student ?? null;
@@ -583,6 +585,7 @@ export default function HostBooking() {
       const notifMap  = {
         confirmed: { title: "Booking Confirmed", message: `Your booking at ${propName} has been confirmed.` },
         completed: { title: "Visit Completed",   message: `Your visit to ${propName} has been marked as completed.` },
+        rejected:  { title: "Booking Rejected",  message: `Your booking at ${propName} has been rejected by the host.` },
         cancelled: { title: "Booking Cancelled", message: `Your booking at ${propName} has been cancelled by the host.` },
       };
       const notif = notifMap[action];

@@ -65,6 +65,7 @@ const STATUS = {
   pending:   { bg: "#fff7ed", text: "#c2410c", dot: ORANGE,    border: "#fcd9c4", label: "Pending"   },
   confirmed: { bg: "#f7f7f7", text: "#1b1b1b", dot: "#1b1b1b", border: "#e2e2e2", label: "Confirmed" },
   completed: { bg: "#f0fdf4", text: "#15803d", dot: "#22c55e", border: "#bbf7d0", label: "Completed" },
+  rejected:  { bg: "#fef2f2", text: "#b91c1c", dot: "#ef4444", border: "#fecaca", label: "Rejected"  },
   cancelled: { bg: "#fef2f2", text: "#b91c1c", dot: "#ef4444", border: "#fecaca", label: "Cancelled" },
 };
 
@@ -73,6 +74,7 @@ const FILTER_OPTIONS = [
   { value: "pending",   label: "Pending"      },
   { value: "confirmed", label: "Confirmed"    },
   { value: "completed", label: "Completed"    },
+  { value: "rejected",  label: "Rejected"     },
   { value: "cancelled", label: "Cancelled"    },
 ];
 
