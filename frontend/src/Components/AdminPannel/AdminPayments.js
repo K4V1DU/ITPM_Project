@@ -14,24 +14,17 @@ const fmtTime   = (d)   => d   ? new Date(d).toLocaleString("en-GB", {
 }) : "—";
 const fmtCurrency = (n) => `LKR ${Number(n || 0).toLocaleString()}`;
 
-/**
- * Safely converts any value to a renderable string.
- * Handles objects like { open: "08:00", close: "22:00" } that would
- * otherwise throw "Objects are not valid as a React child".
- */
 const fmtStr = (val) => {
   if (val == null) return "—";
   if (typeof val === "object") {
-    // Operating hours shape
     if (val.open !== undefined || val.close !== undefined)
       return `${val.open ?? ""}–${val.close ?? ""}`;
-    // Any other plain object — last-resort stringify
     return JSON.stringify(val);
   }
   return String(val);
 };
 
-/* ── Inline SVG Icons (guaranteed to render) ─────────────────── */
+/* ── Inline SVG Icons ─────────────────────────────────────────── */
 const IconCard      = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
 const IconSearch    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
 const IconCheck     = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
@@ -45,8 +38,6 @@ const IconMail      = () => <svg viewBox="0 0 24 24" fill="none" stroke="current
 const IconPin       = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>;
 const IconChevDown  = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>;
 const IconChevUp    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>;
-const IconBed       = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>;
-const IconBath      = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6L9 2 5 2"/><path d="M5 2v4"/><rect x="2" y="11" width="20" height="4" rx="2"/><path d="M4 15v4"/><path d="M20 15v4"/><path d="M2 11h20"/></svg>;
 const IconClock     = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
 const IconNote      = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>;
 const IconHash      = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>;
@@ -55,8 +46,6 @@ const IconList      = () => <svg viewBox="0 0 24 24" fill="none" stroke="current
 const IconDollar    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>;
 const IconShield    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
 const IconCalendar  = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
-const IconWifi      = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>;
-const IconMapCoords = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>;
 
 /* ─── Receipt Modal ──────────────────────────────────────────────────────── */
 function ReceiptModal({ paymentId, onClose }) {
@@ -94,7 +83,6 @@ function OwnerCard({ host }) {
   if (!host) return <span className="ap-text-muted">No owner data</span>;
   const avatarSrc = photoUrl(host.profileImage);
 
-  /* address can be an object or a string */
   const addrStr = host.address
     ? typeof host.address === "object"
         ? `${host.address.street || ""} ${host.address.city || ""}`.trim()
@@ -128,9 +116,11 @@ function ListingCard({ listing, listingType }) {
   const isFood  = listingType === "food";
   const isAccom = listingType === "accommodation";
 
-  /* resolve image */
-  const rawImgId = listing.iconImage || listing.images?.[0];
-  const imgSrc   = photoUrl(rawImgId);
+  /* For food: use iconImage. For accommodation: use first image in images array */
+  const iconImgId = isFood
+    ? listing.iconImage
+    : (listing.images?.[0] ?? null);
+  const imgSrc = photoUrl(iconImgId);
 
   /* address — can be object or string */
   const addrStr = listing.address
@@ -139,135 +129,94 @@ function ListingCard({ listing, listingType }) {
         : listing.address
     : null;
 
+  const listingId = listing._id || listing.id;
+
   return (
     <div className="ap-listing-card">
+
+      {/* Type badge */}
       <div className="ap-listing-card__type-badge">
-        {isFood  ? <><IconFood />  Food</>
+        {isFood  ? <><IconFood />  Food Service</>
         : isAccom ? <><IconHome /> Accommodation</>
         : fmtStr(listingType)}
       </div>
 
-      {imgSrc && (
-        <img
-          src={imgSrc}
-          alt="Listing"
-          className="ap-listing-card__img"
-          onError={e => { e.target.style.display = 'none'; }}
-        />
-      )}
+      {/* Icon / thumbnail image */}
+      <div className="ap-listing-card__icon-row">
+        <div className="ap-listing-card__icon-wrap">
+          {imgSrc
+            ? <img
+                src={imgSrc}
+                alt="Listing"
+                className="ap-listing-card__icon-img"
+                onError={e => { e.target.style.display = 'none'; }}
+              />
+            : <span className="ap-listing-card__icon-placeholder">
+                {isFood ? <IconFood /> : <IconHome />}
+              </span>
+          }
+        </div>
 
-      <div className="ap-listing-card__title">
-        {fmtStr(listing.kitchenName || listing.title || "Unnamed Listing")}
+        {/* Name sits beside icon */}
+        <div className="ap-listing-card__title">
+          {fmtStr(listing.kitchenName || listing.title || "Unnamed Listing")}
+        </div>
       </div>
 
-      {listing.description && (
-        <div className="ap-listing-card__desc">
-          {(() => {
-            const d = fmtStr(listing.description);
-            return d.length > 160 ? d.slice(0, 160) + "…" : d;
-          })()}
-        </div>
-      )}
+      {/* ── Shared fields ── */}
+      <div className="ap-listing-card__fields">
 
-      {addrStr && (
-        <div className="ap-listing-card__detail"><IconPin />{addrStr}</div>
-      )}
-
-      {/* Geo-coordinates */}
-      {listing.location?.coordinates?.length === 2 && (
-        <div className="ap-listing-card__detail">
-          <IconMapCoords />
-          {listing.location.coordinates[1].toFixed(5)}, {listing.location.coordinates[0].toFixed(5)}
-        </div>
-      )}
-
-      {/* ── Food-specific ─────────────────────────────────────── */}
-      {isFood && (
-        <div className="ap-listing-card__meta">
-          {listing.serviceType != null && (
-            <span className="ap-chip">{fmtStr(listing.serviceType)}</span>
-          )}
-          {listing.deliveryAvailable && <span className="ap-chip ap-chip--green">Delivery</span>}
-          {listing.pickupAvailable   && <span className="ap-chip ap-chip--blue">Pickup</span>}
-
-          {/* ── operatingHours: safely render whether string or {open,close} ── */}
-          {listing.operatingHours != null && (
-            <div className="ap-listing-card__detail" style={{ width: '100%' }}>
-              <IconClock />{fmtStr(listing.operatingHours)}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Accommodation-specific ────────────────────────────── */}
-      {isAccom && (
-        <div className="ap-listing-card__meta">
-          {listing.accommodationType != null && (
-            <span className="ap-chip">{fmtStr(listing.accommodationType)}</span>
-          )}
-          {listing.genderPreference != null && (
-            <span className="ap-chip ap-chip--purple">{fmtStr(listing.genderPreference)}</span>
-          )}
-          <div className="ap-listing-card__stats">
-            {listing.bedrooms  != null && <span><IconBed  />{listing.bedrooms} bed{listing.bedrooms  !== 1 ? "s" : ""}</span>}
-            {listing.beds      != null && listing.beds !== listing.bedrooms && (
-              <span><IconBed />{listing.beds} total beds</span>
-            )}
-            {listing.bathrooms != null && <span><IconBath />{listing.bathrooms} bath{listing.bathrooms !== 1 ? "s" : ""}</span>}
+        {/* Address */}
+        {addrStr && (
+          <div className="ap-listing-card__field">
+            <span className="ap-listing-card__field-label"><IconPin /> Address</span>
+            <span className="ap-listing-card__field-value">{addrStr}</span>
           </div>
-          {listing.distance != null && (
-            <div className="ap-listing-card__detail">
-              <IconPin />{listing.distance} km from campus
-            </div>
-          )}
-          {listing.pricePerMonth != null && (
-            <div className="ap-listing-card__price">
-              <IconDollar />{fmtCurrency(listing.pricePerMonth)} / mo
-            </div>
-          )}
-          {listing.amenities?.length > 0 && (
-            <div className="ap-amenities" style={{ width: '100%' }}>
-              <div className="ap-detail-section__label"><IconWifi /> Amenities</div>
-              <div className="ap-chips-wrap">
-                {listing.amenities.slice(0, 6).map((a, i) => (
-                  <span key={i} className="ap-chip ap-chip--gray">{fmtStr(a)}</span>
-                ))}
-                {listing.amenities.length > 6 && (
-                  <span className="ap-chip ap-chip--gray">+{listing.amenities.length - 6} more</span>
-                )}
-              </div>
-            </div>
-          )}
-          {/* Extra images for accommodation */}
-          {listing.images?.length > 1 && (
-            <div className="ap-listing-card__gallery">
-              {listing.images.slice(1, 4).map((imgId, i) => {
-                const url = photoUrl(imgId);
-                return url ? (
-                  <img
-                    key={i}
-                    src={url}
-                    alt={`Gallery ${i + 2}`}
-                    className="ap-gallery-thumb"
-                    onError={e => { e.target.style.display = 'none'; }}
-                  />
-                ) : null;
-              })}
-              {listing.images.length > 4 && (
-                <div className="ap-gallery-more">+{listing.images.length - 4}</div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+        )}
 
-      <div className="ap-listing-card__footer">
-        <span className={`ap-avail-dot ${listing.isAvailable ? "ap-avail-dot--on" : "ap-avail-dot--off"}`} />
-        {listing.isAvailable ? "Available" : "Unavailable"}
-        {listing.expireDate && (
-          <span className="ap-listing-card__expire">
-            Expires {fmtTime(listing.expireDate)}
+        {/* Food-specific: operating hours */}
+        {isFood && listing.operatingHours != null && (
+          <div className="ap-listing-card__field">
+            <span className="ap-listing-card__field-label"><IconClock /> Operating Hours</span>
+            <span className="ap-listing-card__field-value">{fmtStr(listing.operatingHours)}</span>
+          </div>
+        )}
+
+        {/* Accommodation-specific: monthly price */}
+        {isAccom && listing.pricePerMonth != null && (
+          <div className="ap-listing-card__field">
+            <span className="ap-listing-card__field-label"><IconDollar /> Monthly Price</span>
+            <span className="ap-listing-card__field-value ap-listing-card__field-value--price">
+              {fmtCurrency(listing.pricePerMonth)} / mo
+            </span>
+          </div>
+        )}
+
+        {/* Available status */}
+        <div className="ap-listing-card__field">
+          <span className="ap-listing-card__field-label"><IconShield /> Status</span>
+          <span className="ap-listing-card__field-value">
+            <span className="ap-listing-avail">
+              <span className={`ap-avail-dot ${listing.isAvailable ? "ap-avail-dot--on" : "ap-avail-dot--off"}`} />
+              {listing.isAvailable ? "Available" : "Unavailable"}
+            </span>
           </span>
+        </div>
+
+        {/* Expire date */}
+        {listing.expireDate && (
+          <div className="ap-listing-card__field">
+            <span className="ap-listing-card__field-label"><IconCalendar /> Expires</span>
+            <span className="ap-listing-card__field-value ap-mono">{fmtTime(listing.expireDate)}</span>
+          </div>
+        )}
+
+        {/* Listing ID */}
+        {listingId && (
+          <div className="ap-listing-card__field ap-listing-card__field--full">
+            <span className="ap-listing-card__field-label"><IconHash /> Listing ID</span>
+            <span className="ap-listing-card__field-value ap-mono ap-mono--sm">{fmtStr(listingId)}</span>
+          </div>
         )}
       </div>
     </div>
