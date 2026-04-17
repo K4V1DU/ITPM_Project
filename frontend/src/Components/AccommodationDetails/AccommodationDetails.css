@@ -185,6 +185,13 @@
 
 .acd-divider { height:1px;background:#e2e2e2;margin:20px 0 0; }
 
+.acd-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  align-items: start;
+}
+
 .acd-grid > main,
 .acd-grid > aside {
   min-width: 0;

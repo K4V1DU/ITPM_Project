@@ -70,6 +70,18 @@ async function apiDelete(path) {
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
+async function sendNotification({ recipient, type, title, message, link, refId, refType }) {
+  if (!recipient) return;
+  try {
+    await fetch(`${API_BASE}/Notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recipient, type, title, message, link, refId, refType }),
+    });
+  } catch {
+    // Notification failure should not block booking flow
+  }
+}
 async function populateAcc(acc) {
   if (acc.owner && typeof acc.owner === "string") {
     try {
@@ -559,6 +571,34 @@ const AccommodationDetails = () => {
       setExistingBooking({ _id: bk._id, status: bk.status ?? "pending" });
       setCheckIn(""); setCheckTime(""); setNote("");
       setShowBookingOK(true);
+
+      const hostId = acc?.owner?._id ?? (typeof acc?.owner === "string" ? acc.owner : null);
+      const listingTitle = acc?.title || "Accommodation";
+      const visitText = `${checkIn}${checkTime ? ` at ${checkTime}` : ""}`;
+
+      // Notify host about incoming booking request
+      if (hostId) {
+        sendNotification({
+          recipient: hostId,
+          type: "booking_request",
+          title: "New Booking Request",
+          message: `${currentUser?.name || "A student"} requested a visit for ${listingTitle}${visitText ? ` on ${visitText}` : ""}.`,
+          link: "/HostBookings",
+          refId: bk?._id,
+          refType: "Booking",
+        });
+      }
+
+      // Notify student that request is submitted
+      sendNotification({
+        recipient: userId,
+        type: "booking_status",
+        title: "Booking Request Sent",
+        message: `Your booking request for ${listingTitle}${visitText ? ` on ${visitText}` : ""} was sent to the host.`,
+        link: "/StudentBookings",
+        refId: bk?._id,
+        refType: "Booking",
+      });
     } catch (err) {
       toast(`Booking failed: ${err.message ?? "Something went wrong."}`, "error");
     } finally {
