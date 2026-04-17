@@ -7,12 +7,12 @@ const API_BASE = process.env.REACT_APP_API_BASE_URL;
 const unwrap   = (r) => r?.data ?? r?.result ?? r;
 
 /* ── Helpers ─────────────────────────────────────────────────── */
-const photoUrl  = (id)  => id  ? `${API_BASE}/Photo/${id}` : null;
-const fmtTime   = (d)   => d   ? new Date(d).toLocaleString("en-GB", {
+const photoUrl    = (id)  => id  ? `${API_BASE}/Photo/${id}` : null;
+const fmtTime     = (d)   => d   ? new Date(d).toLocaleString("en-GB", {
   day: "numeric", month: "short", year: "numeric",
   hour: "2-digit", minute: "2-digit"
 }) : "—";
-const fmtCurrency = (n) => `LKR ${Number(n || 0).toLocaleString()}`;
+const fmtCurrency = (n)   => `LKR ${Number(n || 0).toLocaleString()}`;
 
 const fmtStr = (val) => {
   if (val == null) return "—";
@@ -46,6 +46,22 @@ const IconList      = () => <svg viewBox="0 0 24 24" fill="none" stroke="current
 const IconDollar    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>;
 const IconShield    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
 const IconCalendar  = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+const IconMessage   = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>;
+const IconBell      = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
+
+/* ─── Notification Helper ────────────────────────────────────────────────── */
+const sendNotification = async ({ recipient, type, title, message, link, refId, refType }) => {
+  if (!recipient) return;
+  try {
+    await fetch(`${API_BASE}/Notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recipient, type, title, message, link: link || null, refId: refId || null, refType: refType || "Payment" }),
+    });
+  } catch {
+    // Notification failure should never break the main flow
+  }
+};
 
 /* ─── Receipt Modal ──────────────────────────────────────────────────────── */
 function ReceiptModal({ paymentId, onClose }) {
@@ -79,7 +95,7 @@ function ReceiptModal({ paymentId, onClose }) {
 }
 
 /* ─── Owner Card ─────────────────────────────────────────────────────────── */
-function OwnerCard({ host }) {
+function OwnerCard({ host, onContactHost }) {
   if (!host) return <span className="ap-text-muted">No owner data</span>;
   const avatarSrc = photoUrl(host.profileImage);
 
@@ -88,6 +104,8 @@ function OwnerCard({ host }) {
         ? `${host.address.street || ""} ${host.address.city || ""}`.trim()
         : host.address
     : null;
+
+  const hostId = host._id || host.id;
 
   return (
     <div className="ap-owner-card">
@@ -99,11 +117,23 @@ function OwnerCard({ host }) {
       </div>
       <div className="ap-owner-card__info">
         <div className="ap-owner-card__name">{fmtStr(host.name || host.username)}</div>
-        {host.role    && <div className="ap-owner-card__role">{fmtStr(host.role)}</div>}
-        {host.email   && <div className="ap-owner-card__detail"><IconMail  />{fmtStr(host.email)}</div>}
-        {host.phone   && <div className="ap-owner-card__detail"><IconPhone />{fmtStr(host.phone)}</div>}
-        {addrStr      && <div className="ap-owner-card__detail"><IconPin />{addrStr}</div>}
-        {host.about   && <div className="ap-owner-card__about">{fmtStr(host.about)}</div>}
+        {host.role  && <div className="ap-owner-card__role">{fmtStr(host.role)}</div>}
+        {host.email && <div className="ap-owner-card__detail"><IconMail  />{fmtStr(host.email)}</div>}
+        {host.phone && <div className="ap-owner-card__detail"><IconPhone />{fmtStr(host.phone)}</div>}
+        {addrStr    && <div className="ap-owner-card__detail"><IconPin />{addrStr}</div>}
+        {host.about && <div className="ap-owner-card__about">{fmtStr(host.about)}</div>}
+
+        {/* ── Contact Host Button ── */}
+        {hostId && onContactHost && (
+          <button
+            className="ap-btn ap-btn--contact"
+            onClick={() => onContactHost(hostId)}
+            title={`Send message to ${host.name || host.username}`}
+          >
+            <span className="ap-btn__icon"><IconMessage /></span>
+            <span className="ap-btn__label">Contact Host</span>
+          </button>
+        )}
       </div>
     </div>
   );
@@ -127,62 +157,44 @@ function ListingCard({ listing, listingType }) {
         : listing.address
     : null;
 
-  const listingId = listing._id || listing.id;
+  const listingId   = listing._id || listing.id;
   const listingName = listing.kitchenName || listing.title || "Unnamed Listing";
 
   return (
     <div className="ap-listing-card">
-      {/* ── Top row: circular icon + info stack (mirrors OwnerCard) ── */}
       <div className="ap-listing-card__main-row">
-        {/* Circular thumbnail / placeholder */}
         <div className="ap-listing-card__icon-wrap">
           {imgSrc
-            ? <img
-                src={imgSrc}
-                alt="Listing"
-                className="ap-listing-card__icon-img"
-                onError={e => { e.target.style.display = 'none'; }}
-              />
+            ? <img src={imgSrc} alt="Listing" className="ap-listing-card__icon-img" onError={e => { e.target.style.display = 'none'; }} />
             : <span className="ap-listing-card__icon-placeholder">
                 {isFood ? <IconFood /> : <IconHome />}
               </span>
           }
         </div>
 
-        {/* Info stacked to the right */}
         <div className="ap-listing-card__info">
-          {/* Name */}
           <div className="ap-listing-card__title">{fmtStr(listingName)}</div>
 
-          {/* Type badge */}
           <div className="ap-listing-card__type-badge">
             {isFood  ? <><IconFood />  Food Service</>
             : isAccom ? <><IconHome /> Accommodation</>
             : fmtStr(listingType)}
           </div>
 
-          {/* Address */}
           {addrStr && (
-            <div className="ap-listing-card__detail">
-              <IconPin />{addrStr}
-            </div>
+            <div className="ap-listing-card__detail"><IconPin />{addrStr}</div>
           )}
 
-          {/* Food: operating hours */}
           {isFood && listing.operatingHours != null && (
-            <div className="ap-listing-card__detail">
-              <IconClock />{fmtStr(listing.operatingHours)}
-            </div>
+            <div className="ap-listing-card__detail"><IconClock />{fmtStr(listing.operatingHours)}</div>
           )}
 
-          {/* Accommodation: monthly price */}
           {isAccom && listing.pricePerMonth != null && (
             <div className="ap-listing-card__detail ap-listing-card__detail--price">
               <IconDollar />{fmtCurrency(listing.pricePerMonth)} / mo
             </div>
           )}
 
-          {/* Availability */}
           <div className="ap-listing-card__detail">
             <span className="ap-listing-avail">
               <span className={`ap-avail-dot ${listing.isAvailable ? "ap-avail-dot--on" : "ap-avail-dot--off"}`} />
@@ -190,14 +202,12 @@ function ListingCard({ listing, listingType }) {
             </span>
           </div>
 
-          {/* Expiry */}
           {listing.expireDate && (
             <div className="ap-listing-card__detail">
               <IconCalendar />Expires {fmtTime(listing.expireDate)}
             </div>
           )}
 
-          {/* Listing ID */}
           {listingId && (
             <div className="ap-listing-card__detail ap-listing-card__detail--id">
               <IconHash />{fmtStr(listingId)}
@@ -282,7 +292,7 @@ function PaymentInfoPanel({ p }) {
 }
 
 /* ─── Expandable Row ─────────────────────────────────────────────────────── */
-function PaymentRow({ p, onReceipt, onVerify, onReject }) {
+function PaymentRow({ p, onReceipt, onVerify, onReject, onContactHost }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -300,7 +310,6 @@ function PaymentRow({ p, onReceipt, onVerify, onReject }) {
         <td className="ap-cell-muted">{fmtTime(p.createdAt)}</td>
         <td>
           <div className="ap-actions">
-            {/* Receipt button */}
             <button
               className="ap-btn ap-btn--purple"
               onClick={() => onReceipt(p._id)}
@@ -310,7 +319,6 @@ function PaymentRow({ p, onReceipt, onVerify, onReject }) {
               <span className="ap-btn__label">Receipt</span>
             </button>
 
-            {/* Approve / Reject – only for manual_requested */}
             {p.status === "manual_requested" && (
               <>
                 <button
@@ -332,7 +340,6 @@ function PaymentRow({ p, onReceipt, onVerify, onReject }) {
               </>
             )}
 
-            {/* Expand / collapse toggle */}
             <button
               className={`ap-btn ap-btn--toggle ${expanded ? "ap-btn--active" : "ap-btn--ghost"}`}
               onClick={() => setExpanded(v => !v)}
@@ -367,7 +374,7 @@ function PaymentRow({ p, onReceipt, onVerify, onReject }) {
                   <div className="ap-detail-section__title">
                     <IconUser /> Owner Details
                   </div>
-                  <OwnerCard host={p.host} />
+                  <OwnerCard host={p.host} onContactHost={onContactHost} />
                 </div>
 
                 <div className="ap-detail-divider ap-detail-divider--v" />
@@ -412,6 +419,11 @@ export default function AdminPayments() {
 
   useEffect(() => { if (!userId) navigate("/Login"); }, [userId, navigate]);
 
+  useEffect(() => {
+    document.body.classList.add("ap-page-active");
+    return () => document.body.classList.remove("ap-page-active");
+  }, []);
+
   const fetchPayments = () => {
     setLoading(true);
     fetch(`${API_BASE}/Payment/all?limit=100`)
@@ -435,7 +447,9 @@ export default function AdminPayments() {
     setTimeout(() => setToast(null), 3500);
   };
 
+  /* ── Approve ─────────────────────────────────────────────────────────── */
   const handleVerify = async (id) => {
+    const payment = payments.find(p => p._id === id);
     try {
       const res  = await fetch(`${API_BASE}/Payment/${id}/approve-manual`, {
         method: "PATCH",
@@ -446,6 +460,20 @@ export default function AdminPayments() {
       if (res.ok && data.success) {
         setPayments(p => p.map(x => x._id === id ? { ...x, status: "verified" } : x));
         showToast("Payment approved and listing activated.");
+
+        // ── Send notification to host ──
+        const hostId = payment?.host?._id || payment?.host?.id;
+        if (hostId) {
+          await sendNotification({
+            recipient: hostId,
+            type:      "payment_verified",
+            title:     "Payment Approved ✓",
+            message:   `Your ${payment.plan?.toUpperCase() || ""} plan payment of ${fmtCurrency(payment.amount)} has been approved. Your listing is now active.`,
+            link:      "/MyListings",
+            refId:     id,
+            refType:   "Payment",
+          });
+        }
       } else {
         showToast(data.message || "Approval failed.", "error");
       }
@@ -454,8 +482,10 @@ export default function AdminPayments() {
     }
   };
 
+  /* ── Reject ──────────────────────────────────────────────────────────── */
   const handleReject = async (id) => {
-    const reason = window.prompt("Enter a reason for rejection:");
+    const payment = payments.find(p => p._id === id);
+    const reason  = window.prompt("Enter a reason for rejection:");
     if (!reason) return;
     try {
       const res  = await fetch(`${API_BASE}/Payment/${id}/reject-manual`, {
@@ -467,6 +497,20 @@ export default function AdminPayments() {
       if (res.ok && data.success) {
         setPayments(p => p.map(x => x._id === id ? { ...x, status: "rejected", adminNote: reason } : x));
         showToast("Payment rejected.");
+
+        // ── Send notification to host ──
+        const hostId = payment?.host?._id || payment?.host?.id;
+        if (hostId) {
+          await sendNotification({
+            recipient: hostId,
+            type:      "payment_rejected",
+            title:     "Payment Rejected",
+            message:   `Your ${payment.plan?.toUpperCase() || ""} plan payment of ${fmtCurrency(payment.amount)} was rejected. Reason: ${reason}`,
+            link:      "/MyPayments",
+            refId:     id,
+            refType:   "Payment",
+          });
+        }
       } else {
         showToast(data.message || "Rejection failed.", "error");
       }
@@ -475,6 +519,26 @@ export default function AdminPayments() {
     }
   };
 
+  /* ── Contact Host ────────────────────────────────────────────────────── */
+  const handleContactHost = async (hostId) => {
+    try {
+      const res  = await fetch(`${API_BASE}/message/conversation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ senderId: userId, receiverId: hostId }),
+      });
+      const data = await res.json();
+      if (data.success && data.data?._id) {
+        navigate(`/AdminMessages?conversationId=${data.data._id}`);
+      } else {
+        showToast("Could not open conversation.", "error");
+      }
+    } catch {
+      showToast("Failed to contact host.", "error");
+    }
+  };
+
+  /* ── Filters ─────────────────────────────────────────────────────────── */
   const filtered = payments.filter(p => {
     const matchStatus = statusFilter === "all" || p.status === statusFilter;
     const matchType   = typeFilter   === "all" || p.listingType === typeFilter;
@@ -522,9 +586,8 @@ export default function AdminPayments() {
         <ReceiptModal paymentId={receiptModal} onClose={() => setReceiptModal(null)} />
       )}
 
-      {/* ── Banner – purple gradient with bubbles ── */}
+      {/* ── Banner ── */}
       <div className="ap-banner">
-        {/* Decorative bubble elements */}
         <div className="ap-banner__noise" />
         <div className="ap-banner__bubble" />
 
@@ -547,10 +610,10 @@ export default function AdminPayments() {
         {/* ── Stats ── */}
         <div className="ap-stats-grid">
           {[
-            { label: "Total Payments", num: counts.all,              cls: "slate",  icon: <IconCard />    },
-            { label: "Manual Review",  num: counts.manual_requested, cls: "amber",  icon: <IconImage />   },
-            { label: "Pending",        num: counts.pending,          cls: "blue",   icon: <IconClock />   },
-            { label: "Verified",       num: counts.verified,         cls: "green",  icon: <IconCheck />   },
+            { label: "Total Payments", num: counts.all,              cls: "slate", icon: <IconCard />    },
+            { label: "Manual Review",  num: counts.manual_requested, cls: "amber", icon: <IconImage />   },
+            { label: "Pending",        num: counts.pending,          cls: "blue",  icon: <IconClock />   },
+            { label: "Verified",       num: counts.verified,         cls: "green", icon: <IconCheck />   },
           ].map((s, i) => (
             <div key={i} className="ap-stat-card" style={{ animationDelay: `${i * 0.07}s` }}>
               <div className={`ap-stat-icon ap-stat-icon--${s.cls}`}>{s.icon}</div>
@@ -629,6 +692,7 @@ export default function AdminPayments() {
                       onReceipt={setReceiptModal}
                       onVerify={handleVerify}
                       onReject={handleReject}
+                      onContactHost={handleContactHost}
                     />
                   ))}
                 </tbody>
