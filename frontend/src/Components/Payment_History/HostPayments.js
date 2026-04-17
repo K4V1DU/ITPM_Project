@@ -47,6 +47,7 @@ const STATUS = {
   pending:          { bg: "#fef2f2", text: "#b91c1c", dot: "#ef4444", border: "#fecaca", label: "Verification Failed" },
   verified:         { bg: "#f0fdf4", text: "#15803d", dot: "#22c55e", border: "#bbf7d0", label: "Verified"            },
   manual_requested: { bg: "#f0f9ff", text: "#0369a1", dot: "#0ea5e9", border: "#bae6fd", label: "Manual Review"       },
+  rejected:         { bg: "#fef2f2", text: "#991b1b", dot: "#dc2626", border: "#fecaca", label: "Rejected"            },
 };
 
 const FILTER_OPTIONS = [
@@ -55,6 +56,7 @@ const FILTER_OPTIONS = [
   { value: "pending",          label: "Verification Failed" },
   { value: "verified",         label: "Verified"            },
   { value: "manual_requested", label: "Manual Review"       },
+  { value: "rejected",         label: "Rejected"            },
 ];
 
 // ── Status Badge ───────────────────────────────────────────────────────────
@@ -138,6 +140,41 @@ function ReceiptSection({ payment, receiptImage, onExpand }) {
     if (next && !receiptImage) onExpand(payment._id, payment.receiptUploadedAt);
   };
 
+  const receiptStatusChip = (() => {
+    const byStatus = {
+      verified: {
+        cls: "hp-receipt-match--ok",
+        icon: <FaCheckCircle style={{ fontSize: 10 }} />,
+        text: "Verified",
+      },
+      manual_requested: {
+        cls: "hp-receipt-match--fail",
+        icon: <FaExclamationTriangle style={{ fontSize: 10 }} />,
+        text: "Manual Review",
+      },
+      rejected: {
+        cls: "hp-receipt-match--fail",
+        icon: <FaTimesCircle style={{ fontSize: 10 }} />,
+        text: "Rejected",
+      },
+      pending: {
+        cls: "hp-receipt-match--fail",
+        icon: <FaTimesCircle style={{ fontSize: 10 }} />,
+        text: "Verification Failed",
+      },
+      created: {
+        cls: "hp-receipt-match--fail",
+        icon: <FaClock style={{ fontSize: 10 }} />,
+        text: "Awaiting Verification",
+      },
+    };
+
+    if (byStatus[payment.status]) return byStatus[payment.status];
+    return payment.amountMatched && payment.refMatched
+      ? { cls: "hp-receipt-match--ok",   icon: <FaCheckCircle style={{ fontSize: 10 }} />,       text: "Auto-verified" }
+      : { cls: "hp-receipt-match--fail", icon: <FaExclamationTriangle style={{ fontSize: 10 }} />, text: "Needs review" };
+  })();
+
   return (
     <div className="hp-detail__section">
       <div className="hp-detail__section-label">Receipt</div>
@@ -153,9 +190,9 @@ function ReceiptSection({ payment, receiptImage, onExpand }) {
           <div className="hp-receipt-uploaded-date">{formatDate(payment.receiptUploadedAt)}</div>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          {payment.amountMatched && payment.refMatched
-            ? <span className="hp-receipt-match hp-receipt-match--ok"><FaCheckCircle style={{ fontSize: 10 }} /> Auto-verified</span>
-            : <span className="hp-receipt-match hp-receipt-match--fail"><FaTimesCircle style={{ fontSize: 10 }} /> Needs review</span>}
+          <span className={`hp-receipt-match ${receiptStatusChip.cls}`}>
+            {receiptStatusChip.icon} {receiptStatusChip.text}
+          </span>
           <span className={`hp-receipt-chevron${open ? " hp-receipt-chevron--open" : ""}`}>▾</span>
         </div>
       </div>
@@ -300,6 +337,15 @@ function PaymentDetail({ payment, listing, receiptImage, onExpandReceipt, onCanc
             ))}
           </div>
         </div>
+
+        {payment.status === "rejected" && payment.adminNote && (
+          <div className="hp-detail__section">
+            <div className="hp-detail__section-label">Rejection Reason</div>
+            <div className="hp-info-row">
+              <span className="hp-info-row__value">{payment.adminNote}</span>
+            </div>
+          </div>
+        )}
 
         {/* Receipt */}
         {payment.receiptUploadedAt && (
