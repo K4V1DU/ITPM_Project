@@ -402,12 +402,23 @@ function PaymentRow({ p, onReceipt, onVerify, onReject, onContactHost }) {
                 </div>
               </div>
 
-              {p.adminNote && (
+              {(p.note || p.adminNote) && (
                 <>
                   <div className="ap-detail-divider ap-detail-divider--h" />
                   <div className="ap-detail-section ap-detail-section--full">
-                    <div className="ap-detail-section__title"><IconNote /> Admin Note</div>
-                    <div className="ap-admin-note">{fmtStr(p.adminNote)}</div>
+                    {p.note && (
+                      <>
+                        <div className="ap-detail-section__title"><IconNote /> Manual Request Reason</div>
+                        <div className="ap-admin-note">{fmtStr(p.note)}</div>
+                      </>
+                    )}
+                    {p.note && p.adminNote && <div style={{ height: 10 }} />}
+                    {p.adminNote && (
+                      <>
+                        <div className="ap-detail-section__title"><IconShield /> Admin Note</div>
+                        <div className="ap-admin-note">{fmtStr(p.adminNote)}</div>
+                      </>
+                    )}
                   </div>
                 </>
               )}
