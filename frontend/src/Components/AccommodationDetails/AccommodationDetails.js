@@ -24,6 +24,12 @@ const FONT     = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe
 const AVATAR_COLORS = ["#1a1a2e","#6a3093","#11998e","#c94b4b","#f7971e","#1d4350","#0f3460","#e94560","#533483","#2b5876"];
 const STAR_HINTS    = ["","Poor","Fair","Good","Very Good","Excellent"];
 const SHOW_MORE_THRESHOLD = 120;
+const BLOCKING_BOOKING_STATUSES = new Set(["pending", "approved"]);
+
+const normalizeBookingStatus = (status) => {
+  if (status === "confirmed" || status === "accepted") return "approved";
+  return status;
+};
 
 const AMENITY_ICONS = {
   wifi: FaWifi, "air conditioning": FaSnowflake, ac: FaSnowflake,
@@ -374,7 +380,12 @@ const AccommodationDetails = () => {
       .then(raw => {
         const list  = unwrap(raw) ?? [];
         const found = list.find(b => String(b.accommodation?._id ?? b.accommodation) === String(id));
-        if (found) setExistingBooking({ _id: found._id, status: found.status });
+        const normalizedStatus = normalizeBookingStatus(found?.status);
+        if (found && BLOCKING_BOOKING_STATUSES.has(normalizedStatus)) {
+          setExistingBooking({ _id: found._id, status: normalizedStatus });
+        } else {
+          setExistingBooking(null);
+        }
       }).catch(() => {});
   }, [userId, id, isStudent]);
 
@@ -548,6 +559,18 @@ const AccommodationDetails = () => {
     else {
       const [h] = checkTime.split(":").map(Number);
       if (h < 7 || h >= 21) e.push("Visit time must be between 7:00 AM and 9:00 PM.");
+      if (checkIn) {
+        const now = new Date();
+        const todayYmd = now.toISOString().split("T")[0];
+        if (checkIn === todayYmd) {
+          const [m] = checkTime.split(":").slice(1).map(Number);
+          const selectedAt = new Date(now);
+          selectedAt.setHours(h || 0, m || 0, 0, 0);
+          if (selectedAt <= now) {
+            e.push("For today, please select a future time.");
+          }
+        }
+      }
     }
     return e;
   };
@@ -568,7 +591,12 @@ const AccommodationDetails = () => {
         throw new Error(d?.message ?? `Server error (${res.status})`);
       }
       const bk = unwrap(await res.json());
-      setExistingBooking({ _id: bk._id, status: bk.status ?? "pending" });
+      const nextStatus = normalizeBookingStatus(bk.status ?? "pending");
+      setExistingBooking(
+        BLOCKING_BOOKING_STATUSES.has(nextStatus)
+          ? { _id: bk._id, status: nextStatus }
+          : null
+      );
       setCheckIn(""); setCheckTime(""); setNote("");
       setShowBookingOK(true);
 
@@ -606,6 +634,57 @@ const AccommodationDetails = () => {
     }
   };
 
+  const handleCancelBooking = async () => {
+    if (!existingBooking?._id) return;
+    const ok = window.confirm("Cancel this booking request?");
+    if (!ok) return;
+
+    setBookingLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/booking/${existingBooking._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "cancelled" }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d?.message ?? `Server error (${res.status})`);
+      }
+
+      const hostId = acc?.owner?._id ?? (typeof acc?.owner === "string" ? acc.owner : null);
+      const listingTitle = acc?.title || "Accommodation";
+
+      // Notify host about cancellation
+      if (hostId) {
+        sendNotification({
+          recipient: hostId,
+          type: "booking_status",
+          title: "Booking Cancelled",
+          message: `${currentUser?.name || "A student"} cancelled the booking request for ${listingTitle}.`,
+          link: "/HostBookings",
+          refType: "Booking",
+        });
+      }
+
+      // Notify student about successful cancellation
+      sendNotification({
+        recipient: userId,
+        type: "booking_status",
+        title: "Booking Cancelled",
+        message: `Your booking request for ${listingTitle} has been cancelled.`,
+        link: "/StudentBookings",
+        refType: "Booking",
+      });
+
+      setExistingBooking(null);
+      toast("Booking cancelled. You can book this listing again.", "success");
+    } catch (err) {
+      toast(`Failed to cancel booking: ${err.message ?? "Something went wrong."}`, "error");
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
   const openChat = async () => {
     if (!isLoggedIn || !isStudent) { setShowLogin(true); return; }
     const hostId = acc?.owner?._id ?? (typeof acc?.owner === "string" ? acc.owner : null);
@@ -627,29 +706,23 @@ const AccommodationDetails = () => {
 
   const renderBookBtn = () => {
     if (!acc) return null;
-    const st = existingBooking?.status;
-    if (st === "confirmed") return (
+    const st = normalizeBookingStatus(existingBooking?.status);
+    if (st === "approved") return (
       <>
         <button className="acd-bookbtn acd-bookbtn--green" onClick={openChat}><FaCommentAlt style={{ fontSize: 14 }} /> Message Now</button>
-        <div className="acd-booknote acd-booknote--green"><FaCheckCircle /> Visit confirmed by host</div>
+        <div className="acd-booknote acd-booknote--green"><FaCheckCircle /> Visit approved by host</div>
+        <button className="acd-bookbtn acd-bookbtn--red" style={{ fontFamily: FONT }} onClick={handleCancelBooking} disabled={bookingLoading}>
+          {bookingLoading ? <><FaSpinner className="spin" style={{ fontSize: 14 }} /> Cancelling…</> : <><FaTimesCircle style={{ fontSize: 14 }} /> Cancel Booking</>}
+        </button>
       </>
     );
     if (st === "pending") return (
       <>
         <button className="acd-bookbtn acd-bookbtn--amber" disabled><FaClock style={{ fontSize: 14 }} /> Pending Approval</button>
         <div className="acd-booknote acd-booknote--amber"><FaClock /> Waiting for host to confirm</div>
-      </>
-    );
-    if (st === "completed") return (
-      <>
-        <button className="acd-bookbtn acd-bookbtn--grey" disabled><FaCheckCircle style={{ fontSize: 14 }} /> Visit Completed</button>
-        <div className="acd-booknote acd-booknote--grey"><FaCheckCircle /> Your visit has been completed</div>
-      </>
-    );
-    if (st === "rejected") return (
-      <>
-        <button className="acd-bookbtn acd-bookbtn--red" disabled><FaTimesCircle style={{ fontSize: 14 }} /> Request Declined</button>
-        <div className="acd-booknote acd-booknote--red"><FaTimesCircle /> Host declined this request</div>
+        <button className="acd-bookbtn acd-bookbtn--red" style={{ fontFamily: FONT }} onClick={handleCancelBooking} disabled={bookingLoading}>
+          {bookingLoading ? <><FaSpinner className="spin" style={{ fontSize: 14 }} /> Cancelling…</> : <><FaTimesCircle style={{ fontSize: 14 }} /> Cancel Booking</>}
+        </button>
       </>
     );
     return (
