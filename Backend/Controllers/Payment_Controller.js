@@ -349,6 +349,196 @@ exports.getPlans = (req, res) => {
   res.json({ success: true, plans });
 };
 
+// ─── PATCH /Payment/:id/approve-manual ──────────────────────────────────────
+exports.approveManualPayment = async (req, res) => {
+  try {
+    const { adminId, adminNote } = req.body; 
+    // Note: If you have auth middleware, use req.user._id instead of req.body.adminId
+    
+    const payment = await Payment.findById(req.params.id);
+
+    if (!payment) {
+      return res.status(404).json({ success: false, message: "Payment record not found." });
+    }
+
+    if (payment.status !== "manual_requested") {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Current status is ${payment.status}. Only 'manual_requested' can be approved here.` 
+      });
+    }
+
+    // Update the linked FoodService or Accommodation listing
+    const finalExpireDate = await applyExpireDateToListing(
+      payment.listing,
+      payment.listingType,
+      payment.daysAdded
+    );
+
+    // Update the payment record with admin details from your model
+    const updated = await Payment.findByIdAndUpdate(
+      req.params.id,
+      {
+        status: "verified",
+        newExpireDate: finalExpireDate,
+        adminNote: adminNote || "Verified manually by admin.",
+        reviewedBy: adminId, 
+        reviewedAt: new Date(),
+      },
+      { new: true }
+    ).select("-receiptImage -rawOcrText");
+
+    res.json({
+      success: true,
+      message: "Payment approved and listing is now active.",
+      payment: updated,
+    });
+  } catch (err) {
+    console.error("approveManualPayment error:", err);
+    res.status(500).json({ success: false, message: "Server error.", error: err.message });
+  }
+};
+
+
+// ─── PATCH /Payment/:id/reject-manual ───────────────────────────────────────
+exports.rejectManualPayment = async (req, res) => {
+  try {
+    const { adminId, adminNote } = req.body;
+
+    if (!adminNote) {
+      return res.status(400).json({ success: false, message: "A rejection reason (adminNote) is required." });
+    }
+
+    const payment = await Payment.findById(req.params.id);
+
+    if (!payment) {
+      return res.status(404).json({ success: false, message: "Payment record not found." });
+    }
+
+    // Only allow rejection of pending or manual requests
+    if (payment.status === "verified") {
+      return res.status(400).json({ success: false, message: "Cannot reject an already verified payment." });
+    }
+
+    const updated = await Payment.findByIdAndUpdate(
+      req.params.id,
+      {
+        status: "rejected",
+        adminNote: adminNote,
+        reviewedBy: adminId,
+        reviewedAt: new Date(),
+      },
+      { new: true }
+    ).select("-receiptImage -rawOcrText");
+
+    res.json({
+      success: true,
+      message: "Payment rejected.",
+      payment: updated,
+    });
+  } catch (err) {
+    console.error("rejectManualPayment error:", err);
+    res.status(500).json({ success: false, message: "Server error.", error: err.message });
+  }
+};
+
+
+
+
+// ─── GET /Payment/all ────────────────────────────────────────────────────────
+exports.getAllPayments = async (req, res) => {
+  try {
+    const {
+      status,
+      listingType,
+      plan,
+      page      = 1,
+      limit     = 20,
+      sortBy    = "createdAt",
+      sortOrder = "desc",
+    } = req.query;
+
+    const filter = {};
+    if (status)      filter.status      = status;
+    if (listingType) filter.listingType = listingType;
+    if (plan)        filter.plan        = plan;
+
+    const allowedSortFields = ["createdAt", "amount", "status", "receiptUploadedAt"];
+    const sortField = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
+    const sort = { [sortField]: sortOrder === "asc" ? 1 : -1 };
+
+    const skip = (Math.max(1, parseInt(page)) - 1) * Math.min(100, parseInt(limit));
+    const take = Math.min(100, parseInt(limit));
+
+    const [payments, total] = await Promise.all([
+      Payment.find(filter)
+        .sort(sort)
+        .skip(skip)
+        .limit(take)
+        .select("-receiptImage -rawOcrText")
+        .populate({
+          path:   "host",
+          select: "name username email phone address role profileImage about",
+          model:  "User",
+        })
+        .lean(),   // <-- lean() so we get plain objects we can mutate
+      Payment.countDocuments(filter),
+    ]);
+
+    // ── Post-query: populate listing per listingType ──────────────────────
+    const FoodService   = require("../models/FoodService");       // adjust paths
+    const Accommodation = require("../models/Accommodation");
+
+    const foodIds  = [];
+    const accomIds = [];
+
+    for (const p of payments) {
+      if (!p.listing) continue;
+      if (p.listingType === "food")          foodIds.push(p.listing);
+      if (p.listingType === "accommodation") accomIds.push(p.listing);
+    }
+
+    // Fetch both in parallel
+    const [foodDocs, accomDocs] = await Promise.all([
+      foodIds.length
+        ? FoodService.find({ _id: { $in: foodIds } })
+            .select("kitchenName description address operatingHours serviceType deliveryAvailable pickupAvailable iconImage location isAvailable expireDate owner")
+            .lean()
+        : [],
+      accomIds.length
+        ? Accommodation.find({ _id: { $in: accomIds } })
+            .select("title description address location distance pricePerMonth images bedrooms beds bathrooms amenities accommodationType genderPreference isAvailable expireDate owner")
+            .lean()
+        : [],
+    ]);
+
+    // Build lookup maps
+    const foodMap  = Object.fromEntries(foodDocs.map(d  => [d._id.toString(), d]));
+    const accomMap = Object.fromEntries(accomDocs.map(d => [d._id.toString(), d]));
+
+    // Attach listing to each payment
+    for (const p of payments) {
+      if (!p.listing) continue;
+      const id = p.listing.toString();
+      if (p.listingType === "food")          p.listing = foodMap[id]  ?? null;
+      if (p.listingType === "accommodation") p.listing = accomMap[id] ?? null;
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
+    res.json({
+      success: true,
+      total,
+      page:       parseInt(page),
+      totalPages: Math.ceil(total / take),
+      payments,
+    });
+  } catch (err) {
+    console.error("getAllPayments error:", err);
+    res.status(500).json({ success: false, message: "Server error.", error: err.message });
+  }
+};
+
+
 // ─── POST /Payment/create ─────────────────────────────────────────────────────
 exports.createPayment = async (req, res) => {
   try {

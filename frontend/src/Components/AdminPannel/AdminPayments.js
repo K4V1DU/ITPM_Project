@@ -1,16 +1,68 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaCreditCard, FaSearch, FaCheckCircle, FaTimesCircle, FaFileImage } from "react-icons/fa";
 import AdminNavBar from '../NavBar/Admin_NavBar/AdminNavBar';
-import './AdminDashBoard.css';
+import './AdminPayments.css';
 
 const API_BASE = process.env.REACT_APP_API_BASE_URL;
 const unwrap   = (r) => r?.data ?? r?.result ?? r;
-const fmtTime  = (d) => d ? new Date(d).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
 
+/* ── Helpers ─────────────────────────────────────────────────── */
+const photoUrl  = (id)  => id  ? `${API_BASE}/Photo/${id}` : null;
+const fmtTime   = (d)   => d   ? new Date(d).toLocaleString("en-GB", {
+  day: "numeric", month: "short", year: "numeric",
+  hour: "2-digit", minute: "2-digit"
+}) : "—";
+const fmtCurrency = (n) => `LKR ${Number(n || 0).toLocaleString()}`;
+
+/**
+ * Safely converts any value to a renderable string.
+ * Handles objects like { open: "08:00", close: "22:00" } that would
+ * otherwise throw "Objects are not valid as a React child".
+ */
+const fmtStr = (val) => {
+  if (val == null) return "—";
+  if (typeof val === "object") {
+    // Operating hours shape
+    if (val.open !== undefined || val.close !== undefined)
+      return `${val.open ?? ""}–${val.close ?? ""}`;
+    // Any other plain object — last-resort stringify
+    return JSON.stringify(val);
+  }
+  return String(val);
+};
+
+/* ── Inline SVG Icons (guaranteed to render) ─────────────────── */
+const IconCard      = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
+const IconSearch    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>;
+const IconCheck     = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+const IconX         = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>;
+const IconImage     = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>;
+const IconUser      = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+const IconHome      = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>;
+const IconFood      = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>;
+const IconPhone     = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.59 1.22h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>;
+const IconMail      = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>;
+const IconPin       = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>;
+const IconChevDown  = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>;
+const IconChevUp    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"/></svg>;
+const IconBed       = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>;
+const IconBath      = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6L9 2 5 2"/><path d="M5 2v4"/><rect x="2" y="11" width="20" height="4" rx="2"/><path d="M4 15v4"/><path d="M20 15v4"/><path d="M2 11h20"/></svg>;
+const IconClock     = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+const IconNote      = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>;
+const IconHash      = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>;
+const IconTag       = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>;
+const IconList      = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>;
+const IconDollar    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>;
+const IconShield    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>;
+const IconCalendar  = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+const IconWifi      = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>;
+const IconMapCoords = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>;
+
+/* ─── Receipt Modal ──────────────────────────────────────────────────────── */
 function ReceiptModal({ paymentId, onClose }) {
   const [src,     setSrc]     = useState(null);
   const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     fetch(`${API_BASE}/Payment/${paymentId}/receipt-image`)
       .then(r => { if (!r.ok) throw new Error(); return r.blob(); })
@@ -18,21 +70,384 @@ function ReceiptModal({ paymentId, onClose }) {
       .catch(() => setSrc(null))
       .finally(() => setLoading(false));
   }, [paymentId]);
+
   return (
-    <div className="ad-overlay" onClick={onClose}>
-      <div style={{ background: "#fff", borderRadius: 16, padding: 24, maxWidth: 500, width: "90%", maxHeight: "85vh", overflow: "auto", boxShadow: "0 20px 60px rgba(0,0,0,.3)" }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16, fontFamily: "DM Sans,sans-serif" }}>
-          <strong style={{ fontSize: 16 }}>Payment Receipt</strong>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#aaa" }}>×</button>
+    <div className="ap-overlay" onClick={onClose}>
+      <div className="ap-modal" onClick={e => e.stopPropagation()}>
+        <div className="ap-modal__header">
+          <span>Payment Receipt</span>
+          <button onClick={onClose} className="ap-modal__close" aria-label="Close">×</button>
         </div>
-        {loading ? <div style={{ textAlign: "center", padding: 40 }}><div className="ad-spinner" style={{ margin: "0 auto" }} /></div>
-          : src   ? <img src={src} alt="Receipt" style={{ width: "100%", borderRadius: 8 }} />
-          : <p style={{ color: "#aaa", textAlign: "center", padding: 40 }}>No receipt image available</p>}
+        {loading
+          ? <div className="ap-modal__loading"><div className="ap-spinner" /></div>
+          : src
+            ? <img src={src} alt="Receipt" className="ap-modal__img" />
+            : <p className="ap-modal__empty">No receipt image available</p>
+        }
       </div>
     </div>
   );
 }
 
+/* ─── Owner Card ─────────────────────────────────────────────────────────── */
+function OwnerCard({ host }) {
+  if (!host) return <span className="ap-text-muted">No owner data</span>;
+  const avatarSrc = photoUrl(host.profileImage);
+
+  /* address can be an object or a string */
+  const addrStr = host.address
+    ? typeof host.address === "object"
+        ? `${host.address.street || ""} ${host.address.city || ""}`.trim()
+        : host.address
+    : null;
+
+  return (
+    <div className="ap-owner-card">
+      <div className="ap-owner-card__avatar">
+        {avatarSrc
+          ? <img src={avatarSrc} alt={host.name || host.username} onError={e => { e.target.style.display='none'; }} />
+          : <IconUser />
+        }
+      </div>
+      <div className="ap-owner-card__info">
+        <div className="ap-owner-card__name">{fmtStr(host.name || host.username)}</div>
+        {host.role    && <div className="ap-owner-card__role">{fmtStr(host.role)}</div>}
+        {host.email   && <div className="ap-owner-card__detail"><IconMail  />{fmtStr(host.email)}</div>}
+        {host.phone   && <div className="ap-owner-card__detail"><IconPhone />{fmtStr(host.phone)}</div>}
+        {addrStr      && <div className="ap-owner-card__detail"><IconPin />{addrStr}</div>}
+        {host.about   && <div className="ap-owner-card__about">{fmtStr(host.about)}</div>}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Listing Card ───────────────────────────────────────────────────────── */
+function ListingCard({ listing, listingType }) {
+  if (!listing) return <span className="ap-text-muted">No listing data</span>;
+
+  const isFood  = listingType === "food";
+  const isAccom = listingType === "accommodation";
+
+  /* resolve image */
+  const rawImgId = listing.iconImage || listing.images?.[0];
+  const imgSrc   = photoUrl(rawImgId);
+
+  /* address — can be object or string */
+  const addrStr = listing.address
+    ? typeof listing.address === "object"
+        ? `${listing.address.street || ""} ${listing.address.city || ""}`.trim()
+        : listing.address
+    : null;
+
+  return (
+    <div className="ap-listing-card">
+      <div className="ap-listing-card__type-badge">
+        {isFood  ? <><IconFood />  Food</>
+        : isAccom ? <><IconHome /> Accommodation</>
+        : fmtStr(listingType)}
+      </div>
+
+      {imgSrc && (
+        <img
+          src={imgSrc}
+          alt="Listing"
+          className="ap-listing-card__img"
+          onError={e => { e.target.style.display = 'none'; }}
+        />
+      )}
+
+      <div className="ap-listing-card__title">
+        {fmtStr(listing.kitchenName || listing.title || "Unnamed Listing")}
+      </div>
+
+      {listing.description && (
+        <div className="ap-listing-card__desc">
+          {(() => {
+            const d = fmtStr(listing.description);
+            return d.length > 160 ? d.slice(0, 160) + "…" : d;
+          })()}
+        </div>
+      )}
+
+      {addrStr && (
+        <div className="ap-listing-card__detail"><IconPin />{addrStr}</div>
+      )}
+
+      {/* Geo-coordinates */}
+      {listing.location?.coordinates?.length === 2 && (
+        <div className="ap-listing-card__detail">
+          <IconMapCoords />
+          {listing.location.coordinates[1].toFixed(5)}, {listing.location.coordinates[0].toFixed(5)}
+        </div>
+      )}
+
+      {/* ── Food-specific ─────────────────────────────────────── */}
+      {isFood && (
+        <div className="ap-listing-card__meta">
+          {listing.serviceType != null && (
+            <span className="ap-chip">{fmtStr(listing.serviceType)}</span>
+          )}
+          {listing.deliveryAvailable && <span className="ap-chip ap-chip--green">Delivery</span>}
+          {listing.pickupAvailable   && <span className="ap-chip ap-chip--blue">Pickup</span>}
+
+          {/* ── operatingHours: safely render whether string or {open,close} ── */}
+          {listing.operatingHours != null && (
+            <div className="ap-listing-card__detail" style={{ width: '100%' }}>
+              <IconClock />{fmtStr(listing.operatingHours)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Accommodation-specific ────────────────────────────── */}
+      {isAccom && (
+        <div className="ap-listing-card__meta">
+          {listing.accommodationType != null && (
+            <span className="ap-chip">{fmtStr(listing.accommodationType)}</span>
+          )}
+          {listing.genderPreference != null && (
+            <span className="ap-chip ap-chip--purple">{fmtStr(listing.genderPreference)}</span>
+          )}
+          <div className="ap-listing-card__stats">
+            {listing.bedrooms  != null && <span><IconBed  />{listing.bedrooms} bed{listing.bedrooms  !== 1 ? "s" : ""}</span>}
+            {listing.beds      != null && listing.beds !== listing.bedrooms && (
+              <span><IconBed />{listing.beds} total beds</span>
+            )}
+            {listing.bathrooms != null && <span><IconBath />{listing.bathrooms} bath{listing.bathrooms !== 1 ? "s" : ""}</span>}
+          </div>
+          {listing.distance != null && (
+            <div className="ap-listing-card__detail">
+              <IconPin />{listing.distance} km from campus
+            </div>
+          )}
+          {listing.pricePerMonth != null && (
+            <div className="ap-listing-card__price">
+              <IconDollar />{fmtCurrency(listing.pricePerMonth)} / mo
+            </div>
+          )}
+          {listing.amenities?.length > 0 && (
+            <div className="ap-amenities" style={{ width: '100%' }}>
+              <div className="ap-detail-section__label"><IconWifi /> Amenities</div>
+              <div className="ap-chips-wrap">
+                {listing.amenities.slice(0, 6).map((a, i) => (
+                  <span key={i} className="ap-chip ap-chip--gray">{fmtStr(a)}</span>
+                ))}
+                {listing.amenities.length > 6 && (
+                  <span className="ap-chip ap-chip--gray">+{listing.amenities.length - 6} more</span>
+                )}
+              </div>
+            </div>
+          )}
+          {/* Extra images for accommodation */}
+          {listing.images?.length > 1 && (
+            <div className="ap-listing-card__gallery">
+              {listing.images.slice(1, 4).map((imgId, i) => {
+                const url = photoUrl(imgId);
+                return url ? (
+                  <img
+                    key={i}
+                    src={url}
+                    alt={`Gallery ${i + 2}`}
+                    className="ap-gallery-thumb"
+                    onError={e => { e.target.style.display = 'none'; }}
+                  />
+                ) : null;
+              })}
+              {listing.images.length > 4 && (
+                <div className="ap-gallery-more">+{listing.images.length - 4}</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="ap-listing-card__footer">
+        <span className={`ap-avail-dot ${listing.isAvailable ? "ap-avail-dot--on" : "ap-avail-dot--off"}`} />
+        {listing.isAvailable ? "Available" : "Unavailable"}
+        {listing.expireDate && (
+          <span className="ap-listing-card__expire">
+            Expires {fmtTime(listing.expireDate)}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Payment Info Panel ─────────────────────────────────────────────────── */
+function PaymentInfoPanel({ p }) {
+  return (
+    <div className="ap-info-grid">
+      <div className="ap-info-item">
+        <div className="ap-info-item__label"><IconHash /> Reference</div>
+        <div className="ap-info-item__value ap-mono">{fmtStr(p.referenceCode)}</div>
+      </div>
+      <div className="ap-info-item">
+        <div className="ap-info-item__label"><IconTag /> Plan</div>
+        <div className="ap-info-item__value">
+          <span className="ap-plan-badge">{p.plan?.toUpperCase() || "—"}</span>
+        </div>
+      </div>
+      <div className="ap-info-item">
+        <div className="ap-info-item__label"><IconDollar /> Amount</div>
+        <div className="ap-info-item__value ap-info-item__value--amount">{fmtCurrency(p.amount)}</div>
+      </div>
+      <div className="ap-info-item">
+        <div className="ap-info-item__label"><IconList /> Type</div>
+        <div className="ap-info-item__value" style={{ textTransform: "capitalize" }}>{fmtStr(p.listingType)}</div>
+      </div>
+      <div className="ap-info-item">
+        <div className="ap-info-item__label"><IconShield /> Status</div>
+        <div className="ap-info-item__value">
+          <span className={`ap-badge ap-badge--${p.status}`}>{p.status?.replace("_", " ")}</span>
+        </div>
+      </div>
+      <div className="ap-info-item">
+        <div className="ap-info-item__label"><IconCalendar /> Created</div>
+        <div className="ap-info-item__value ap-mono">{fmtTime(p.createdAt)}</div>
+      </div>
+      {p.receiptUploadedAt && (
+        <div className="ap-info-item">
+          <div className="ap-info-item__label"><IconImage /> Receipt Uploaded</div>
+          <div className="ap-info-item__value ap-mono">{fmtTime(p.receiptUploadedAt)}</div>
+        </div>
+      )}
+      {p.verifiedAt && (
+        <div className="ap-info-item">
+          <div className="ap-info-item__label"><IconCheck /> Verified At</div>
+          <div className="ap-info-item__value ap-mono">{fmtTime(p.verifiedAt)}</div>
+        </div>
+      )}
+      {p.rejectedAt && (
+        <div className="ap-info-item">
+          <div className="ap-info-item__label"><IconX /> Rejected At</div>
+          <div className="ap-info-item__value ap-mono">{fmtTime(p.rejectedAt)}</div>
+        </div>
+      )}
+      {p.paymentMethod && (
+        <div className="ap-info-item">
+          <div className="ap-info-item__label"><IconCard /> Method</div>
+          <div className="ap-info-item__value" style={{ textTransform: "capitalize" }}>{fmtStr(p.paymentMethod)}</div>
+        </div>
+      )}
+      {p.stripeSessionId && (
+        <div className="ap-info-item ap-info-item--full">
+          <div className="ap-info-item__label"><IconHash /> Stripe Session</div>
+          <div className="ap-info-item__value ap-mono ap-mono--sm">{fmtStr(p.stripeSessionId)}</div>
+        </div>
+      )}
+      {p._id && (
+        <div className="ap-info-item ap-info-item--full">
+          <div className="ap-info-item__label"><IconHash /> Payment ID</div>
+          <div className="ap-info-item__value ap-mono ap-mono--sm">{fmtStr(p._id)}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Expandable Row ─────────────────────────────────────────────────────── */
+function PaymentRow({ p, onReceipt, onVerify, onReject }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <>
+      <tr className={`ap-row ${expanded ? "ap-row--expanded" : ""}`}>
+        <td className="ap-cell-mono">{fmtStr(p.referenceCode)}</td>
+        <td><span className="ap-plan-badge">{p.plan?.toUpperCase() || "—"}</span></td>
+        <td className="ap-cell-amount">{fmtCurrency(p.amount)}</td>
+        <td className="ap-cell-muted" style={{ textTransform: "capitalize" }}>{fmtStr(p.listingType)}</td>
+        <td>
+          <span className={`ap-badge ap-badge--${p.status}`}>
+            {p.status?.replace("_", " ")}
+          </span>
+        </td>
+        <td className="ap-cell-muted">{fmtTime(p.createdAt)}</td>
+        <td>
+          <div className="ap-actions">
+            <button className="ap-btn ap-btn--purple" onClick={() => onReceipt(p._id)} title="View Receipt">
+              <span className="ap-btn__icon"><IconImage /></span>
+              <span className="ap-btn__label">Receipt</span>
+            </button>
+
+            {p.status === "manual_requested" && (
+              <>
+                <button className="ap-btn ap-btn--success" onClick={() => onVerify(p._id)} title="Approve Payment">
+                  <span className="ap-btn__icon"><IconCheck /></span>
+                  <span className="ap-btn__label">Approve</span>
+                </button>
+                <button className="ap-btn ap-btn--danger" onClick={() => onReject(p._id)} title="Reject Payment">
+                  <span className="ap-btn__icon"><IconX /></span>
+                  <span className="ap-btn__label">Reject</span>
+                </button>
+              </>
+            )}
+
+            <button
+              className={`ap-btn ap-btn--toggle ${expanded ? "ap-btn--active" : "ap-btn--ghost"}`}
+              onClick={() => setExpanded(v => !v)}
+              title={expanded ? "Collapse" : "Expand Details"}
+            >
+              <span className="ap-btn__icon">
+                {expanded ? <IconChevUp /> : <IconChevDown />}
+              </span>
+            </button>
+          </div>
+        </td>
+      </tr>
+
+      {expanded && (
+        <tr className="ap-detail-row">
+          <td colSpan={7}>
+            <div className="ap-detail-panel">
+
+              {/* ── Payment Info ── */}
+              <div className="ap-detail-section ap-detail-section--full">
+                <div className="ap-detail-section__title">
+                  <IconCard /> Payment Details
+                </div>
+                <PaymentInfoPanel p={p} />
+              </div>
+
+              <div className="ap-detail-divider ap-detail-divider--h" />
+
+              {/* ── Owner + Listing side by side ── */}
+              <div className="ap-detail-cols">
+                <div className="ap-detail-section">
+                  <div className="ap-detail-section__title">
+                    <IconUser /> Owner Details
+                  </div>
+                  <OwnerCard host={p.host} />
+                </div>
+
+                <div className="ap-detail-divider ap-detail-divider--v" />
+
+                <div className="ap-detail-section">
+                  <div className="ap-detail-section__title">
+                    {p.listingType === "food" ? <IconFood /> : <IconHome />} Listing Details
+                  </div>
+                  <ListingCard listing={p.listing} listingType={p.listingType} />
+                </div>
+              </div>
+
+              {p.adminNote && (
+                <>
+                  <div className="ap-detail-divider ap-detail-divider--h" />
+                  <div className="ap-detail-section ap-detail-section--full">
+                    <div className="ap-detail-section__title"><IconNote /> Admin Note</div>
+                    <div className="ap-admin-note">{fmtStr(p.adminNote)}</div>
+                  </div>
+                </>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+/* ─── Main Component ─────────────────────────────────────────────────────── */
 export default function AdminPayments() {
   const navigate = useNavigate();
   const userId   = localStorage.getItem("CurrentUserId");
@@ -41,6 +456,7 @@ export default function AdminPayments() {
   const [loading,      setLoading]      = useState(true);
   const [search,       setSearch]       = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter,   setTypeFilter]   = useState("all");
   const [receiptModal, setReceiptModal] = useState(null);
   const [toast,        setToast]        = useState(null);
 
@@ -48,139 +464,230 @@ export default function AdminPayments() {
 
   const fetchPayments = () => {
     setLoading(true);
-    // Try admin-all endpoint first, fall back to host query
-    fetch(`${API_BASE}/Payment/admin/all`)
-      .then(r => r.ok ? r.json() : fetch(`${API_BASE}/Payment/my?hostId=${userId}`).then(r2 => r2.json()))
+    fetch(`${API_BASE}/Payment/all?limit=100`)
+      .then(r => r.ok
+        ? r.json()
+        : fetch(`${API_BASE}/Payment/my?hostId=${userId}`).then(r2 => r2.json())
+      )
       .then(raw => {
-        const list = Array.isArray(unwrap(raw)) ? unwrap(raw)
-          : Array.isArray(raw?.payments) ? raw.payments : [];
+        const list = Array.isArray(raw?.payments) ? raw.payments
+          : Array.isArray(unwrap(raw)) ? unwrap(raw) : [];
         setPayments(list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
       })
       .catch(() => setPayments([]))
       .finally(() => setLoading(false));
   };
+
   useEffect(() => { fetchPayments(); }, []);
 
-  const showToast = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
+  const showToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
   const handleVerify = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/Payment/${id}/admin-verify`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "verified" }) });
-      if (res.ok) {
+      const res  = await fetch(`${API_BASE}/Payment/${id}/approve-manual`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminId: userId, adminNote: "Manually approved by admin." })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
         setPayments(p => p.map(x => x._id === id ? { ...x, status: "verified" } : x));
-        showToast("Payment verified.");
-      } else { showToast("Verify failed — check your API endpoint.", "error"); }
-    } catch { showToast("Failed to verify payment.", "error"); }
+        showToast("Payment approved and listing activated.");
+      } else {
+        showToast(data.message || "Approval failed.", "error");
+      }
+    } catch {
+      showToast("Failed to verify payment.", "error");
+    }
   };
 
   const handleReject = async (id) => {
+    const reason = window.prompt("Enter a reason for rejection:");
+    if (!reason) return;
     try {
-      await fetch(`${API_BASE}/Payment/${id}/cancel`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "cancelled" }) });
-      setPayments(p => p.map(x => x._id === id ? { ...x, status: "cancelled" } : x));
-      showToast("Payment rejected.");
-    } catch { showToast("Failed to reject.", "error"); }
+      const res  = await fetch(`${API_BASE}/Payment/${id}/reject-manual`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminId: userId, adminNote: reason })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPayments(p => p.map(x => x._id === id ? { ...x, status: "rejected", adminNote: reason } : x));
+        showToast("Payment rejected.");
+      } else {
+        showToast(data.message || "Rejection failed.", "error");
+      }
+    } catch {
+      showToast("Failed to reject payment.", "error");
+    }
   };
 
   const filtered = payments.filter(p => {
     const matchStatus = statusFilter === "all" || p.status === statusFilter;
-    const matchSearch = !search || p.referenceCode?.toLowerCase().includes(search.toLowerCase());
-    return matchStatus && matchSearch;
+    const matchType   = typeFilter   === "all" || p.listingType === typeFilter;
+    const q = search.toLowerCase();
+    const matchSearch = !q
+      || p.referenceCode?.toLowerCase().includes(q)
+      || p._id?.toLowerCase().includes(q)
+      || p.host?.name?.toLowerCase().includes(q)
+      || p.host?.username?.toLowerCase().includes(q)
+      || p.host?.email?.toLowerCase().includes(q)
+      || (p.listing?.kitchenName || p.listing?.title || "").toLowerCase().includes(q)
+      || p.plan?.toLowerCase().includes(q)
+      || p.status?.toLowerCase().includes(q);
+    return matchStatus && matchType && matchSearch;
   });
 
-  const totalRevenue = payments.filter(p => p.status === "verified").reduce((s, p) => s + (p.amount || 0), 0);
-  const counts = { all: payments.length, manual_requested: payments.filter(p => p.status === "manual_requested").length, pending: payments.filter(p => p.status === "pending").length, verified: payments.filter(p => p.status === "verified").length };
+  const verifiedTotal = payments
+    .filter(p => p.status === "verified")
+    .reduce((s, p) => s + (p.amount || 0), 0);
+  const pendingReview = payments.filter(p => p.status === "manual_requested").length;
+
+  const counts = {
+    all:              payments.length,
+    manual_requested: pendingReview,
+    pending:          payments.filter(p => p.status === "pending").length,
+    verified:         payments.filter(p => p.status === "verified").length,
+  };
 
   return (
-    <div className="ad-page">
+    <div className="ap-page">
       <AdminNavBar activeHref="/AdminPayments" />
-      {toast        && <div className={`ad-toast ad-toast--${toast.type}`}>{toast.msg}</div>}
-      {receiptModal && <ReceiptModal paymentId={receiptModal} onClose={() => setReceiptModal(null)} />}
 
-      <div className="ad-banner">
-        <div className="ad-banner__noise" />
-        <div className="ad-banner__content">
-          <p className="ad-banner__greeting">Admin Panel</p>
-          <h1 className="ad-banner__title"><FaCreditCard style={{ fontSize: 22 }} /> Payment Management</h1>
-          <p className="ad-banner__sub">{counts.manual_requested} pending manual review · LKR {totalRevenue.toLocaleString()} verified revenue</p>
+      {/* Toast */}
+      {toast && (
+        <div className={`ap-toast ap-toast--${toast.type}`}>
+          <span className="ap-toast__icon">
+            {toast.type === "success" ? <IconCheck /> : <IconX />}
+          </span>
+          {toast.msg}
+        </div>
+      )}
+
+      {/* Receipt Modal */}
+      {receiptModal && (
+        <ReceiptModal paymentId={receiptModal} onClose={() => setReceiptModal(null)} />
+      )}
+
+      {/* ── Banner ── */}
+      <div className="ap-banner">
+        <div className="ap-banner__noise" />
+        <div className="ap-banner__content">
+          <p className="ap-banner__label">Admin Panel</p>
+          <h1 className="ap-banner__title">
+            <span className="ap-banner__title-icon"><IconCard /></span>
+            Payment Management
+          </h1>
+          <p className="ap-banner__sub">
+            <strong>{pendingReview}</strong> pending manual review
+            &nbsp;·&nbsp;
+            <strong>{fmtCurrency(verifiedTotal)}</strong> verified revenue
+          </p>
         </div>
       </div>
 
-      <div className="ad-container">
-        <div className="ad-stats-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+      <div className="ap-container">
+
+        {/* ── Stats ── */}
+        <div className="ap-stats-grid">
           {[
-            { label: "Total",         num: counts.all,              cls: "purple" },
-            { label: "Manual Review", num: counts.manual_requested, cls: "amber"  },
-            { label: "Pending",       num: counts.pending,          cls: "blue"   },
-            { label: "Verified",      num: counts.verified,         cls: "green"  },
+            { label: "Total Payments", num: counts.all,              cls: "slate",  icon: <IconCard />    },
+            { label: "Manual Review",  num: counts.manual_requested, cls: "amber",  icon: <IconImage />   },
+            { label: "Pending",        num: counts.pending,          cls: "blue",   icon: <IconClock />   },
+            { label: "Verified",       num: counts.verified,         cls: "green",  icon: <IconCheck />   },
           ].map((s, i) => (
-            <div key={i} className="ad-stat-card" style={{ animationDelay: `${i * 0.07}s` }}>
-              <div className={`ad-stat-icon ad-stat-icon--${s.cls}`}><FaCreditCard /></div>
-              <div className="ad-stat-num">{s.num}</div>
-              <div className="ad-stat-label">{s.label}</div>
+            <div key={i} className="ap-stat-card" style={{ animationDelay: `${i * 0.07}s` }}>
+              <div className={`ap-stat-icon ap-stat-icon--${s.cls}`}>{s.icon}</div>
+              <div className="ap-stat-num">{s.num}</div>
+              <div className="ap-stat-label">{s.label}</div>
             </div>
           ))}
         </div>
 
-        <div className="ad-card">
-          <div className="ad-card__header">
-            <h3 className="ad-card__title"><FaCreditCard style={{ color: "#7c3aed" }} /> All Payments</h3>
-            <div className="ad-toolbar">
-              <div className="ad-search-wrap">
-                <FaSearch className="ad-search-icon" />
-                <input className="ad-search-input" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search ref code…" />
+        {/* ── Table Card ── */}
+        <div className="ap-card">
+          <div className="ap-card__header">
+            <h3 className="ap-card__title">
+              <span className="ap-card__title-icon"><IconCard /></span>
+              All Payments
+            </h3>
+
+            <div className="ap-toolbar">
+              <div className="ap-search-wrap">
+                <span className="ap-search-icon"><IconSearch /></span>
+                <input
+                  className="ap-search-input"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search ref, owner, listing, plan…"
+                />
               </div>
-              <select className="ad-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+
+              <select className="ap-select" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+                <option value="all">All types</option>
+                <option value="food">Food</option>
+                <option value="accommodation">Accommodation</option>
+              </select>
+
+              <select className="ap-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
                 <option value="all">All statuses</option>
                 <option value="manual_requested">Manual Review</option>
                 <option value="pending">Pending</option>
                 <option value="verified">Verified</option>
                 <option value="created">Created</option>
+                <option value="rejected">Rejected</option>
                 <option value="cancelled">Cancelled</option>
               </select>
             </div>
           </div>
 
           {loading ? (
-            <div className="ad-empty"><div className="ad-spinner" style={{ margin: "0 auto 12px" }} /><p>Loading payments…</p></div>
+            <div className="ap-empty">
+              <div className="ap-spinner" />
+              <p>Loading payments…</p>
+            </div>
           ) : filtered.length === 0 ? (
-            <div className="ad-empty">No payments found</div>
+            <div className="ap-empty">
+              <span className="ap-empty-icon"><IconCard /></span>
+              <p>No payments found</p>
+            </div>
           ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table className="ad-table">
-                <thead><tr><th>Reference</th><th>Plan</th><th>Amount</th><th>Type</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+            <div className="ap-table-wrap">
+              <table className="ap-table">
+                <thead>
+                  <tr>
+                    <th>Reference</th>
+                    <th>Plan</th>
+                    <th>Amount</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {filtered.map(p => (
-                    <tr key={p._id}>
-                      <td className="ad-cell-mono">{p.referenceCode || "—"}</td>
-                      <td className="ad-cell-muted">{p.plan?.toUpperCase() || "—"}</td>
-                      <td className="ad-cell-amount">LKR {p.amount?.toLocaleString()}</td>
-                      <td className="ad-cell-muted" style={{ textTransform: "capitalize" }}>{p.listingType || "—"}</td>
-                      <td><span className={`ad-badge ad-badge--${p.status}`}>{p.status}</span></td>
-                      <td className="ad-cell-muted">{fmtTime(p.createdAt)}</td>
-                      <td>
-                        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                          <button className="ad-btn-sm ad-btn-sm--purple" onClick={() => setReceiptModal(p._id)}>
-                            <FaFileImage style={{ fontSize: 10 }} /> Receipt
-                          </button>
-                          {(p.status === "manual_requested" || p.status === "pending") && (
-                            <>
-                              <button className="ad-btn-sm ad-btn-sm--success" onClick={() => handleVerify(p._id)}>
-                                <FaCheckCircle style={{ fontSize: 10 }} /> Approve
-                              </button>
-                              <button className="ad-btn-sm ad-btn-sm--danger" onClick={() => handleReject(p._id)}>
-                                <FaTimesCircle style={{ fontSize: 10 }} /> Reject
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                    <PaymentRow
+                      key={p._id}
+                      p={p}
+                      onReceipt={setReceiptModal}
+                      onVerify={handleVerify}
+                      onReject={handleReject}
+                    />
                   ))}
                 </tbody>
               </table>
             </div>
           )}
+
+          <div className="ap-card__footer">
+            Showing {filtered.length} of {payments.length} payments
+          </div>
         </div>
+
       </div>
     </div>
   );
