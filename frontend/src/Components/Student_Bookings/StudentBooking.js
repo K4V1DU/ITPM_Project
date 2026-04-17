@@ -20,7 +20,6 @@ import {
   FaExclamationTriangle,
   FaBuilding,
   FaTag,
-  FaTrashAlt,
   FaBan,
   FaExternalLinkAlt,
 } from "react-icons/fa";
@@ -81,25 +80,22 @@ const FILTER_OPTIONS = [
 // CONFIRM MODAL
 // ─────────────────────────────────────────
 function ConfirmModal({ action, onConfirm, onCancel, loading }) {
-  const isDelete = action === "delete";
   return (
     <div className="sb-overlay" onClick={!loading ? onCancel : undefined}>
       <div className="sb-modal" onClick={(e) => e.stopPropagation()}>
         <div className="sb-modal__icon-wrap sb-modal__icon-wrap--danger">
-          {isDelete ? <FaTrashAlt /> : <FaBan />}
+          <FaBan />
         </div>
         <h3 className="sb-modal__title">
-          {isDelete ? "Delete Booking" : "Cancel Booking"}
+          Cancel Booking
         </h3>
         <p className="sb-modal__desc">
-          {isDelete
-            ? "Permanently delete this booking record? This action cannot be undone."
-            : "Cancel this visit request? The host will be notified and this action cannot be undone."}
+          Cancel this visit request? The host will be notified and this action cannot be undone.
         </p>
         <div className="sb-modal__btns">
           <button className="sb-modal__btn sb-modal__btn--ghost" onClick={onCancel} disabled={loading}>Back</button>
           <button className="sb-modal__btn sb-modal__btn--danger" onClick={onConfirm} disabled={loading}>
-            {loading ? <FaSpinner className="sb-spin" /> : isDelete ? "Delete" : "Yes, Cancel"}
+            {loading ? <FaSpinner className="sb-spin" /> : "Yes, Cancel"}
           </button>
         </div>
       </div>
@@ -439,10 +435,6 @@ function BookingDetail({ booking, onAction, actionLoading, onBack, isMobile, cur
               {busy ? <FaSpinner className="sb-spin" /> : <FaBan />} Cancel Booking
             </button>
           )}
-          <button className="sb-action sb-action--danger"
-            onClick={() => onAction(booking, "delete")} disabled={busy}>
-            {busy ? <FaSpinner className="sb-spin" /> : <FaTrashAlt />} Delete
-          </button>
         </div>
 
       </div>
@@ -530,35 +522,24 @@ export default function StudentBooking() {
     const { booking, action } = confirmModal;
     setActionLoading(booking._id);
     try {
-      if (action === "delete") {
-        const res = await fetch(`${BOOKING_API}/${booking._id}`, { method: "DELETE" });
-        if (!res.ok) throw new Error();
-        setBookings((prev) => {
-          const next = prev.filter((b) => b._id !== booking._id);
-          setSelectedBooking(next[0] ?? null);
-          return next;
+      const res = await fetch(`${BOOKING_API}/${booking._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "cancelled" }),
+      });
+      if (!res.ok) throw new Error();
+      setBookings((prev) => prev.map((b) => b._id === booking._id ? { ...b, status: "cancelled" } : b));
+      setSelectedBooking((prev) => prev?._id === booking._id ? { ...prev, status: "cancelled" } : prev);
+      showToast("Booking cancelled.");
+      const hostId   = booking.accommodation?.owner?._id ?? booking.accommodation?.owner ?? null;
+      const propName = booking.accommodation?.title ?? "the property";
+      if (hostId) {
+        sendNotification({
+          recipient: hostId, type: "booking_status",
+          title: "Booking Cancelled",
+          message: `A student cancelled their booking request for ${propName}.`,
+          link: "/HostBooking", refId: booking._id, refType: "Booking",
         });
-        showToast("Booking deleted.");
-      } else {
-        const res = await fetch(`${BOOKING_API}/${booking._id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "cancelled" }),
-        });
-        if (!res.ok) throw new Error();
-        setBookings((prev) => prev.map((b) => b._id === booking._id ? { ...b, status: "cancelled" } : b));
-        setSelectedBooking((prev) => prev?._id === booking._id ? { ...prev, status: "cancelled" } : prev);
-        showToast("Booking cancelled.");
-        const hostId   = booking.accommodation?.owner?._id ?? booking.accommodation?.owner ?? null;
-        const propName = booking.accommodation?.title ?? "the property";
-        if (hostId) {
-          sendNotification({
-            recipient: hostId, type: "booking_status",
-            title: "Booking Cancelled",
-            message: `A student cancelled their booking request for ${propName}.`,
-            link: "/HostBooking", refId: booking._id, refType: "Booking",
-          });
-        }
       }
     } catch {
       showToast("Action failed. Please try again.");
