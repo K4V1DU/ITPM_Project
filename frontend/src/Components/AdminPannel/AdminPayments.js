@@ -109,20 +109,18 @@ function OwnerCard({ host }) {
   );
 }
 
-/* ─── Listing Card ───────────────────────────────────────────────────────── */
+/* ─── Listing Card  –  Same icon-left / details-right layout as OwnerCard ── */
 function ListingCard({ listing, listingType }) {
   if (!listing) return <span className="ap-text-muted">No listing data</span>;
 
   const isFood  = listingType === "food";
   const isAccom = listingType === "accommodation";
 
-  /* For food: use iconImage. For accommodation: use first image in images array */
   const iconImgId = isFood
     ? listing.iconImage
     : (listing.images?.[0] ?? null);
   const imgSrc = photoUrl(iconImgId);
 
-  /* address — can be object or string */
   const addrStr = listing.address
     ? typeof listing.address === "object"
         ? `${listing.address.street || ""} ${listing.address.city || ""}`.trim()
@@ -130,19 +128,13 @@ function ListingCard({ listing, listingType }) {
     : null;
 
   const listingId = listing._id || listing.id;
+  const listingName = listing.kitchenName || listing.title || "Unnamed Listing";
 
   return (
     <div className="ap-listing-card">
-
-      {/* Type badge */}
-      <div className="ap-listing-card__type-badge">
-        {isFood  ? <><IconFood />  Food Service</>
-        : isAccom ? <><IconHome /> Accommodation</>
-        : fmtStr(listingType)}
-      </div>
-
-      {/* Icon / thumbnail image */}
-      <div className="ap-listing-card__icon-row">
+      {/* ── Top row: circular icon + info stack (mirrors OwnerCard) ── */}
+      <div className="ap-listing-card__main-row">
+        {/* Circular thumbnail / placeholder */}
         <div className="ap-listing-card__icon-wrap">
           {imgSrc
             ? <img
@@ -157,67 +149,61 @@ function ListingCard({ listing, listingType }) {
           }
         </div>
 
-        {/* Name sits beside icon */}
-        <div className="ap-listing-card__title">
-          {fmtStr(listing.kitchenName || listing.title || "Unnamed Listing")}
-        </div>
-      </div>
+        {/* Info stacked to the right */}
+        <div className="ap-listing-card__info">
+          {/* Name */}
+          <div className="ap-listing-card__title">{fmtStr(listingName)}</div>
 
-      {/* ── Shared fields ── */}
-      <div className="ap-listing-card__fields">
-
-        {/* Address */}
-        {addrStr && (
-          <div className="ap-listing-card__field">
-            <span className="ap-listing-card__field-label"><IconPin /> Address</span>
-            <span className="ap-listing-card__field-value">{addrStr}</span>
+          {/* Type badge */}
+          <div className="ap-listing-card__type-badge">
+            {isFood  ? <><IconFood />  Food Service</>
+            : isAccom ? <><IconHome /> Accommodation</>
+            : fmtStr(listingType)}
           </div>
-        )}
 
-        {/* Food-specific: operating hours */}
-        {isFood && listing.operatingHours != null && (
-          <div className="ap-listing-card__field">
-            <span className="ap-listing-card__field-label"><IconClock /> Operating Hours</span>
-            <span className="ap-listing-card__field-value">{fmtStr(listing.operatingHours)}</span>
-          </div>
-        )}
+          {/* Address */}
+          {addrStr && (
+            <div className="ap-listing-card__detail">
+              <IconPin />{addrStr}
+            </div>
+          )}
 
-        {/* Accommodation-specific: monthly price */}
-        {isAccom && listing.pricePerMonth != null && (
-          <div className="ap-listing-card__field">
-            <span className="ap-listing-card__field-label"><IconDollar /> Monthly Price</span>
-            <span className="ap-listing-card__field-value ap-listing-card__field-value--price">
-              {fmtCurrency(listing.pricePerMonth)} / mo
-            </span>
-          </div>
-        )}
+          {/* Food: operating hours */}
+          {isFood && listing.operatingHours != null && (
+            <div className="ap-listing-card__detail">
+              <IconClock />{fmtStr(listing.operatingHours)}
+            </div>
+          )}
 
-        {/* Available status */}
-        <div className="ap-listing-card__field">
-          <span className="ap-listing-card__field-label"><IconShield /> Status</span>
-          <span className="ap-listing-card__field-value">
+          {/* Accommodation: monthly price */}
+          {isAccom && listing.pricePerMonth != null && (
+            <div className="ap-listing-card__detail ap-listing-card__detail--price">
+              <IconDollar />{fmtCurrency(listing.pricePerMonth)} / mo
+            </div>
+          )}
+
+          {/* Availability */}
+          <div className="ap-listing-card__detail">
             <span className="ap-listing-avail">
               <span className={`ap-avail-dot ${listing.isAvailable ? "ap-avail-dot--on" : "ap-avail-dot--off"}`} />
               {listing.isAvailable ? "Available" : "Unavailable"}
             </span>
-          </span>
+          </div>
+
+          {/* Expiry */}
+          {listing.expireDate && (
+            <div className="ap-listing-card__detail">
+              <IconCalendar />Expires {fmtTime(listing.expireDate)}
+            </div>
+          )}
+
+          {/* Listing ID */}
+          {listingId && (
+            <div className="ap-listing-card__detail ap-listing-card__detail--id">
+              <IconHash />{fmtStr(listingId)}
+            </div>
+          )}
         </div>
-
-        {/* Expire date */}
-        {listing.expireDate && (
-          <div className="ap-listing-card__field">
-            <span className="ap-listing-card__field-label"><IconCalendar /> Expires</span>
-            <span className="ap-listing-card__field-value ap-mono">{fmtTime(listing.expireDate)}</span>
-          </div>
-        )}
-
-        {/* Listing ID */}
-        {listingId && (
-          <div className="ap-listing-card__field ap-listing-card__field--full">
-            <span className="ap-listing-card__field-label"><IconHash /> Listing ID</span>
-            <span className="ap-listing-card__field-value ap-mono ap-mono--sm">{fmtStr(listingId)}</span>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -314,24 +300,39 @@ function PaymentRow({ p, onReceipt, onVerify, onReject }) {
         <td className="ap-cell-muted">{fmtTime(p.createdAt)}</td>
         <td>
           <div className="ap-actions">
-            <button className="ap-btn ap-btn--purple" onClick={() => onReceipt(p._id)} title="View Receipt">
+            {/* Receipt button */}
+            <button
+              className="ap-btn ap-btn--purple"
+              onClick={() => onReceipt(p._id)}
+              title="View Receipt"
+            >
               <span className="ap-btn__icon"><IconImage /></span>
               <span className="ap-btn__label">Receipt</span>
             </button>
 
+            {/* Approve / Reject – only for manual_requested */}
             {p.status === "manual_requested" && (
               <>
-                <button className="ap-btn ap-btn--success" onClick={() => onVerify(p._id)} title="Approve Payment">
+                <button
+                  className="ap-btn ap-btn--success"
+                  onClick={() => onVerify(p._id)}
+                  title="Approve Payment"
+                >
                   <span className="ap-btn__icon"><IconCheck /></span>
                   <span className="ap-btn__label">Approve</span>
                 </button>
-                <button className="ap-btn ap-btn--danger" onClick={() => onReject(p._id)} title="Reject Payment">
+                <button
+                  className="ap-btn ap-btn--danger"
+                  onClick={() => onReject(p._id)}
+                  title="Reject Payment"
+                >
                   <span className="ap-btn__icon"><IconX /></span>
                   <span className="ap-btn__label">Reject</span>
                 </button>
               </>
             )}
 
+            {/* Expand / collapse toggle */}
             <button
               className={`ap-btn ap-btn--toggle ${expanded ? "ap-btn--active" : "ap-btn--ghost"}`}
               onClick={() => setExpanded(v => !v)}
@@ -521,9 +522,12 @@ export default function AdminPayments() {
         <ReceiptModal paymentId={receiptModal} onClose={() => setReceiptModal(null)} />
       )}
 
-      {/* ── Banner ── */}
+      {/* ── Banner – purple gradient with bubbles ── */}
       <div className="ap-banner">
+        {/* Decorative bubble elements */}
         <div className="ap-banner__noise" />
+        <div className="ap-banner__bubble" />
+
         <div className="ap-banner__content">
           <p className="ap-banner__label">Admin Panel</p>
           <h1 className="ap-banner__title">
