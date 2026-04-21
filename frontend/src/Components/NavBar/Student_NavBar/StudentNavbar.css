@@ -1,7 +1,3 @@
-/* ─────────────────────────────────────────
-   StudentNavbar.css
-───────────────────────────────────────── */
-
 @keyframes slideDown {
   from { transform: translateY(-20px); opacity: 0; }
   to   { transform: translateY(0);     opacity: 1; }
@@ -13,6 +9,29 @@
 @keyframes modalPop {
   from { opacity: 0; transform: scale(0.88); }
   to   { opacity: 1; transform: scale(1);    }
+}
+
+/* Updated mobile animations to handle horizontal centering persistently */
+@keyframes mobileMenuSlide {
+  from { 
+    opacity: 0; 
+    transform: translateX(-50%) translateY(-8px) scale(0.97); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(-50%) translateY(0) scale(1); 
+  }
+}
+
+@keyframes bellMobileSlide {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -34,7 +53,7 @@
   overflow: visible;
 }
 
-.snav__left  { display: flex; align-items: center; }
+.snav__left  { display: flex; align-items: center; gap: 10px; }
 .snav__tabs  { align-self: stretch; }
 .snav__right { display: flex; gap: 14px; align-items: center; justify-content: flex-end; }
 
@@ -73,11 +92,8 @@
   box-sizing: border-box;
 }
 .snav__tab:hover   { color: #FF6B2B; }
-
-/* Active tab — orange text */
 .snav__tab--active { color: #FF6B2B; font-weight: 700; }
 
-/* Underline — sits just beneath the tab text */
 .snav__tab-underline {
   display: block;
   position: absolute;
@@ -151,8 +167,8 @@
   width: fit-content;
 }
 .snav__dropdown-role--student { background: #dbeafe; color: #1d4ed8; }
-.snav__dropdown-role--host    { background: #fef3c7; color: #92400e; }
-.snav__dropdown-role--admin   { background: #fce7f3; color: #9d174d; }
+.snav__dropdown-role--host     { background: #fef3c7; color: #92400e; }
+.snav__dropdown-role--admin    { background: #fce7f3; color: #9d174d; }
 
 .snav__dropdown-item {
   display: flex;
@@ -218,12 +234,6 @@
 .snav-modal__btn--ghost:hover  { background: #ececec; }
 .snav-modal__btn--danger       { background: #dc2626; color: #fff; }
 .snav-modal__btn--danger:hover { background: #b91c1c; }
-
-/* ── Responsive ── */
-@media (max-width: 768px) {
-  .snav            { padding: 0 20px; grid-template-columns: auto 1fr auto; gap: 12px; }
-  .snav__tabs      { display: none; }
-}
 
 /* ════════════════════════════════════════
    BELL ICON
@@ -347,7 +357,6 @@
    UNREAD MESSAGE INDICATORS
 ════════════════════════════════════════ */
 
-/* Small orange dot on the burger pill */
 .snav__menu-msg-dot {
   position: absolute;
   top: 2px;
@@ -359,7 +368,6 @@
   border: 2px solid #fff;
 }
 
-/* Count badge next to Messages in the dropdown */
 .snav__dropdown-msg-badge {
   margin-left: auto;
   background: #FF6B2B;
@@ -371,4 +379,140 @@
   min-width: 20px;
   text-align: center;
   line-height: 1.4;
+}
+
+/* ════════════════════════════════════════
+   MOBILE NAV DROPDOWN (near logo)
+════════════════════════════════════════ */
+
+.snav__mobile-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1.5px solid #ebebeb;
+  background: #fff;
+  cursor: pointer;
+  color: #545454;
+  font-size: 13px;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.snav__mobile-toggle:hover {
+  background: #f7f7f7;
+  border-color: #ccc;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.snav__mobile-toggle--open {
+  background: #fff4ef;
+  border-color: #FF6B2B;
+  color: #FF6B2B;
+}
+
+.snav__mobile-nav {
+  position: relative;
+  display: none;
+  align-items: center;
+  align-self: center;
+  margin-top: 2px;
+}
+
+.snav__mobile-menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 230px;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+  border: 1px solid #f0f0f0;
+  padding: 8px 0;
+  z-index: 9999;
+  animation: mobileMenuSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.snav__mobile-menu__label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #aaa;
+  padding: 8px 16px 4px;
+}
+
+.snav__mobile-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1b1b1b;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.13s, color 0.13s;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+}
+.snav__mobile-menu__item:hover       { background: #f7f7f7; }
+.snav__mobile-menu__item--active     { color: #FF6B2B; font-weight: 700; }
+.snav__mobile-menu__item--active svg { color: #FF6B2B; }
+.snav__mobile-menu__item--host {
+  color: #1b1b1b;
+  font-weight: 600;
+}
+.snav__mobile-menu__item--login {
+  color: #FF6B2B;
+  font-weight: 700;
+}
+.snav__mobile-menu__divider {
+  height: 1px;
+  background: #ebebeb;
+  margin: 6px 0;
+}
+
+.snav__mobile-menu__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #FF6B2B;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ── Responsive Fixes ── */
+@media (max-width: 768px) {
+  .snav {
+    padding: 0 16px;
+    grid-template-columns: auto 1fr auto;
+    gap: 0;
+  }
+
+  .snav__tabs      { display: none; }
+  .snav__host-btn  { display: none; }
+  .snav__mobile-nav    { display: flex; }
+  .snav__mobile-toggle { display: flex; }
+
+  /* FIX: Center Notification Dropdown on Mobile */
+  .snav__bell-dropdown {
+    width: 290px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    animation: bellMobileSlide 0.2s ease forwards;
+  }
+
+  .snav__right { gap: 8px; }
+}
+
+@media (max-width: 400px) {
+  /* Ensure it doesn't overflow very small screens */
+  .snav__bell-dropdown { 
+    width: calc(100vw - 32px); 
+  }
 }

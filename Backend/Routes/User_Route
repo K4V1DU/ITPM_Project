@@ -3,11 +3,13 @@ const router = express.Router();
 const {
   registerUser,
   loginUser,
+  logoutUser,
   sendOtp,
   verifyOtp,
   forgotPasswordSendOtp,
   forgotPasswordVerifyOtp,
   resetPassword,
+  changePassword,
   getUsers,
   getUserById,
   updateUser,
@@ -19,6 +21,7 @@ const {
 // Auth
 router.post("/register", registerUser);
 router.post("/login", loginUser);
+router.post("/logout", logoutUser);
 
 // OTP - Register
 router.post("/send-otp", sendOtp);
@@ -34,6 +37,9 @@ router.get("/", getUsers);
 router.get("/:id", getUserById);
 router.put("/:id", updateUser);
 router.delete("/:id", deleteUser);
+
+// Change Password
+router.put("/:id/change-password", changePassword);
 
 // Favorites
 router.post("/favorites/add", addFavorite);

@@ -10,7 +10,7 @@ import AddFoodService from "./Components/FoodService_Add/AddFoodService";
 import Login from "./Components/Login/Login";
 import EditFoodService from "./Components/FoodService_Edit/EditFoodService";
 import HostListings from "./Components/Host_Listing/HostListings";
-import HostProfile from "./Components/Host_Profile/HostProfile";
+import UserProfile from "./Components/User_Profile/UserProfile";
 import FoodCheckout from "./Components/Food_Checkout/FoodCheckout";
 import Payment from "./Components/Payment/Payment";
 import PaymentReceipt from "./Components/Payment/PaymentReceipt";
@@ -26,6 +26,14 @@ import ForgotPasswrodOtp from "./Components/ForgotPasswordOtp/ForgotPasswordOtp"
 import ResetPassword from "./Components/ResetPassword/ResetPassword";
 import Favourites from "./Components/Favourites/Favourites";
 import HostBooking from "./Components/Host_Bookings/HostBooking";
+import AdminDashBoard from "./Components/AdminPannel/AdminDashBoard";
+import AdminUsers from './Components/AdminPannel/AdminUsers.js';
+import AdminListings from "./Components/AdminPannel/AdminListning";
+import AdminPayments from "./Components/AdminPannel/AdminPayments";
+import AdminReviews from "./Components/AdminPannel/AdminReviews";
+import AdminProfile from "./Components/User_Profile/AdminProfile/AdminProfile";
+import AdminBookings from "./Components/AdminPannel/AdminBookings.js";
+import AdminOrders from "./Components/AdminPannel/AdminOrders.js";
 
 
 
@@ -46,7 +54,9 @@ function App() {
       <Route path="/details-Accommodation/:id" element={<AccommodationDetails />} />
       <Route path="/Foods" element={<Foods />} />
       <Route path="/Listings" element={<HostListings />} />
-      <Route path="/Host-Profile" element={<HostProfile />} />
+      <Route path="/Profile"      element={<UserProfile />} /> 
+      <Route path="/Host-Profile" element={<UserProfile />} /> 
+      <Route path="/UserProfile" element={<UserProfile />} />
       <Route path="/FoodCheckout/:id" element={<FoodCheckout />} />
       <Route path="/Payment" element={<Payment />} />
       <Route path="/PaymentReceipt" element={<PaymentReceipt />} />
@@ -60,9 +70,17 @@ function App() {
       <Route path="/Register" element={<Register />} />
       <Route path="/ForgotPassword" element={<ForgotPassword />} />
       <Route path="/ForgotPasswrodOtp" element={<ForgotPasswrodOtp />} />
-       <Route path="/ResetPassword" element={<ResetPassword />} />
+      <Route path="/ResetPassword" element={<ResetPassword />} />
       <Route path="/Favourites" element={<Favourites />} />
-
+      <Route path="/AdminDashBoard" element={<AdminDashBoard />} />
+      <Route path="/AdminUsers" element={<AdminUsers />} />
+      <Route path="/AdminListings" element={<AdminListings />} />
+      <Route path="/AdminPayments" element={<AdminPayments />} />
+      <Route path="/AdminReviews" element={<AdminReviews />} />
+      <Route path="/AdminProfile" element={<AdminProfile />} />
+      <Route path="/AdminBookings" element={<AdminBookings />} />
+      <Route path="/AdminOrders" element={<AdminOrders />} />
+      
 
 
     </Routes>

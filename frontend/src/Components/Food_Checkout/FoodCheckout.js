@@ -1,14 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
-  FaAirbnb,
-  FaBars,
-  FaUser,
-  FaFacebookF,
-  FaTwitter,
-  FaInstagram,
-  FaSignOutAlt,
-  FaEnvelope,
   FaMotorcycle,
   FaShoppingBag,
   FaSpinner,
@@ -26,6 +18,8 @@ import {
   FaMoneyBillWave,
   FaCrosshairs,
 } from "react-icons/fa";
+import StudentNavbar from "../NavBar/Student_NavBar/StudentNavbar";
+import Footer from "../NavBar/Footer/Footer";
 
 const API_BASE = "http://localhost:8000";
 const GOOGLE_MAP_KEY = "AIzaSyDKKnxSMEUkZyZiLT83DXCJhR4eplblzKA";
@@ -83,34 +77,6 @@ function LoginRequiredModal({ onClose, onLogin }) {
   );
 }
 
-function LogoutModal({ onConfirm, onCancel }) {
-  return (
-    <div className="fs-gen-modal-overlay" onClick={onCancel}>
-      <div className="fs-gen-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="fs-gen-modal__icon fs-gen-modal__icon--logout">
-          <FaSignOutAlt />
-        </div>
-        <h3 className="fs-gen-modal__title">Logout</h3>
-        <p className="fs-gen-modal__msg">Are you sure you want to logout?</p>
-        <div className="fs-gen-modal__actions">
-          <button
-            className="fs-gen-modal__btn fs-gen-modal__btn--cancel"
-            onClick={onCancel}
-          >
-            Cancel
-          </button>
-          <button
-            className="fs-gen-modal__btn fs-gen-modal__btn--danger"
-            onClick={onConfirm}
-          >
-            Yes, Logout
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─────────────────────────────────────────
 // GOOGLE MAP — DRAGGABLE DELIVERY PIN
 // ─────────────────────────────────────────
@@ -128,7 +94,6 @@ function GoogleDeliveryMap({
     ? { lat: defaultCenter[1], lng: defaultCenter[0] }
     : { lat: 7.8731, lng: 80.7718 };
 
-  // Helper: place or move marker on the map
   const placeMarker = (lat, lng) => {
     if (!gMapRef.current || !window.google) return;
     if (markerRef.current) {
@@ -158,7 +123,6 @@ function GoogleDeliveryMap({
     anchor: new window.google.maps.Point(12, 22),
   });
 
-  // React to GPS coords pushed from parent
   useEffect(() => {
     if (!gpsCoords || !gMapRef.current) return;
     placeMarker(gpsCoords.lat, gpsCoords.lng);
@@ -191,7 +155,6 @@ function GoogleDeliveryMap({
         placeMarker(e.latLng.lat(), e.latLng.lng());
       });
 
-      // Restore existing pin
       if (selectedCoords) {
         const [lng, lat] = selectedCoords;
         markerRef.current = new google.maps.Marker({
@@ -568,31 +531,25 @@ export default function FoodCheckout() {
     foodServiceId,
   } = location.state ?? {};
 
-  // Delivery is free for now
   const deliveryFee = 0;
 
   const userId = localStorage.getItem("CurrentUserId");
   const isLoggedIn = !!userId;
 
   const [currentUser, setCurrentUser] = useState(null);
-  const [userAvatarSrc, setUserAvatarSrc] = useState(null);
   const [ownerUser, setOwnerUser] = useState(null);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showLoginRequired, setShowLoginRequired] = useState(false);
   const [notes, setNotes] = useState("");
   const [deliveryCoords, setDeliveryCoords] = useState(null);
-  const [gpsCoords, setGpsCoords] = useState(null); // triggers map pan
+  const [gpsCoords, setGpsCoords] = useState(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [placedOrderId, setPlacedOrderId] = useState(null);
 
-  const dropdownRef = useRef(null);
   const userRole = currentUser?.role ?? null;
   const isStudent = userRole === "student";
-  const isHost = userRole === "host";
 
   useEffect(() => {
     if (!userId) return;
@@ -600,9 +557,7 @@ export default function FoodCheckout() {
       .then((r) => (r.ok ? r.json() : null))
       .then((raw) => {
         if (!raw) return;
-        const user = unwrap(raw);
-        setCurrentUser(user);
-        if (user?.profileImage) setUserAvatarSrc(photoSrc(user.profileImage));
+        setCurrentUser(unwrap(raw));
       })
       .catch(() => {});
   }, []);
@@ -619,25 +574,12 @@ export default function FoodCheckout() {
   }, [service]);
 
   useEffect(() => {
-    const h = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target))
-        setShowDropdown(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
-
-  useEffect(() => {
     if (!cartItems.length) navigate(-1);
   }, []);
+
   useEffect(() => {
     if (currentUser && !isStudent) setShowLoginRequired(true);
   }, [currentUser]);
-
-  const handleLogoutConfirm = () => {
-    localStorage.removeItem("CurrentUserId");
-    navigate("/Login");
-  };
 
   // ── Use My Location ────────────────────
   const handleUseMyLocation = () => {
@@ -650,8 +592,8 @@ export default function FoodCheckout() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setGpsCoords(coords); // triggers map pan
-        setDeliveryCoords([coords.lng, coords.lat]); // updates parent state
+        setGpsCoords(coords);
+        setDeliveryCoords([coords.lng, coords.lat]);
         setGpsLoading(false);
       },
       (err) => {
@@ -712,7 +654,6 @@ export default function FoodCheckout() {
       const order = unwrap(raw);
       setPlacedOrderId(order._id ?? "—");
 
-      // ── Notify host: new order received ──────────────────────────────────
       const hostId = service?.owner?._id ?? service?.owner ?? null;
       if (hostId) {
         sendNotification({
@@ -726,7 +667,6 @@ export default function FoodCheckout() {
         });
       }
 
-      // ── Notify student: order confirmed ──────────────────────────────────
       if (userId) {
         sendNotification({
           recipient: userId,
@@ -752,8 +692,6 @@ export default function FoodCheckout() {
   const kitchenName = service?.kitchenName ?? "Kitchen";
   const address = service?.address ?? "";
   const defaultCenter = service?.location?.coordinates ?? null;
-  const hostBtnLabel = !isLoggedIn ? "Login" : isHost ? "Host Page" : null;
-  const hostBtnAction = () => navigate(!isLoggedIn ? "/Login" : "/Listings");
 
   return (
     <div
@@ -765,119 +703,8 @@ export default function FoodCheckout() {
         lineHeight: 1.5,
       }}
     >
-      {/* ══ NAVBAR — position:relative so it NEVER overlaps hero ══ */}
-      <nav className="fs-nav" style={{ position: "relative", zIndex: 100 }}>
-        <div className="fs-nav__left">
-          <a href="/" className="fs-nav__logo">
-            <FaAirbnb /> Unisewana
-          </a>
-        </div>
-        <div className="fs-nav__tabs">
-          {[
-            { label: "Boardings", href: "/Boardings" },
-            { label: "Food Services", href: "/FoodServices" },
-            { label: "Orders", href: "/Orders" },
-          ].map(({ label, href }) => (
-            <a
-              key={label}
-              href={href}
-              className="fs-nav__tab"
-              style={{ fontFamily: FONT }}
-            >
-              {label}
-            </a>
-          ))}
-        </div>
-        <div className="fs-nav__right">
-          {hostBtnLabel && (
-            <button
-              className="fs-nav__host-btn"
-              style={{ fontFamily: FONT }}
-              onClick={hostBtnAction}
-            >
-              {hostBtnLabel}
-            </button>
-          )}
-          <div className="fs-nav__avatar">
-            {userAvatarSrc ? (
-              <img
-                src={userAvatarSrc}
-                alt="Profile"
-                className="fs-nav__avatar-img"
-                onError={() => setUserAvatarSrc(null)}
-              />
-            ) : (
-              <FaUser className="fs-nav__avatar-icon" />
-            )}
-          </div>
-          <div ref={dropdownRef} className="fs-dropdown">
-            <div
-              className="fs-nav__icon-btn"
-              onClick={() => setShowDropdown((p) => !p)}
-            >
-              <FaBars />
-            </div>
-            {showDropdown && (
-              <div className="fs-dropdown__menu">
-                {isLoggedIn && currentUser && (
-                  <>
-                    <div className="fs-dropdown__user">
-                      <span className="fs-dropdown__username">
-                        {currentUser.name ?? "User"}
-                      </span>
-                      <span className="fs-dropdown__email">
-                        {currentUser.email ?? ""}
-                      </span>
-                      <span
-                        className={`fs-dropdown__role fs-dropdown__role--${userRole}`}
-                      >
-                        {userRole}
-                      </span>
-                    </div>
-                    <div className="fs-dropdown__divider" />
-                  </>
-                )}
-                {(isStudent || isHost) && (
-                  <div
-                    className="fs-dropdown__item"
-                    onClick={() => {
-                      setShowDropdown(false);
-                      navigate("/Profile");
-                    }}
-                  >
-                    <FaUser style={{ opacity: 0.7 }} /> Profile
-                  </div>
-                )}
-                {isStudent && (
-                  <div
-                    className="fs-dropdown__item"
-                    onClick={() => {
-                      setShowDropdown(false);
-                      navigate("/Messages");
-                    }}
-                  >
-                    <FaEnvelope style={{ opacity: 0.7 }} /> Messages
-                  </div>
-                )}
-                {isLoggedIn && (isStudent || isHost) && (
-                  <>
-                    <div className="fs-dropdown__divider" />
-                    <div
-                      className="fs-dropdown__item fs-dropdown__item--danger"
-                      onClick={() => {
-                        setShowDropdown(false);
-                        setShowLogoutModal(true);
-                      }}
-                    >
-                      <FaSignOutAlt style={{ opacity: 0.7 }} /> Logout
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </nav>
+      {/* ══ NAVBAR ══ */}
+      <StudentNavbar activeTab="Foods" />
 
       {/* ══ HERO — Facebook-style ══ */}
       <div style={{ background: "#fff", borderBottom: "1px solid #e2e2e2" }}>
@@ -1088,7 +915,6 @@ export default function FoodCheckout() {
                   boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
                 }}
               >
-                {/* Section header */}
                 <div
                   style={{
                     display: "flex",
@@ -1600,39 +1426,8 @@ export default function FoodCheckout() {
       </div>
 
       {/* ══ FOOTER ══ */}
-      <footer className="fs-footer">
-        <div className="fs-footer__bottom">
-          <div className="fs-footer__left">
-            <span>© 2026 Unisewana, Inc.</span>
-            <span className="fs-footer__dot">·</span>
-            <a href="#" className="fs-footer__legal-link">
-              Privacy
-            </a>
-            <span className="fs-footer__dot">·</span>
-            <a href="#" className="fs-footer__legal-link">
-              Terms
-            </a>
-            <span className="fs-footer__dot">·</span>
-            <a href="#" className="fs-footer__legal-link">
-              Sitemap
-            </a>
-          </div>
-          <div className="fs-footer__socials">
-            {[FaFacebookF, FaTwitter, FaInstagram].map((Icon, i) => (
-              <a key={i} href="#" className="fs-footer__social-icon">
-                <Icon />
-              </a>
-            ))}
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
-      {showLogoutModal && (
-        <LogoutModal
-          onConfirm={handleLogoutConfirm}
-          onCancel={() => setShowLogoutModal(false)}
-        />
-      )}
       {showLoginRequired && (
         <LoginRequiredModal
           onClose={() => {

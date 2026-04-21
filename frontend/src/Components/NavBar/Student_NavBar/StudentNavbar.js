@@ -8,6 +8,11 @@ import {
   FaBell,
   FaReceipt,
   FaHeart,
+  FaHome,
+  FaUtensils,
+  FaChevronDown,
+  FaChevronUp,
+  FaSignInAlt,
 } from "react-icons/fa";
 import "./StudentNavbar.css";
 import { useNotifications } from "../../../hooks/useNotifications";
@@ -15,9 +20,6 @@ import { useNotifications } from "../../../hooks/useNotifications";
 const API_BASE = "http://localhost:8000";
 const FONT = "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
 
-// ─────────────────────────────────────────
-// LOGOUT MODAL
-// ─────────────────────────────────────────
 function LogoutModal({ onConfirm, onCancel }) {
   return (
     <div className="snav-overlay" onClick={onCancel}>
@@ -40,14 +42,9 @@ function LogoutModal({ onConfirm, onCancel }) {
   );
 }
 
-// ─────────────────────────────────────────
-// STUDENT NAVBAR
-// Props:
-//   activeTab  — "Boardings" | "Foods" | ""
-// ─────────────────────────────────────────
 export default function StudentNavbar({ activeTab = "" }) {
-  const navigate  = useNavigate();
-  const userId    = localStorage.getItem("CurrentUserId");
+  const navigate = useNavigate();
+  const userId   = localStorage.getItem("CurrentUserId");
 
   const {
     notifications,
@@ -57,7 +54,7 @@ export default function StudentNavbar({ activeTab = "" }) {
     clearAll,
   } = useNotifications(userId);
 
-  const [currentUser,    setCurrentUser]    = useState(null);
+  const [currentUser,     setCurrentUser]    = useState(null);
   const [userAvatarSrc,  setUserAvatarSrc]  = useState(
     () => sessionStorage.getItem("studentAvatarDataUrl") || null
   );
@@ -68,12 +65,13 @@ export default function StudentNavbar({ activeTab = "" }) {
   const [showLogout,     setShowLogout]     = useState(false);
   const [showBell,       setShowBell]       = useState(false);
   const [unreadMsgCount, setUnreadMsgCount] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const dropRef    = useRef(null);
-  const bellRef    = useRef(null);
-  const msgPollRef = useRef(null);
+  const dropRef      = useRef(null);
+  const bellRef      = useRef(null);
+  const mobileRef    = useRef(null);
+  const msgPollRef   = useRef(null);
 
-  // ── Fetch user profile + cache avatar ────────────────────────────────────
   useEffect(() => {
     if (!userId) return;
     fetch(`${API_BASE}/User/${userId}`)
@@ -117,7 +115,6 @@ export default function StudentNavbar({ activeTab = "" }) {
       .catch(() => {});
   }, [userId]);
 
-  // ── Fetch unread message count + poll every 10s ───────────────────────────
   const fetchUnreadMessages = async () => {
     if (!userId) return;
     try {
@@ -138,11 +135,11 @@ export default function StudentNavbar({ activeTab = "" }) {
     return () => clearInterval(msgPollRef.current);
   }, [userId]);
 
-  // ── Close dropdowns on outside click ──────────────────────────────────────
   useEffect(() => {
     const h = (e) => {
-      if (dropRef.current && !dropRef.current.contains(e.target)) setDropdown(false);
-      if (bellRef.current && !bellRef.current.contains(e.target)) setShowBell(false);
+      if (dropRef.current   && !dropRef.current.contains(e.target))   setDropdown(false);
+      if (bellRef.current   && !bellRef.current.contains(e.target))   setShowBell(false);
+      if (mobileRef.current && !mobileRef.current.contains(e.target)) setMobileMenuOpen(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
@@ -163,17 +160,20 @@ export default function StudentNavbar({ activeTab = "" }) {
   const isStudent     = userRole === "student";
 
   const TABS = [
-    { label: "Boardings", href: "/Boardings" },
-    { label: "Foods",     href: "/Foods"     },
+    { label: "Boardings", href: "/Boardings", icon: <FaHome /> },
+    { label: "Foods",     href: "/Foods",     icon: <FaUtensils /> },
   ];
 
   const currentPath = window.location.pathname;
 
+  const mobileNavigate = (path) => {
+    setMobileMenuOpen(false);
+    navigate(path);
+  };
+
   return (
     <>
       <nav className="snav" style={{ fontFamily: FONT }}>
-
-        {/* Left — logo */}
         <div className="snav__left">
           <a href="/Boardings" className="snav__logo">
             <img
@@ -182,9 +182,62 @@ export default function StudentNavbar({ activeTab = "" }) {
               style={{ height: "32px", width: "auto", display: "block" }}
             />
           </a>
+
+          <div className="snav__mobile-nav" ref={mobileRef}>
+            <button
+              className={`snav__mobile-toggle${mobileMenuOpen ? " snav__mobile-toggle--open" : ""}`}
+              onClick={() => setMobileMenuOpen((p) => !p)}
+              aria-label="Navigation menu"
+            >
+              {mobileMenuOpen ? <FaChevronUp /> : <FaChevronDown />}
+            </button>
+
+            {mobileMenuOpen && (
+              <div className="snav__mobile-menu">
+                <div className="snav__mobile-menu__label">Navigate</div>
+                {TABS.map(({ label, href, icon }) => {
+                  const active = currentPath === href || activeTab === label;
+                  return (
+                    <a
+                      key={label}
+                      href={href}
+                      className={`snav__mobile-menu__item${active ? " snav__mobile-menu__item--active" : ""}`}
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      {icon} {label}
+                      {active && <span className="snav__mobile-menu__dot" />}
+                    </a>
+                  );
+                })}
+
+                {isHost && (
+                  <>
+                    <div className="snav__mobile-menu__divider" />
+                    <button
+                      className="snav__mobile-menu__item snav__mobile-menu__item--host"
+                      onClick={() => mobileNavigate("/Listings")}
+                    >
+                      <FaHome /> Host Page
+                    </button>
+                  </>
+                )}
+
+                {!isLoggedIn && (
+                  <>
+                    <div className="snav__mobile-menu__divider" />
+                    <button
+                      className="snav__mobile-menu__item snav__mobile-menu__item--login"
+                      onClick={() => mobileNavigate("/Login")}
+                    >
+                      <FaSignInAlt /> Login
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Centre — tabs */}
         <div className="snav__tabs">
           {TABS.map(({ label, href }) => {
             const active = currentPath === href || activeTab === label;
@@ -198,7 +251,6 @@ export default function StudentNavbar({ activeTab = "" }) {
           })}
         </div>
 
-        {/* Right — bell + avatar */}
         <div className="snav__right">
           {!isLoggedIn && (
             <button className="snav__host-btn" onClick={() => navigate("/Login")}>
@@ -211,7 +263,6 @@ export default function StudentNavbar({ activeTab = "" }) {
             </button>
           )}
 
-          {/* Bell */}
           <div className="snav__bell-wrap" ref={bellRef}>
             <button className="snav__bell-btn"
               onClick={() => { setShowBell(p => !p); setDropdown(false); }}
@@ -273,7 +324,6 @@ export default function StudentNavbar({ activeTab = "" }) {
             )}
           </div>
 
-          {/* Combined burger + avatar pill */}
           <div ref={dropRef} className="snav__dropdown">
             <button className="snav__menu-btn" onClick={() => setDropdown((p) => !p)}>
               <FaBars className="snav__menu-icon" />
@@ -281,7 +331,6 @@ export default function StudentNavbar({ activeTab = "" }) {
                 ? <img src={userAvatarSrc} alt="Profile" className="snav__user-avatar"
                     onError={() => setUserAvatarSrc(null)} />
                 : <span className="snav__user-icon-wrap"><FaUser className="snav__user-icon" /></span>}
-              {/* Small dot on the pill when there are unread messages */}
               {unreadMsgCount > 0 && <span className="snav__menu-msg-dot" />}
             </button>
 
