@@ -862,6 +862,7 @@ function AccommodationEdit() {
                 </p>
               )}
             </div>
+            
 
             {isSaving && (
               <div className="ae-saving-indicator">
