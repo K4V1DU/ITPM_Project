@@ -57,19 +57,35 @@ const getStudentBookings = async (req, res) => {
 // ==============================
 const getHostBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find()
-      .populate({
-        path: "accommodation",
-        match: { owner: req.params.hostId },
-      })
-      .populate("student")
+    // First find accommodations owned by this host
+    const Accommodation = require("../models/Accommodation");
+    const hostAccommodations = await Accommodation.find({ owner: req.params.hostId }).select("_id");
+    const accommodationIds = hostAccommodations.map(a => a._id);
+
+    // Then find bookings for those accommodations
+    const bookings = await Booking.find({ accommodation: { $in: accommodationIds } })
+      .populate("student", "name email phone profileImage")
+      .populate("accommodation", "name location")
       .sort({ createdAt: -1 });
 
-    // filter null accommodations
-    const filtered = bookings.filter(b => b.accommodation !== null);
+    res.status(200).json({ success: true, data: bookings });
 
-    res.status(200).json({ success: true, data: filtered });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 
+// ==============================
+// Get All Bookings (Admin)
+// ==============================
+const getAllBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.find()
+      .populate("student", "name email phone profileImage")
+      .populate("accommodation", "title location")  // ← "title" not "name"
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, data: bookings });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -128,6 +144,7 @@ module.exports = {
   createBooking,
   getStudentBookings,
   getHostBookings,
+  getAllBookings,
   updateBookingStatus,
   deleteBooking,
 };

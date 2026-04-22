@@ -1,31 +1,42 @@
 const express = require("express");
 const router  = express.Router();
 const multer  = require("multer");
+
 const {
   getPlans,
   createPayment,
   getMyPayments,
   getPaymentById,
+  getAllPayments, // ✅ NEW
   getReceiptImage,
   uploadReceipt,
   requestManualReview,
   cancelPayment,
+  verifyPayment,  
 } = require("../Controllers/Payment_Controller");
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// ── Plan Routes ───────────────────────────────────────────────────────────────
+// ── Plan Routes ─────────────────────────────────────────────
 router.get("/plans", getPlans);
 
-// ── Payment CRUD ──────────────────────────────────────────────────────────────
-router.post  ("/create",        createPayment);          // Create payment + REF code
-router.get   ("/my",            getMyPayments);          // All payments for host  (?hostId=)
-router.get   ("/:id",           getPaymentById);         // Single payment         (?hostId=)
-router.patch ("/:id/cancel",    cancelPayment);          // Cancel (created only)
+// ── Payment CRUD ────────────────────────────────────────────
+router.get("/all", getAllPayments);        // ✅ MUST be before /:id
+router.get("/my", getMyPayments);
 
-// ── Receipt & Verification ────────────────────────────────────────────────────
-router.get   ("/:id/receipt-image",   getReceiptImage);                           // Serve stored receipt image
-router.post  ("/:id/upload-receipt",  upload.single("receipt"), uploadReceipt);   // Upload + OCR verify
-router.patch ("/:id/manual-request",  requestManualReview);                       // Request manual review
+router.post("/create", createPayment);
+
+
+router.get("/:id", getPaymentById);        // ⚠️ Keep AFTER /all
+router.patch("/:id/cancel", cancelPayment);
+
+router.patch("/:id/admin-verify", verifyPayment);
+
+// ── Receipt & Verification ─────────────────────────────────
+router.get("/:id/receipt-image", getReceiptImage);
+router.post("/:id/upload-receipt", upload.single("receipt"), uploadReceipt);
+router.patch("/:id/manual-request", requestManualReview);
+
 
 module.exports = router;
+

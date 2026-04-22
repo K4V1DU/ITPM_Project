@@ -17,19 +17,19 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // Import Routes
-const AccommodationRouter = require("../Backend/Routes/Accommodation_Route");
-const PhotoRouter = require("../Backend/Routes/Photo_Route"); 
-const ReviewRouter = require("../Backend/Routes/Review_Route"); 
-const UserRouter = require("../Backend/Routes/User_Route"); 
-const MenuItemRouter = require("../Backend/Routes/MenuItem_Route"); 
-const FoodServiceRouter = require("../Backend/Routes/FoodService_Route"); 
-const PaymentRouter = require("../Backend/Routes/Payment_Route");
-const ContactRouter = require("../Backend/Routes/Contact_Route")
-const FoodOrderRouter = require("../Backend/Routes/FoodOrder_Route")
-const NotificationRouter = require("../Backend/Routes/Notification_Route")
-const favouriteRoute = require("../Backend/Routes/Favourite_Route");
-const messageRoute = require("../Backend/Routes/Message_Route");
-const BookingRouter = require("../Backend/Routes/Booking_Route");
+const AccommodationRouter = require("./Routes/Accommodation_Route");
+const PhotoRouter = require("./Routes/Photo_Route"); 
+const ReviewRouter = require("./Routes/Review_Route"); 
+const UserRouter = require("./Routes/User_Route"); 
+const MenuItemRouter = require("./Routes/MenuItem_Route"); 
+const FoodServiceRouter = require("./Routes/FoodService_Route"); 
+const PaymentRouter = require("./Routes/Payment_Route");
+const ContactRouter = require("./Routes/Contact_Route");
+const FoodOrderRouter = require("./Routes/FoodOrder_Route");
+const NotificationRouter = require("./Routes/Notification_Route");
+const favouriteRoute = require("./Routes/Favourite_Route");
+const messageRoute = require("./Routes/Message_Route");
+const BookingRouter = require("./Routes/Booking_Route");
 
 
 

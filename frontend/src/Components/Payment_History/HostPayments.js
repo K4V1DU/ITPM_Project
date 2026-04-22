@@ -240,7 +240,7 @@ function PaymentDetail({ payment, listing, receiptImage, onExpandReceipt, onCanc
       {/* Header */}
       <div className="hp-detail__header">
         <div className="hp-detail__header-row">
-          <div className="hp-detail__listing">
+          <div className="hp-detail__listing">cd frontend
             <div className="hp-detail__listing-icon">
               {listing?.iconUrl
                 ? <img src={listing.iconUrl} alt="listing" className="hp-detail__listing-img"

@@ -1,11 +1,12 @@
 const Payment       = require("../models/Payment");
 const FoodService   = require("../models/FoodService");
 const Accommodation = require("../models/Accommodation");
+const mongoose      = require("mongoose");
 const fetch         = (...args) => import("node-fetch").then(({ default: f }) => f(...args));
 const exifr         = require("exifr");
 const pdfParse      = require("pdf-parse");
 
-// ─── Plan Config ─────────────────────────────────────────────────────────────
+// ─── Plan Config ───────────────────────────────────────────
 const PLANS = {
   "1m":  { label: "1 Month",   amount: 299,  daysAdded: 30  },
   "3m":  { label: "3 Months",  amount: 799,  daysAdded: 90  },
@@ -13,39 +14,33 @@ const PLANS = {
   "12m": { label: "12 Months", amount: 2599, daysAdded: 365 },
 };
 
-// ─── Software signature lists ─────────────────────────────────────────────────
-//
-// EDITING_SOFTWARE  — image manipulation tools. Presence in file metadata is
-//   a strong indicator the image has been created or tampered with.
-//
-// LEGITIMATE_SOFTWARE — phone manufacturers, mobile OS names, and system-level
-//   screenshot / camera tools. A match here clears all suspicion, even if the
-//   string partially overlaps with something in the editing list.
-//
-const EDITING_SOFTWARE = [
-  "photoshop", "gimp", "canva", "picsart", "snapseed", "lightroom",
-  "affinity photo", "affinity designer", "pixelmator", "paint.net",
-  "inkscape", "illustrator", "corel", "fotor", "polarr", "vsco",
-  "facetune", "meitu", "remove.bg", "pixlr", "befunky",
-  "adobe photoshop", "adobe illustrator", "adobe firefly",
-  "procreate", "sketchbook", "autodesk sketchbook", "photoscape",
-  "luminar", "darktable", "rawtherapee", "capture one",
-];
+// ─── GET ALL PAYMENTS (NEW) ────────────────────────────────
+exports.getAllPayments = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
 
-const LEGITIMATE_SOFTWARE = [
-  // Phone brands
-  "apple", "iphone", "ipad", "samsung", "google", "huawei", "xiaomi",
-  "oppo", "vivo", "realme", "oneplus", "sony ericsson", "motorola",
-  "nokia", "lg electronics", "htc", "asus", "lenovo", "tecno", "infinix",
-  // OS / system
-  "android", "ios", "ipados", "miui", "coloros", "funtouch", "harmonyos",
-  "windows", "macos", "linux",
-  // System screenshot / camera tools
-  "screenshot", "screen capture", "camera", "photos", "gallery",
-  "google photos", "windows photo", "photos app", "image capture",
-];
+    const payments = await Payment.find()
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .select("-receiptImage -rawOcrText");
 
-// ─── Helpers: ref + expiry ────────────────────────────────────────────────────
+    res.json({
+      success: true,
+      count: payments.length,
+      payments,
+    });
+
+  } catch (err) {
+    console.error("getAllPayments error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error.",
+      error: err.message,
+    });
+  }
+};
+
+// ─── Helpers ───────────────────────────────────────────────
 const generateReferenceCode = async () => {
   let referenceCode;
   let exists = true;
@@ -68,585 +63,209 @@ const calcNewExpireDate = (currentExpireDate, daysAdded) => {
 
 const applyExpireDateToListing = async (listingId, listingType, daysAdded) => {
   const Model      = listingType === "food" ? FoodService : Accommodation;
-  const listingStr = listingId?.toString();
-  const listing    = await Model.findById(listingStr).select("expireDate");
-  if (!listing) throw new Error(`Listing not found — id: ${listingStr}, type: ${listingType}`);
+  const listing    = await Model.findById(listingId).select("expireDate");
+  if (!listing) throw new Error("Listing not found");
+
   const newExpireDate = calcNewExpireDate(listing.expireDate, daysAdded);
-  await Model.findByIdAndUpdate(listingStr, { $set: { expireDate: newExpireDate, isAvailable: true } });
+
+  await Model.findByIdAndUpdate(listingId, {
+    $set: { expireDate: newExpireDate, isAvailable: true }
+  });
+
   return newExpireDate;
 };
 
-// ─── Detect actual file type from magic bytes ─────────────────────────────────
-const detectFileType = (buffer) => {
-  const m = buffer.slice(0, 16);
-  if (m[0] === 0xFF && m[1] === 0xD8 && m[2] === 0xFF) return "image/jpeg";
-  if (m[0] === 0x89 && m[1] === 0x50 && m[2] === 0x4E && m[3] === 0x47) return "image/png";
-  if (m.slice(0, 6).toString("ascii") === "GIF87a" || m.slice(0, 6).toString("ascii") === "GIF89a") return "image/gif";
-  if (m.slice(0, 4).toString("ascii") === "RIFF" && m.slice(8, 12).toString("ascii") === "WEBP") return "image/webp";
-  if (m[0] === 0x42 && m[1] === 0x4D) return "image/bmp";
-  if (m.slice(0, 4).toString("ascii") === "%PDF") return "application/pdf";
-  return null;
-};
-
-const isLegitimateSource = (str) =>
-  str && LEGITIMATE_SOFTWARE.some((s) => str.toLowerCase().includes(s));
-
-const matchesEditingTool = (str) =>
-  str && (EDITING_SOFTWARE.find((s) => str.toLowerCase().includes(s)) || null);
-
-// ─── Classify image source type ───────────────────────────────────────────────
-//
-// Used to give Groq appropriate framing so it does not penalise
-// legitimate screenshots for lacking camera EXIF.
-//
-const classifySource = (exifData) => {
-  if (!exifData) return "bank_screenshot";            // no EXIF = screenshot
-  if (exifData.Make || exifData.Model) {
-    return exifData.DateTimeOriginal ? "camera_photo" : "scanned_document";
-  }
-  return "bank_screenshot";
-};
-
-// ─── Binary metadata analysis ─────────────────────────────────────────────────
-//
-// Checks the raw buffer for signs of image editing.  The key principle:
-// assume legitimate unless there is direct, unambiguous evidence of an
-// editing tool.  Absence of EXIF is never flagged — screenshots from any
-// bank app will naturally have no camera metadata.
-//
-const analyseImageMetadata = async (imageBuffer, mimeType) => {
-  const flags     = [];
-  let software    = null;
-  let hasExif     = false;
-  let sourceType  = "bank_screenshot";
-
-  const normClaimed  = mimeType === "image/jpg" ? "image/jpeg" : mimeType;
-  const detectedType = detectFileType(imageBuffer);
-
-  // 1. Magic-byte mismatch ───────────────────────────────────────────────────
-  if (detectedType && detectedType !== normClaimed) {
-    flags.push(
-      `File type mismatch: uploaded as "${normClaimed}" but binary signature is "${detectedType}"`
-    );
-  }
-
-  // 2. EXIF / XMP parse ─────────────────────────────────────────────────────
-  try {
-    const exif = await exifr.parse(imageBuffer, {
-      tiff: true, xmp: true, iptc: true, icc: false, jfif: false, ihdr: false,
-      pick: [
-        "Software", "ProcessingSoftware", "Creator", "CreatorTool",
-        "Make", "Model", "DateTimeOriginal", "HistoryAction",
-      ],
-    });
-
-    if (exif) {
-      hasExif    = true;
-      sourceType = classifySource(exif);
-
-      const swRaw = [exif.Software, exif.ProcessingSoftware, exif.Creator, exif.CreatorTool]
-        .filter(Boolean).join(" ");
-
-      // Only flag editing tools — never flag phone brands or OS names
-      if (swRaw && !isLegitimateSource(swRaw) && matchesEditingTool(swRaw)) {
-        software = swRaw.trim();
-        flags.push(`Editing software detected in EXIF: "${swRaw.trim()}"`);
-      }
-
-      // XMP HistoryAction — written by Photoshop/Lightroom on every save.
-      // Cameras and phones never write this field.
-      if (exif.HistoryAction && !flags.length) {
-        const actions = (Array.isArray(exif.HistoryAction) ? exif.HistoryAction : [exif.HistoryAction])
-          .filter((a) => typeof a === "string" &&
-            ["save", "export", "flatten", "merge", "clone"].some((k) => a.toLowerCase().includes(k)));
-        if (actions.length > 0) {
-          flags.push(`XMP edit history found: ${actions.slice(0, 3).join(", ")}`);
-        }
-      }
-    }
-  } catch (err) {
-    // Non-fatal — valid screenshots routinely fail EXIF parsing
-    console.log("exifr note:", err.message);
-  }
-
-  // 3. PNG chunk scan ────────────────────────────────────────────────────────
-  const isPng = detectedType === "image/png" || normClaimed === "image/png";
-  if (isPng && !flags.some((f) => f.includes("EXIF"))) {
-    const raw = imageBuffer.toString("latin1").toLowerCase();
-    const pngSignatures = [
-      { needle: "adobe imageready",  label: "Adobe ImageReady"  },
-      { needle: "adobe photoshop",   label: "Adobe Photoshop"   },
-      { needle: "adobe firefly",     label: "Adobe Firefly"     },
-      { needle: "gimp",              label: "GIMP"              },
-      { needle: "canva",             label: "Canva"             },
-      { needle: "picsart",           label: "PicsArt"           },
-      { needle: "procreate",         label: "Procreate"         },
-      { needle: "paintshop pro",     label: "PaintShop Pro"     },
-      { needle: "corel photo-paint", label: "Corel Photo-Paint" },
-      { needle: "affinity photo",    label: "Affinity Photo"    },
-      { needle: "pixelmator",        label: "Pixelmator"        },
-    ];
-    for (const { needle, label } of pngSignatures) {
-      if (raw.includes(needle) && !isLegitimateSource(needle)) {
-        flags.push(`PNG chunk contains editing tool reference: "${label}"`);
-        if (!software) software = label;
-        break;
-      }
-    }
-  }
-
-  // Hard evidence = an editing tool name is confirmed in the file's own data
-  const hardEvidence = flags.some(
-    (f) =>
-      f.includes("Editing software detected in EXIF") ||
-      f.includes("PNG chunk contains") ||
-      f.includes("File type mismatch")
-  );
-
-  return { flags, software, sourceType, hasExif, hardEvidence };
-};
-
-// ─── Groq: analyse image via vision ──────────────────────────────────────────
-const analyseImageWithGroq = async (buffer, mimeType, expectedAmount, expectedRef, meta) => {
-  const sourceLabels = {
-    bank_screenshot: "bank mobile app or internet banking screenshot (no camera EXIF is normal and expected for screenshots)",
-    camera_photo:    "camera photo of a physical printed receipt",
-    scanned_document:"scanned document",
-  };
-
-  const metaLines = [
-    `Source classification: ${sourceLabels[meta.sourceType] || "unknown"}.`,
-  ];
-
-  if (meta.flags.length > 0) {
-    metaLines.push(
-      `METADATA WARNING FLAGS (binary scan of the file):\n${meta.flags.map((f) => `  - ${f}`).join("\n")}`,
-      "Treat these flags as strong supporting evidence of tampering."
-    );
-  } else {
-    metaLines.push("Binary metadata scan: CLEAN — no editing software signatures found.");
-  }
-
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method:  "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.GROQ_API_KEY}` },
-    body: JSON.stringify({
-      model: "meta-llama/llama-4-scout-17b-16e-instruct",
-      messages: [{
-        role: "user",
-        content: [
-          { type: "image_url", image_url: { url: `data:${mimeType};base64,${buffer.toString("base64")}` } },
-          {
-            type: "text",
-            text: `Analyse this image as a payment receipt verifier. Respond with ONLY valid JSON, no markdown backticks.
-
-Return exactly this structure:
-{
-  "isGenuineReceipt": true or false,
-  "authenticityReason": "one sentence",
-  "suspiciousFlags": [],
-  "extractedAmount": 12500.00 or null,
-  "extractedRef": "REF1234" or null,
-  "extractedDate": "DD/MM/YYYY" or null,
-  "extractedBank": "bank name" or null,
-  "confidence": "high" or "medium" or "low"
-}
-
-ACCEPT as genuine:
-- Bank mobile app screenshots (no camera data is normal and expected)
-- Browser screenshots of internet banking portals
-- Camera photos of a physical printed receipt (may have blur, shadows, angle)
-- Compression artifacts, dark backgrounds, partial crops — all normal
-- Simple SMS transfer confirmations
-
-FLAG as suspicious:
-- Text typed onto a plain coloured background with no bank UI
-- Mismatched fonts within the same receipt (different weight/family on amounts vs labels)
-- Numbers that look like they were pasted on top of the original
-- A blank bank receipt template with values filled in
-- If metadata flags are present below, treat that as strong supporting evidence
-
-Sri Lankan banks: Commercial Bank, People's Bank, Sampath, HNB, BOC, NSB, Seylan, Nations Trust, DFCC, Pan Asia.
-
-BINARY METADATA ANALYSIS:
-${metaLines.join("\n")}
-
-Expected amount: LKR ${expectedAmount.toLocaleString()}
-Expected reference code: ${expectedRef}`,
-          },
-        ],
-      }],
-      max_tokens: 512,
-    }),
-  });
-
-  if (!res.ok) throw new Error("GEMINI_UNAVAILABLE");
-  const data = await res.json();
-  const raw  = data.choices?.[0]?.message?.content || "{}";
-  console.log("Groq Vision response:", raw);
-  try { return JSON.parse(raw.replace(/```json|```/g, "").trim()); }
-  catch { throw new Error("GEMINI_PARSE_ERROR"); }
-};
-
-// ─── Groq: analyse PDF text ───────────────────────────────────────────────────
-const analysePdfWithGroq = async (pdfText, expectedAmount, expectedRef) => {
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method:  "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.GROQ_API_KEY}` },
-    body: JSON.stringify({
-      model: "llama3-70b-8192",
-      messages: [
-        {
-          role: "system",
-          content: "You are a payment receipt verifier. Analyse text extracted from a PDF bank document. Respond ONLY with valid JSON — no markdown, no extra text.",
-        },
-        {
-          role: "user",
-          content: `Analyse this PDF receipt text.
-
-Return exactly this JSON:
-{
-  "isGenuineReceipt": true or false,
-  "authenticityReason": "one sentence",
-  "suspiciousFlags": [],
-  "extractedAmount": 12500.00 or null,
-  "extractedRef": "REF1234" or null,
-  "extractedDate": "DD/MM/YYYY" or null,
-  "extractedBank": "bank name" or null,
-  "confidence": "high" or "medium" or "low"
-}
-
-Checks:
-- Does this look like a machine-generated bank document (transaction ID, account numbers, bank name, timestamps)?
-- Is the structure consistent with Sri Lankan bank receipts (Commercial Bank, People's Bank, Sampath, HNB, BOC, NSB, Seylan, Nations Trust, DFCC, Pan Asia)?
-- Hand-typed plain text with no bank document structure should be flagged
-
-Expected amount: LKR ${expectedAmount.toLocaleString()}
-Expected reference: ${expectedRef}
-
-PDF text:
----
-${pdfText.slice(0, 3000)}
----`,
-        },
-      ],
-      max_tokens: 512,
-      temperature: 0.1,
-    }),
-  });
-
-  if (!res.ok) throw new Error("GEMINI_UNAVAILABLE");
-  const data = await res.json();
-  const raw  = data.choices?.[0]?.message?.content || "{}";
-  console.log("Groq PDF response:", raw);
-  try { return JSON.parse(raw.replace(/```json|```/g, "").trim()); }
-  catch { throw new Error("GEMINI_PARSE_ERROR"); }
-};
-
-// ─── GET /Payment/plans ───────────────────────────────────────────────────────
+// ─── GET PLANS ─────────────────────────────────────────────
 exports.getPlans = (req, res) => {
   const plans = Object.entries(PLANS).map(([key, val]) => ({ key, ...val }));
   res.json({ success: true, plans });
 };
 
-// ─── POST /Payment/create ─────────────────────────────────────────────────────
+// ─── CREATE PAYMENT ────────────────────────────────────────
 exports.createPayment = async (req, res) => {
   try {
     const { hostId, listingId, listingType, plan } = req.body;
-    if (!hostId)                                          return res.status(400).json({ success: false, message: "hostId is required." });
-    if (!PLANS[plan])                                     return res.status(400).json({ success: false, message: "Invalid plan selected." });
-    if (!["food", "accommodation"].includes(listingType)) return res.status(400).json({ success: false, message: "Invalid listing type." });
-    if (!listingId)                                       return res.status(400).json({ success: false, message: "listingId is required." });
+
+    if (!hostId) return res.status(400).json({ success: false, message: "hostId is required." });
+    if (!PLANS[plan]) return res.status(400).json({ success: false, message: "Invalid plan selected." });
 
     const { amount, daysAdded } = PLANS[plan];
-    const Model   = listingType === "food" ? FoodService : Accommodation;
-    const listing = await Model.findById(listingId).select("expireDate");
-    const previewExpireDate = calcNewExpireDate(listing?.expireDate, daysAdded);
-    const referenceCode     = await generateReferenceCode();
+
+    const referenceCode = await generateReferenceCode();
 
     const payment = await Payment.create({
-      host: hostId, listing: listingId, listingType, plan,
-      amount, daysAdded, newExpireDate: previewExpireDate, referenceCode, status: "created",
+      host: hostId,
+      listing: listingId,
+      listingType,
+      plan,
+      amount,
+      daysAdded,
+      referenceCode,
+      status: "created",
     });
 
     res.status(201).json({
       success: true,
-      message: "Payment record created. Please transfer the amount using your reference code.",
-      payment: {
-        _id: payment._id, referenceCode: payment.referenceCode, plan: payment.plan,
-        amount: payment.amount, daysAdded: payment.daysAdded,
-        newExpireDate: payment.newExpireDate, status: payment.status, createdAt: payment.createdAt,
-      },
+      payment,
     });
+
   } catch (err) {
     console.error("createPayment error:", err);
     res.status(500).json({ success: false, message: "Server error.", error: err.message });
   }
 };
 
-// ─── GET /Payment/my?hostId=xxx ───────────────────────────────────────────────
+// ─── GET MY PAYMENTS ───────────────────────────────────────
 exports.getMyPayments = async (req, res) => {
   try {
     const { hostId } = req.query;
-    if (!hostId) return res.status(400).json({ success: false, message: "hostId is required." });
-    const payments = await Payment.find({ host: hostId }).sort({ createdAt: -1 }).select("-receiptImage -rawOcrText");
+
+    if (!hostId) {
+      return res.status(400).json({ success: false, message: "hostId is required." });
+    }
+
+    const payments = await Payment.find({ host: hostId })
+      .sort({ createdAt: -1 })
+      .select("-receiptImage -rawOcrText");
+
     res.json({ success: true, payments });
+
   } catch (err) {
     console.error("getMyPayments error:", err);
     res.status(500).json({ success: false, message: "Server error.", error: err.message });
   }
 };
 
-// ─── GET /Payment/:id?hostId=xxx ─────────────────────────────────────────────
+// ─── GET PAYMENT BY ID (FIXED) ─────────────────────────────
 exports.getPaymentById = async (req, res) => {
   try {
     const { hostId } = req.query;
-    const payment = await Payment.findOne({ _id: req.params.id, host: hostId }).select("-receiptImage -rawOcrText");
-    if (!payment) return res.status(404).json({ success: false, message: "Payment not found." });
-    res.json({ success: true, payment });
+    const { id } = req.params;
+
+    // ✅ Prevent crash
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Payment ID",
+      });
+    }
+
+    const payment = await Payment.findOne({
+      _id: id,
+      host: hostId,
+    }).select("-receiptImage -rawOcrText");
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "Payment not found.",
+      });
+    }
+
+    res.json({
+      success: true,
+      payment,
+    });
+
   } catch (err) {
     console.error("getPaymentById error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error.",
+      error: err.message,
+    });
+  }
+};
+
+// ─── CANCEL PAYMENT ────────────────────────────────────────
+exports.cancelPayment = async (req, res) => {
+  try {
+    const payment = await Payment.findByIdAndUpdate(
+      req.params.id,
+      { $set: { status: "cancelled" } },
+      { new: true }
+    );
+    if (!payment) return res.status(404).json({ success: false, message: "Payment not found." });
+    res.json({ success: true, message: "Payment cancelled.", payment });
+  } catch (err) {
     res.status(500).json({ success: false, message: "Server error.", error: err.message });
   }
 };
 
-// ─── GET /Payment/:id/receipt-image ──────────────────────────────────────────
+// ─── GET RECEIPT IMAGE ─────────────────────────────────────
 exports.getReceiptImage = async (req, res) => {
   try {
-    const query = { _id: req.params.id };
-    if (req.query.hostId) query.host = req.query.hostId;
-    const payment = await Payment.findOne(query).select("receiptImage receiptMimeType host");
-    if (!payment)              return res.status(404).json({ success: false, message: "Payment not found." });
-    if (!payment.receiptImage) return res.status(404).json({ success: false, message: "No receipt file uploaded yet." });
-    res.set("Content-Type", payment.receiptMimeType || "image/jpeg");
-    res.set("Cache-Control", "no-store, no-cache, must-revalidate");
-    res.set("Pragma", "no-cache");
-    res.send(payment.receiptImage);
+    const payment = await Payment.findById(req.params.id)
+      .select("receiptImage receiptMimeType");
+
+    if (!payment || !payment.receiptImage) {
+      return res.status(404).json({ success: false, message: "Receipt image not found." });
+    }
+
+    // Convert MongoDB buffer to proper Buffer
+    const imageBuffer = Buffer.isBuffer(payment.receiptImage)
+      ? payment.receiptImage
+      : Buffer.from(payment.receiptImage.buffer ?? payment.receiptImage);
+
+    res.set("Content-Type", payment.receiptMimeType || "image/png");
+    res.set("Content-Length", imageBuffer.length);
+    res.set("Cache-Control", "no-store");
+    res.end(imageBuffer);
+
   } catch (err) {
     console.error("getReceiptImage error:", err);
     res.status(500).json({ success: false, message: "Server error.", error: err.message });
   }
 };
 
-// ─── POST /Payment/:id/upload-receipt ────────────────────────────────────────
+// ─── UPLOAD RECEIPT ────────────────────────────────────────
 exports.uploadReceipt = async (req, res) => {
   try {
-    const payment = await Payment.findById(req.params.id);
-    if (!payment) return res.status(404).json({ success: false, message: "Payment not found." });
-
-    if (["verified", "manual_requested"].includes(payment.status)) {
-      return res.status(400).json({ success: false, message: `Payment is already ${payment.status}.` });
-    }
-
     if (!req.file) {
-      return res.status(400).json({ success: false, message: "No receipt file uploaded." });
+      return res.status(400).json({ success: false, message: "No file uploaded." });
     }
-
-    const isPdf = req.file.mimetype === "application/pdf";
-
-    let parsed     = {};
-    let metaResult = { flags: [], software: null, sourceType: "unknown", hasExif: false, hardEvidence: false };
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // PATH A — PDF
-    // ══════════════════════════════════════════════════════════════════════════
-    if (isPdf) {
-      const pdfText = await (async () => {
-        try { const d = await pdfParse(req.file.buffer); return d.text || ""; }
-        catch (e) { console.error("pdf-parse error:", e.message); return ""; }
-      })();
-
-      if (!pdfText || pdfText.trim().length < 30) {
-        // Image-only scanned PDF — we can't analyse it.  Push to manual review.
-        return res.status(400).json({
-          success: false,
-          message: "This PDF has no readable text (it may be a scanned image). Please upload a bank-generated PDF, or submit a photo or screenshot of your receipt instead.",
-          reason:  "Image-only PDF cannot be verified automatically",
-          flags:   ["PDF contained no extractable text"],
-        });
-      }
-
-      metaResult.sourceType = "pdf_document";
-
-      try {
-        parsed = await analysePdfWithGroq(pdfText, payment.amount, payment.referenceCode);
-      } catch (err) {
-        if (err.message === "GEMINI_UNAVAILABLE") return res.status(502).json({ success: false, message: "Receipt analysis service unavailable. Please try again." });
-        if (err.message === "GEMINI_PARSE_ERROR")  return res.status(502).json({ success: false, message: "Could not read receipt analysis. Please try again." });
-        throw err;
-      }
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // PATH B — Image (screenshot / camera photo / scanned image)
-    // ══════════════════════════════════════════════════════════════════════════
-    } else {
-      // Step 1: Binary metadata check (no network, ~5 ms)
-      try {
-        metaResult = await analyseImageMetadata(req.file.buffer, req.file.mimetype);
-        console.log("Metadata result:", JSON.stringify(metaResult));
-      } catch (e) {
-        console.warn("Metadata analysis non-fatal error:", e.message);
-      }
-
-      // Step 2: Hard evidence → reject before calling Groq
-      if (metaResult.hardEvidence) {
-        return res.status(400).json({
-          success: false,
-          message: "This image appears to have been created or edited with image editing software.",
-          reason:  metaResult.flags[0] || "",
-          flags:   metaResult.flags,
-          metaCheck: { software: metaResult.software, flags: metaResult.flags },
-        });
-      }
-
-      // Step 3: Groq Vision (metadata context injected into prompt)
-      try {
-        parsed = await analyseImageWithGroq(
-          req.file.buffer, req.file.mimetype,
-          payment.amount, payment.referenceCode, metaResult
-        );
-      } catch (err) {
-        if (err.message === "GEMINI_UNAVAILABLE") return res.status(502).json({ success: false, message: "Receipt analysis service unavailable. Please try again." });
-        if (err.message === "GEMINI_PARSE_ERROR")  return res.status(502).json({ success: false, message: "Could not read receipt analysis. Please try again." });
-        throw err;
-      }
-
-      // Step 4: Groq confident it is fake → reject
-      if (parsed.isGenuineReceipt === false && parsed.confidence !== "low") {
-        return res.status(400).json({
-          success: false,
-          message: "This image does not appear to be a genuine bank receipt.",
-          reason:  parsed.authenticityReason || "",
-          flags:   [...(parsed.suspiciousFlags || []), ...(metaResult.flags || [])],
-          metaCheck: { software: metaResult.software, flags: metaResult.flags },
-        });
-      }
-    }
-
-    // ── Amount + reference matching ───────────────────────────────────────────
-    const extractedAmount = parseFloat(parsed.extractedAmount) || 0;
-    const extractedRef    = (parsed.extractedRef || "").toUpperCase().trim();
-
-    const amountMatched = extractedAmount > 0
-      && extractedAmount >= payment.amount
-      && extractedAmount <= payment.amount + 1;
-
-    const refMatched = extractedRef
-      ? extractedRef.includes(payment.referenceCode.toUpperCase())
-      : false;
-
-    const newStatus = (amountMatched && refMatched) ? "verified" : "pending";
-
-    // ── Activate listing if verified ──────────────────────────────────────────
-    let finalExpireDate = payment.newExpireDate;
-    if (newStatus === "verified") {
-      finalExpireDate = await applyExpireDateToListing(
-        payment.listing, payment.listingType, payment.daysAdded
-      );
-    }
-
-    // ── Persist ───────────────────────────────────────────────────────────────
-    const updated = await Payment.findByIdAndUpdate(
-      req.params.id,
-      {
-        status:            newStatus,
-        receiptUploadedAt: new Date(),
+    await Payment.findByIdAndUpdate(req.params.id, {
+      $set: {
         receiptImage:      req.file.buffer,
-        receiptMimeType:   req.file.mimetype,
-        extractedAmount:   extractedAmount || 0,
-        extractedRef:      parsed.extractedRef  || "",
-        extractedDate:     parsed.extractedDate || "",
-        extractedBank:     parsed.extractedBank || "",
-        rawOcrText: JSON.stringify({
-          source:             isPdf ? "groq-text" : "groq-vision",
-          isGenuineReceipt:   parsed.isGenuineReceipt,
-          authenticityReason: parsed.authenticityReason,
-          suspiciousFlags:    [...(parsed.suspiciousFlags || []), ...(metaResult.flags || [])],
-          confidence:         parsed.confidence,
-          metaCheck:          isPdf ? null : {
-            software: metaResult.software, flags: metaResult.flags,
-            sourceType: metaResult.sourceType, hasExif: metaResult.hasExif,
-          },
-        }),
-        amountMatched,
-        refMatched,
-        newExpireDate: finalExpireDate,
-      },
-      { returnDocument: "after" }
-    ).select("-receiptImage -rawOcrText");
-
-    res.json({
-      success: true,
-      message: newStatus === "verified"
-        ? "Payment verified! Your listing is now active."
-        : "Receipt uploaded. Verification incomplete — please request manual review if needed.",
-      payment: updated,
-      verification: {
-        amountMatched,
-        refMatched,
-        newStatus,
-        newExpireDate:      finalExpireDate,
-        isGenuineReceipt:   parsed.isGenuineReceipt,
-        authenticityReason: parsed.authenticityReason,
-        suspiciousFlags:    [...(parsed.suspiciousFlags || []), ...(metaResult.flags || [])],
-        confidence:         parsed.confidence,
-        receiptType:        isPdf ? "pdf" : metaResult.sourceType,
-        metaCheck:          isPdf ? null : {
-          software:   metaResult.software  || null,
-          flags:      metaResult.flags     || [],
-          sourceType: metaResult.sourceType,
-          hasExif:    metaResult.hasExif,
-        },
-        extracted: {
-          amount: parsed.extractedAmount,
-          ref:    parsed.extractedRef,
-          date:   parsed.extractedDate,
-          bank:   parsed.extractedBank,
-        },
-      },
+        receiptMimeType:   req.file.mimetype,  // ← saves mime type
+        receiptUploadedAt: new Date(),
+        status:            "pending",
+      }
     });
-
+    res.json({ success: true, message: "Receipt uploaded successfully." });
   } catch (err) {
-    console.error("uploadReceipt error:", err);
     res.status(500).json({ success: false, message: "Server error.", error: err.message });
   }
 };
 
-// ─── PATCH /Payment/:id/manual-request ───────────────────────────────────────
+// ─── REQUEST MANUAL REVIEW ─────────────────────────────────
 exports.requestManualReview = async (req, res) => {
   try {
-    const payment = await Payment.findById(req.params.id);
-    if (!payment) return res.status(404).json({ success: false, message: "Payment not found." });
-    if (payment.status === "verified")         return res.status(400).json({ success: false, message: "Payment is already verified." });
-    if (payment.status === "manual_requested") return res.status(400).json({ success: false, message: "Manual review already requested." });
-    if (!["pending", "created"].includes(payment.status)) {
-      return res.status(400).json({ success: false, message: `Cannot request manual review for status "${payment.status}".` });
-    }
-    const updated = await Payment.findByIdAndUpdate(
+    const payment = await Payment.findByIdAndUpdate(
       req.params.id,
-      { status: "manual_requested", note: req.body.note || "" },
-      { returnDocument: "after" }
-    ).select("-receiptImage -rawOcrText");
-    res.json({ success: true, message: "Manual review requested. An admin will verify your payment within 24 hours.", payment: updated });
+      { $set: { status: "manual_review_requested" } },
+      { new: true }
+    );
+    if (!payment) {
+      return res.status(404).json({ success: false, message: "Payment not found." });
+    }
+    res.json({ success: true, message: "Manual review requested.", payment });
   } catch (err) {
-    console.error("requestManualReview error:", err);
     res.status(500).json({ success: false, message: "Server error.", error: err.message });
   }
 };
 
-// ─── PATCH /Payment/:id/cancel ────────────────────────────────────────────────
-exports.cancelPayment = async (req, res) => {
+// ─── VERIFY PAYMENT (ADMIN) ────────────────────────────────
+exports.verifyPayment = async (req, res) => {
   try {
-    const { hostId } = req.body;
-    const payment = await Payment.findOne({ _id: req.params.id, host: hostId });
+    const payment = await Payment.findByIdAndUpdate(
+      req.params.id,
+      { $set: { status: "verified" } },
+      { new: true }
+    );
     if (!payment) return res.status(404).json({ success: false, message: "Payment not found." });
-    if (!["created", "pending"].includes(payment.status)) {
-      return res.status(400).json({ success: false, message: `Cannot cancel a payment with status "${payment.status}".` });
-    }
-    await Payment.deleteOne({ _id: payment._id });
-    res.json({ success: true, message: "Payment cancelled and removed." });
+    res.json({ success: true, message: "Payment verified.", payment });
   } catch (err) {
-    console.error("cancelPayment error:", err);
     res.status(500).json({ success: false, message: "Server error.", error: err.message });
   }
 };
