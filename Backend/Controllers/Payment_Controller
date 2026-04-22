@@ -224,16 +224,213 @@ exports.uploadReceipt = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ success: false, message: "No file uploaded." });
     }
-    await Payment.findByIdAndUpdate(req.params.id, {
-      $set: {
-        receiptImage:      req.file.buffer,
-        receiptMimeType:   req.file.mimetype,  // ← saves mime type
-        receiptUploadedAt: new Date(),
-        status:            "pending",
+
+    const payment = await Payment.findById(req.params.id);
+    if (!payment) {
+      return res.status(404).json({ success: false, message: "Payment not found." });
+    }
+
+    const isPdf     = req.file.mimetype === "application/pdf";
+    const fileBuffer = req.file.buffer;
+
+    // ─── Step 1: Metadata check (images only) ──────────────
+    let metaCheck = null;
+    if (!isPdf) {
+      try {
+        const exif     = await exifr.parse(fileBuffer, { tiff: true, exif: true, gps: false });
+        const software = exif?.Software ?? exif?.ProcessingSoftware ?? null;
+        const flags    = [];
+        const editingTools = ["photoshop", "gimp", "lightroom", "illustrator", "canva", "snapseed", "pixlr"];
+        if (software && editingTools.some(t => software.toLowerCase().includes(t))) {
+          flags.push(`Editing software detected: ${software}`);
+        }
+        metaCheck = { hasExif: !!exif, software: software ?? null, flags };
+      } catch {
+        metaCheck = { hasExif: false, software: null, flags: [] };
       }
+    }
+
+    // ─── Step 2: Extract text ───────────────────────────────
+    let extractedText = "";
+    let receiptType   = isPdf ? "pdf_document" : "bank_screenshot";
+
+    if (isPdf) {
+      try {
+        const pdfData  = await pdfParse(fileBuffer);
+        extractedText  = pdfData.text ?? "";
+      } catch {
+        extractedText = "";
+      }
+    } else {
+      // For images, pass base64 to Groq vision
+      extractedText = fileBuffer.toString("base64");
+    }
+
+    // ─── Step 3: Groq AI verification ──────────────────────
+    const GROQ_API_KEY = process.env.GROQ_API_KEY;
+    let groqResult = null;
+
+    try {
+      const prompt = isPdf
+        ? `You are a payment receipt verifier. Analyze this bank receipt text and extract details.
+
+Receipt text:
+${extractedText}
+
+Expected amount: ${payment.amount} LKR
+Expected reference: ${payment.referenceCode}
+
+Respond ONLY with this JSON (no markdown, no extra text):
+{
+  "isGenuineReceipt": true/false,
+  "authenticityReason": "brief reason",
+  "suspiciousFlags": [],
+  "receiptType": "pdf_document",
+  "confidence": 0.0-1.0,
+  "extracted": {
+    "amount": number or null,
+    "ref": "string or null",
+    "date": "string or null",
+    "bank": "string or null"
+  }
+}`
+        : `You are a payment receipt verifier. Analyze this bank receipt image (base64) and extract details.
+
+Expected amount: ${payment.amount} LKR
+Expected reference: ${payment.referenceCode}
+${metaCheck?.flags?.length ? `Metadata flags: ${metaCheck.flags.join(", ")}` : "Metadata: clean"}
+
+The image is base64 encoded. Look for bank transfer details.
+
+Respond ONLY with this JSON (no markdown, no extra text):
+{
+  "isGenuineReceipt": true/false,
+  "authenticityReason": "brief reason",
+  "suspiciousFlags": [],
+  "receiptType": "bank_screenshot",
+  "confidence": 0.0-1.0,
+  "extracted": {
+    "amount": number or null,
+    "ref": "string or null",
+    "date": "string or null",
+    "bank": "string or null"
+  }
+}`;
+
+      const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method:  "POST",
+        headers: {
+          "Content-Type":  "application/json",
+          "Authorization": `Bearer ${GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: isPdf ? "llama-3.3-70b-versatile" : "meta-llama/llama-4-scout-17b-16e-instruct",
+          max_tokens:  500,
+          messages: [
+            {
+              role:    "user",
+              content: isPdf
+                ? prompt
+                : [
+                    { type: "text",       text: prompt },
+                    { type: "image_url",  image_url: { url: `data:${req.file.mimetype};base64,${extractedText}` } },
+                  ],
+            },
+          ],
+        }),
+      });
+
+      const groqData = await groqRes.json();
+      const raw      = groqData?.choices?.[0]?.message?.content ?? "{}";
+      const clean    = raw.replace(/```json|```/g, "").trim();
+      groqResult     = JSON.parse(clean);
+
+    } catch (err) {
+      console.error("Groq error:", err.message);
+      groqResult = {
+        isGenuineReceipt:   true,
+        authenticityReason: "AI verification unavailable — manual check required",
+        suspiciousFlags:    [],
+        receiptType,
+        confidence:         0.5,
+        extracted:          { amount: null, ref: null, date: null, bank: null },
+      };
+    }
+
+    // ─── Step 4: Match check ────────────────────────────────
+const extractedAmount = groqResult?.extracted?.amount ?? null;
+const extractedRef    = groqResult?.extracted?.ref || null;  // ← || null instead of ?? ""
+
+const amountMatched = !!(
+  extractedAmount !== null &&
+  Math.abs(Number(extractedAmount) - payment.amount) <= 1
+);
+
+const refMatched = !!(
+  extractedRef &&
+  extractedRef.toUpperCase().includes(payment.referenceCode.toUpperCase())
+);
+
+    // ─── Step 5: Determine status ───────────────────────────
+    const newStatus = amountMatched && refMatched ? "verified" : "manual_requested";
+// ← make sure it's "manual_requested" not "manual_review_requested"
+
+    // ─── Step 6: Apply expire date if verified ──────────────
+    let newExpireDate = null;
+    if (newStatus === "verified") {
+      try {
+        newExpireDate = await applyExpireDateToListing(payment.listing, payment.listingType, payment.daysAdded);
+      } catch (err) {
+        console.error("applyExpireDate error:", err.message);
+      }
+    }
+
+    // ─── Step 7: Save everything ────────────────────────────
+    const updatedPayment = await Payment.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: {
+          receiptImage:      fileBuffer,
+          receiptMimeType:   req.file.mimetype,
+          receiptUploadedAt: new Date(),
+          status:            newStatus,
+          extractedAmount:   extractedAmount ?? null,
+          extractedRef: extractedRef || null,
+          extractedDate:     groqResult?.extracted?.date ?? null,
+          extractedBank:     groqResult?.extracted?.bank ?? null,
+          amountMatched,
+          refMatched,
+          ...(newExpireDate && { newExpireDate }),
+        },
+      },
+      { returnDocument: "after", select: "-receiptImage -rawOcrText" }
+    );
+
+    // ─── Step 8: Return full verification result ────────────
+    res.json({
+      success: true,
+      payment: updatedPayment,
+      verification: {
+        newStatus,
+        amountMatched,
+        refMatched,
+        isGenuineReceipt:   groqResult?.isGenuineReceipt   ?? true,
+        authenticityReason: groqResult?.authenticityReason ?? null,
+        suspiciousFlags:    groqResult?.suspiciousFlags     ?? [],
+        confidence:         groqResult?.confidence          ?? null,
+        receiptType:        groqResult?.receiptType         ?? receiptType,
+        metaCheck,
+        extracted: {
+          amount: extractedAmount,
+          ref:    extractedRef    || null,
+          date:   groqResult?.extracted?.date ?? null,
+          bank:   groqResult?.extracted?.bank ?? null,
+        },
+      },
     });
-    res.json({ success: true, message: "Receipt uploaded successfully." });
+
   } catch (err) {
+    console.error("uploadReceipt error:", err);
     res.status(500).json({ success: false, message: "Server error.", error: err.message });
   }
 };
@@ -243,7 +440,7 @@ exports.requestManualReview = async (req, res) => {
   try {
     const payment = await Payment.findByIdAndUpdate(
       req.params.id,
-      { $set: { status: "manual_review_requested" } },
+      { $set: { status: "manual_requested" } },  // ← was "manual_review_requested"
       { new: true }
     );
     if (!payment) {

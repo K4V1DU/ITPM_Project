@@ -304,7 +304,7 @@ export default function PaymentReceipt() {
   if (isVerified) return (
     <div className="pr-page">
       <div className="pr-topbar">
-        <button className="pr-topbar__back" onClick={() => navigate("/PaymentHistory")}><FaArrowLeft size={13} /> Back</button>
+        <button className="pr-topbar__back" onClick={() => navigate("/PaymentHistory", { state: { refresh: true } })}><FaArrowLeft size={13} /> Back</button>
         <span className="pr-topbar__title">Payment Verified</span>
         <div />
       </div>
@@ -338,7 +338,7 @@ export default function PaymentReceipt() {
   if (isManual && manualSent) return (
     <div className="pr-page">
       <div className="pr-topbar">
-        <button className="pr-topbar__back" onClick={() => navigate("/PaymentHistory")}><FaArrowLeft size={13} /> Back</button>
+        <button className="pr-topbar__back" onClick={() => navigate("/PaymentHistory", { state: { refresh: true } })}><FaArrowLeft size={13} /> Back</button>
         <span className="pr-topbar__title">Manual Review</span>
         <div />
       </div>
@@ -360,7 +360,7 @@ export default function PaymentReceipt() {
   return (
     <div className="pr-page">
       <div className="pr-topbar">
-        <button className="pr-topbar__back" onClick={() => navigate("/PaymentHistory")}><FaArrowLeft size={13} /> Back</button>
+        <button className="pr-topbar__back" onClick={() => navigate("/PaymentHistory", { state: { refresh: true } })}><FaArrowLeft size={13} /> Back</button>
         <span className="pr-topbar__title">Upload Payment Receipt</span>
         <div className="pr-topbar__status" style={{ background: statusCfg.bg, color: statusCfg.color, borderColor: statusCfg.bdr }}>
           {statusCfg.label}
@@ -671,7 +671,7 @@ export default function PaymentReceipt() {
           )}
 
           {ocrResult && (
-            <button className="pr-btn-ghost pr-btn-wide" onClick={() => navigate("/PaymentHistory")}>
+            <button className="pr-btn-ghost pr-btn-wide" onClick={() => navigate("/PaymentHistory", { state: { refresh: true } })}>
               View in Payment History
             </button>
           )}

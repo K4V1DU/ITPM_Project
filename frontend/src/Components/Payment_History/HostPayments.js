@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   FaReceipt, FaCheckCircle, FaTimesCircle, FaClock,
   FaExclamationTriangle, FaSearch, FaSyncAlt, FaBoxOpen,
@@ -44,10 +44,11 @@ function formatDate(dateStr) {
 
 // ── Status config ──────────────────────────────────────────────────────────
 const STATUS = {
-  created:          { bg: "#fff7ed", text: "#c2410c", dot: ORANGE,    border: "#fcd9c4", label: "Awaiting Payment",  icon: <FaClock /> },
+  created:          { bg: "#fff7ed", text: "#c2410c", dot: ORANGE,    border: "#fcd9c4", label: "Awaiting Payment",    icon: <FaClock /> },
   pending:          { bg: "#fef2f2", text: "#b91c1c", dot: "#ef4444", border: "#fecaca", label: "Verification Failed", icon: <FaTimesCircle /> },
-  verified:         { bg: "#f0fdf4", text: "#15803d", dot: "#22c55e", border: "#bbf7d0", label: "Verified",          icon: <FaCheckCircle /> },
-  manual_requested: { bg: "#f0f9ff", text: "#0369a1", dot: "#0ea5e9", border: "#bae6fd", label: "Manual Review",     icon: <FaInfoCircle /> },
+  verified:         { bg: "#f0fdf4", text: "#15803d", dot: "#22c55e", border: "#bbf7d0", label: "Verified",            icon: <FaCheckCircle /> },
+  manual_requested: { bg: "#f0f9ff", text: "#0369a1", dot: "#0ea5e9", border: "#bae6fd", label: "Manual Review",       icon: <FaInfoCircle /> },
+  cancelled:        { bg: "#f3f4f6", text: "#6b7280", dot: "#9ca3af", border: "#e5e7eb", label: "Cancelled", icon: <FaTimesCircle /> },
 };
 
 function StatusBadge({ status }) {
@@ -240,7 +241,7 @@ function PaymentDetail({ payment, listing, receiptImage, onExpandReceipt, onCanc
       {/* Header */}
       <div className="hp-detail__header">
         <div className="hp-detail__header-row">
-          <div className="hp-detail__listing">cd frontend
+          <div className="hp-detail__listing">
             <div className="hp-detail__listing-icon">
               {listing?.iconUrl
                 ? <img src={listing.iconUrl} alt="listing" className="hp-detail__listing-img"
@@ -351,6 +352,7 @@ function CancelModal({ payment, onConfirm, onClose, loading }) {
 // ── MAIN ───────────────────────────────────────────────────────────────────
 export default function HostPayments() {
   const navigate = useNavigate();
+  const location = useLocation(); 
   const hostId   = localStorage.getItem("CurrentUserId");
 
   const [payments,       setPayments]       = useState([]);
@@ -383,6 +385,13 @@ export default function HostPayments() {
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, []);
+
+  // Refresh when returning from PaymentReceipt page
+  useEffect(() => {
+  if (location.state?.refresh) {
+    setLastRefresh(Date.now());
+    }
+  }, [location.state]);
 
   // Fetch payments
   useEffect(() => {
@@ -481,7 +490,7 @@ export default function HostPayments() {
 
 
 
-  const TABS = ["all", "created", "pending", "verified", "manual_requested"];
+  const TABS = ["all", "created", "pending", "verified", "manual_requested","cancelled"];
 
   const filteredPayments = payments.filter(p => {
     const matchStatus = statusFilter === "all" || p.status === statusFilter;
@@ -494,8 +503,12 @@ export default function HostPayments() {
   });
 
   const TAB_LABELS = {
-    all: "All", created: "Awaiting", pending: "Verification Failed",
-    verified: "Verified", manual_requested: "Manual Review",
+    all:               "All",
+  created:           "Awaiting",
+  pending:           "Verification Failed",
+  verified:          "Verified",
+  manual_requested:  "Manual Review",
+  cancelled:        "Cancelled",
   };
 
   return (
