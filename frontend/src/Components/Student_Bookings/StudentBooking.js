@@ -27,6 +27,7 @@ import StudentNavbar from "../NavBar/Student_NavBar/StudentNavbar";
 import Footer from "../NavBar/Footer/Footer";
 import "./StudentBooking.css";
 
+
 const API_BASE    = process.env.REACT_APP_API_BASE_URL;
 const BOOKING_API = `${API_BASE}/Booking`;
 const ORANGE      = "#FF6B2B";
