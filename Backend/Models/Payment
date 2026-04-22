@@ -16,10 +16,10 @@ const PaymentSchema = new mongoose.Schema({
 
 
   status: {
-    type: String,
-    enum: ["created", "pending", "verified", "rejected", "manual_requested"],
-    default: "created",
-  },
+  type: String,
+  enum: ["created", "pending", "verified", "rejected", "manual_requested", "cancelled"],
+  default: "created",
+},
 
   // Receipt (stored after upload step)
   receiptImage:     { type: Buffer },

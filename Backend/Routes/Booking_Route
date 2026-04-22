@@ -5,9 +5,13 @@ const {
   createBooking,
   getStudentBookings,
   getHostBookings,
+  getAllBookings,
   updateBookingStatus,
   deleteBooking,
 } = require("../Controllers/Booking_Controller");
+
+// Booking_Route.js
+router.get("/", getAllBookings);  
 
 // Create booking
 router.post("/", createBooking);

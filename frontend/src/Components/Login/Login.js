@@ -14,9 +14,7 @@ export default function Login() {
   const [loading,  setLoading]  = useState(false);
   const [showPass, setShowPass] = useState(false);
 
-  useEffect(() => {
-    localStorage.removeItem("CurrentUserId");
-  }, []);
+  
 
   const handleLogin = async (e) => {
     e.preventDefault();

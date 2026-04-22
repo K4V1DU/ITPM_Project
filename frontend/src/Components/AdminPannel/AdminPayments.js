@@ -49,7 +49,7 @@ export default function AdminPayments() {
   const fetchPayments = () => {
     setLoading(true);
     // Try admin-all endpoint first, fall back to host query
-    fetch(`${API_BASE}/Payment/admin/all`)
+    fetch(`${API_BASE}/Payment/all`)
       .then(r => r.ok ? r.json() : fetch(`${API_BASE}/Payment/my?hostId=${userId}`).then(r2 => r2.json()))
       .then(raw => {
         const list = Array.isArray(unwrap(raw)) ? unwrap(raw)
