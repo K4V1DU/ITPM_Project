@@ -921,4 +921,5 @@ const AddAccommodation = () => {
   );
 };
 
+
 export default AddAccommodation;
