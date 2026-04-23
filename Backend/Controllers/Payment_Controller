@@ -372,8 +372,13 @@ const refMatched = !!(
 );
 
     // ─── Step 5: Determine status ───────────────────────────
-    const newStatus = amountMatched && refMatched ? "verified" : "manual_requested";
-// ← make sure it's "manual_requested" not "manual_review_requested"
+    const isGenuine = groqResult?.isGenuineReceipt === true;
+    const hasExtractedData = extractedAmount !== null || extractedRef !== null;
+
+    // Can request manual review only if genuine receipt with extractable data
+    const canRequestManualReview = isGenuine && hasExtractedData;
+
+    const newStatus = amountMatched && refMatched ? "verified" : "pending";
 
     // ─── Step 6: Apply expire date if verified ──────────────
     let newExpireDate = null;
@@ -403,7 +408,7 @@ const refMatched = !!(
           ...(newExpireDate && { newExpireDate }),
         },
       },
-      { returnDocument: "after", select: "-receiptImage -rawOcrText" }
+      { new: true, select: "-receiptImage -rawOcrText" }
     );
 
     // ─── Step 8: Return full verification result ────────────
@@ -414,6 +419,7 @@ const refMatched = !!(
         newStatus,
         amountMatched,
         refMatched,
+        canRequestManualReview,
         isGenuineReceipt:   groqResult?.isGenuineReceipt   ?? true,
         authenticityReason: groqResult?.authenticityReason ?? null,
         suspiciousFlags:    groqResult?.suspiciousFlags     ?? [],

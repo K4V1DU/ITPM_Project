@@ -248,6 +248,7 @@ export default function PaymentReceipt() {
         amountMatched:      verification.amountMatched,
         refMatched:         verification.refMatched,
         newStatus:          verification.newStatus,
+        canRequestManualReview:  verification.canRequestManualReview, 
         isGenuineReceipt:   verification.isGenuineReceipt,
         authenticityReason: verification.authenticityReason,
         suspiciousFlags:    verification.suspiciousFlags || [],
@@ -614,7 +615,7 @@ export default function PaymentReceipt() {
               </div>
 
               {/* Manual review */}
-              {(!ocrResult.amountMatched || !ocrResult.refMatched) && (
+              {(!ocrResult.amountMatched || !ocrResult.refMatched) && ocrResult.canRequestManualReview && (
                 <div className="pr-manual-block">
                   <div className="pr-manual-block__inner">
                     <div className="pr-manual-block__icon"><FaShieldAlt size={14} color="#e67e22" /></div>
